@@ -8,14 +8,22 @@ import { Button } from "@/components/ui/button"
 interface AppHeaderProps {
   title: string
   onOpenCommandPalette?: () => void
+  /** Rendered between sidebar trigger and title (e.g. "Back to Clients" link) */
+  breadcrumb?: React.ReactNode
   children?: React.ReactNode
 }
 
-export function AppHeader({ title, onOpenCommandPalette, children }: AppHeaderProps) {
+export function AppHeader({ title, onOpenCommandPalette, breadcrumb, children }: AppHeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-5" />
+      {breadcrumb && (
+        <>
+          {breadcrumb}
+          <Separator orientation="vertical" className="h-5" />
+        </>
+      )}
       <h1 className="text-base font-semibold text-foreground">{title}</h1>
       <div className="ml-auto flex items-center gap-2">
         {children}

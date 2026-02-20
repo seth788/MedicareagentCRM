@@ -106,7 +106,7 @@ export function AddContactsToFlowDialog({
   const handleConfirm = () => {
     if (!effectiveStageId || selectedIds.size === 0) return
     const toAdd = [...selectedIds].filter((id) => !alreadyInFlowIds.has(id))
-    const skipped = selectedIds.size - toAdd.size
+    const skipped = selectedIds.size - toAdd.length
     if (toAdd.length === 0) {
       goeyToast.error("No contacts added", {
         description: skipped > 0 ? "Selected contacts are already in this flow." : undefined,

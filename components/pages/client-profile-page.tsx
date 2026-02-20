@@ -1,7 +1,9 @@
 "use client"
 
 import { use } from "react"
+import Link from "next/link"
 import { notFound } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
 import { AppHeader } from "@/components/app-header"
 import { ClientProfileHeader } from "@/components/clients/profile-header"
 import { ClientTabs } from "@/components/clients/client-tabs"
@@ -37,9 +39,18 @@ export default function ClientProfilePageInner({
       <AppHeader
         title={`${client.firstName} ${client.lastName}`}
         onOpenCommandPalette={openCmd}
+        breadcrumb={
+          <Link
+            href="/clients"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            Back to Clients
+          </Link>
+        }
       />
       <div className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-5xl p-6">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
           <ClientProfileHeader client={client} />
           <div className="mt-6">
             <ClientTabs
