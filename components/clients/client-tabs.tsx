@@ -88,13 +88,13 @@ export function ClientTabs({ client, activities, tasks }: ClientTabsProps) {
 
   return (
     <div className="w-full">
-      {/* Section nav */}
+      {/* Pill-style section nav */}
       <nav
-        className="border-b bg-card"
+        className="rounded-xl border bg-card p-1.5"
         role="tablist"
         aria-label="Profile sections"
       >
-        <div className="flex overflow-x-auto scrollbar-thin">
+        <div className="flex gap-1 overflow-x-auto scrollbar-thin">
           {SECTIONS.map(({ id, label, icon: Icon }) => {
             const isActive = activeSection === id
             return (
@@ -107,47 +107,45 @@ export function ClientTabs({ client, activities, tasks }: ClientTabsProps) {
                 id={`tab-${id}`}
                 onClick={() => setActiveSection(id)}
                 className={`
-                  flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium
-                  transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                  flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium
+                  transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                   ${isActive
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }
                 `}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             )
           })}
         </div>
       </nav>
 
-      {/* Content area with subtle background */}
+      {/* Content area */}
       <div
         ref={contentRef}
         id="section-content"
-        className="min-h-[400px] bg-muted/30 py-6"
+        className="min-h-[400px] pt-6"
         role="tabpanel"
         aria-labelledby={`tab-${activeSection}`}
       >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          {activeSection === "contact" && (
-            <ContactSection {...sectionProps} />
-          )}
-          {activeSection === "health" && (
-            <HealthSection {...sectionProps} />
-          )}
-          {activeSection === "medicare" && (
-            <MedicareSection {...sectionProps} />
-          )}
-          {activeSection === "coverage" && (
-            <CoverageSection {...sectionProps} />
-          )}
-          {activeSection === "notes" && (
-            <NotesSection {...sectionProps} />
-          )}
-        </div>
+        {activeSection === "contact" && (
+          <ContactSection {...sectionProps} />
+        )}
+        {activeSection === "health" && (
+          <HealthSection {...sectionProps} />
+        )}
+        {activeSection === "medicare" && (
+          <MedicareSection {...sectionProps} />
+        )}
+        {activeSection === "coverage" && (
+          <CoverageSection {...sectionProps} />
+        )}
+        {activeSection === "notes" && (
+          <NotesSection {...sectionProps} />
+        )}
       </div>
     </div>
   )
