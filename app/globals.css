@@ -1,0 +1,112 @@
+@import "goey-toast/styles.css";
+
+/* Fix goey-toast description clipping when expanded */
+[data-goey-toast-css] .goey-description {
+  overflow: visible;
+}
+[data-goey-toast-css] .goey-contentExpanded {
+  padding-bottom: 18px;
+  min-height: fit-content;
+}
+[data-goey-toast-css] .goey-wrapper {
+  min-height: fit-content;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 12%;
+    --primary: 210 75% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 94%;
+    --secondary-foreground: 215 25% 12%;
+    --muted: 210 15% 94%;
+    --muted-foreground: 215 12% 50%;
+    --accent: 210 15% 94%;
+    --accent-foreground: 215 25% 12%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 18% 89%;
+    --input: 214 18% 89%;
+    --ring: 210 75% 42%;
+    --chart-1: 210 75% 42%;
+    --chart-2: 168 60% 40%;
+    --chart-3: 24 80% 55%;
+    --chart-4: 45 85% 55%;
+    --chart-5: 0 72% 51%;
+    --radius: 0.625rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 210 75% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 215 25% 12%;
+    --sidebar-border: 214 18% 91%;
+    --sidebar-ring: 210 75% 42%;
+    --success: 158 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+  .dark {
+    --background: 220 18% 8%;
+    --foreground: 210 15% 94%;
+    --card: 220 16% 11%;
+    --card-foreground: 210 15% 94%;
+    --popover: 220 16% 11%;
+    --popover-foreground: 210 15% 94%;
+    --primary: 210 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 16%;
+    --secondary-foreground: 210 15% 94%;
+    --muted: 220 14% 16%;
+    --muted-foreground: 215 12% 55%;
+    --accent: 220 14% 16%;
+    --accent-foreground: 210 15% 94%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 18%;
+    --input: 220 14% 18%;
+    --ring: 210 70% 50%;
+    --chart-1: 210 70% 50%;
+    --chart-2: 168 55% 45%;
+    --chart-3: 24 75% 55%;
+    --chart-4: 45 80% 55%;
+    --chart-5: 0 72% 51%;
+    --sidebar-background: 220 18% 8%;
+    --sidebar-foreground: 210 12% 70%;
+    --sidebar-primary: 210 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 14%;
+    --sidebar-accent-foreground: 210 15% 94%;
+    --sidebar-border: 220 14% 15%;
+    --sidebar-ring: 210 70% 50%;
+    --success: 158 55% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 90% 50%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
