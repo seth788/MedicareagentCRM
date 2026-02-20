@@ -30,12 +30,14 @@ export function MedicareSection({ client }: SectionProps) {
   const [revealDialog, setRevealDialog] = useState(false)
 
   return (
-    <div className="max-w-2xl">
-      <Card className="border-primary/20">
-        <CardHeader className="pb-4">
+    <div className="max-w-3xl">
+      <Card className="overflow-hidden border-primary/20">
+        <CardHeader className="border-b bg-muted/30 pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <ShieldAlert className="h-5 w-5 text-primary" />
+            <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <ShieldAlert className="h-4 w-4 text-primary" />
+              </div>
               Medicare Information
             </CardTitle>
             <Badge
@@ -63,11 +65,11 @@ export function MedicareSection({ client }: SectionProps) {
             </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-3">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Medicare Number</p>
-              <div className="mt-2 flex items-center gap-2">
-                <code className="font-mono text-sm text-foreground">
+          <div className="divide-y rounded-lg border">
+            <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+              <span className="text-sm text-muted-foreground">Medicare Number</span>
+              <div className="flex items-center gap-2">
+                <code className="font-mono text-sm font-medium text-foreground">
                   {maskMedicare(client.medicareNumber, showMedicare)}
                 </code>
                 <Button
@@ -93,21 +95,21 @@ export function MedicareSection({ client }: SectionProps) {
                 </Button>
               </div>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Part A Effective Date</p>
-              <p className="mt-2 text-sm text-foreground">
+            <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+              <span className="text-sm text-muted-foreground">Part A Effective Date</span>
+              <span className="text-sm text-foreground">
                 {client.partAEffectiveDate
                   ? format(parseLocalDate(client.partAEffectiveDate), "MMMM d, yyyy")
                   : "Not on file"}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Part B Effective Date</p>
-              <p className="mt-2 text-sm text-foreground">
+            <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+              <span className="text-sm text-muted-foreground">Part B Effective Date</span>
+              <span className="text-sm text-foreground">
                 {client.partBEffectiveDate
                   ? format(parseLocalDate(client.partBEffectiveDate), "MMMM d, yyyy")
                   : "Not on file"}
-              </p>
+              </span>
             </div>
           </div>
         </CardContent>

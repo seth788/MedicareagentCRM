@@ -90,10 +90,12 @@ export function CoverageSection({ client }: SectionProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-4">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Shield className="h-5 w-5 text-primary" />
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 pb-4">
+        <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/10">
+            <Shield className="h-4 w-4 text-chart-3" />
+          </div>
           {client.coverage ? "Current Coverage" : "No Coverage on File"}
         </CardTitle>
         <Dialog open={editCoverageOpen} onOpenChange={setEditCoverageOpen}>
@@ -224,55 +226,57 @@ export function CoverageSection({ client }: SectionProps) {
       </CardHeader>
       <CardContent className="p-6 pt-0">
         {client.coverage ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Plan Type</p>
-              <p className="mt-2 text-sm text-foreground">
+          <div className="divide-y">
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Plan Type</span>
+              <span className="text-sm font-medium text-foreground">
                 {client.coverage.planType === "MA" && "Medicare Advantage"}
                 {client.coverage.planType === "MAPD" && "MA with Part D"}
                 {client.coverage.planType === "PDP" && "Part D (PDP)"}
                 {client.coverage.planType === "Supp" && "Medigap / Supplement"}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Carrier</p>
-              <p className="mt-2 text-sm text-foreground">{client.coverage.carrier}</p>
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Carrier</span>
+              <span className="text-sm font-medium text-foreground">{client.coverage.carrier}</span>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Plan Name</p>
-              <p className="mt-2 text-sm text-foreground">{client.coverage.planName}</p>
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Plan Name</span>
+              <span className="text-sm font-medium text-foreground">{client.coverage.planName}</span>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Effective Date</p>
-              <p className="mt-2 text-sm text-foreground">
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Effective Date</span>
+              <span className="text-sm text-foreground">
                 {format(parseLocalDate(client.coverage.effectiveDate), "MMMM d, yyyy")}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Application ID</p>
-              <code className="mt-2 block font-mono text-sm text-foreground">
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Application ID</span>
+              <code className="font-mono text-sm text-foreground">
                 {client.coverage.applicationId}
               </code>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Monthly Premium</p>
-              <p className="mt-2 text-sm text-foreground">
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Monthly Premium</span>
+              <span className="text-sm font-semibold text-foreground">
                 {client.coverage.premium === 0
                   ? "$0.00"
                   : `$${client.coverage.premium.toFixed(2)}`}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Last Review</p>
-              <p className="mt-2 text-sm text-foreground">
+            <div className="flex items-center justify-between gap-4 px-2 py-3.5">
+              <span className="text-sm text-muted-foreground">Last Review</span>
+              <span className="text-sm text-foreground">
                 {format(parseLocalDate(client.coverage.lastReviewDate), "MMMM d, yyyy")}
-              </p>
+              </span>
             </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="mb-4 h-12 w-12 text-muted-foreground/40" />
-            <p className="text-sm font-medium text-muted-foreground">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+              <FileText className="h-7 w-7 text-muted-foreground/50" />
+            </div>
+            <p className="mt-4 text-sm font-medium text-muted-foreground">
               No coverage information on file yet.
             </p>
             <p className="mt-1 text-xs text-muted-foreground">

@@ -140,12 +140,14 @@ export function HealthSection({ client }: SectionProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-5 lg:grid-cols-2">
       {/* Doctors */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Stethoscope className="h-5 w-5 text-primary" />
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Stethoscope className="h-4 w-4 text-primary" />
+            </div>
             Doctors
           </CardTitle>
           <Dialog open={addDoctorOpen} onOpenChange={setAddDoctorOpen}>
@@ -202,9 +204,11 @@ export function HealthSection({ client }: SectionProps) {
         <CardContent className="p-6 pt-0">
           {client.doctors.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Stethoscope className="mb-3 h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No doctors on file</p>
-              <p className="text-xs text-muted-foreground">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                <Stethoscope className="h-6 w-6 text-muted-foreground/50" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-muted-foreground">No doctors on file</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Add a doctor to keep their information handy.
               </p>
             </div>
@@ -238,10 +242,12 @@ export function HealthSection({ client }: SectionProps) {
       </Card>
 
       {/* Medications */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Pill className="h-5 w-5 text-primary" />
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/10">
+              <Pill className="h-4 w-4 text-chart-3" />
+            </div>
             Medications
           </CardTitle>
           <Dialog open={addMedOpen} onOpenChange={setAddMedOpen}>
@@ -298,9 +304,11 @@ export function HealthSection({ client }: SectionProps) {
         <CardContent className="p-6 pt-0">
           {client.medications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Pill className="mb-3 h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No medications on file</p>
-              <p className="text-xs text-muted-foreground">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                <Pill className="h-6 w-6 text-muted-foreground/50" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-muted-foreground">No medications on file</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Add medications to track what this client takes.
               </p>
             </div>
@@ -334,10 +342,12 @@ export function HealthSection({ client }: SectionProps) {
       </Card>
 
       {/* Pharmacy */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Building2 className="h-5 w-5 text-primary" />
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-2/10">
+              <Building2 className="h-4 w-4 text-chart-2" />
+            </div>
             Pharmacy
           </CardTitle>
           <Dialog open={editPharmOpen} onOpenChange={setEditPharmOpen}>
@@ -404,9 +414,11 @@ export function HealthSection({ client }: SectionProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Building2 className="mb-3 h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No pharmacy on file</p>
-              <p className="text-xs text-muted-foreground">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                <Building2 className="h-6 w-6 text-muted-foreground/50" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-muted-foreground">No pharmacy on file</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Add pharmacy details for prescriptions.
               </p>
             </div>
@@ -415,10 +427,12 @@ export function HealthSection({ client }: SectionProps) {
       </Card>
 
       {/* Allergies & Conditions */}
-      <Card className="lg:col-span-2">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <AlertTriangle className="h-5 w-5 text-warning" />
+      <Card className="overflow-hidden lg:col-span-2">
+        <CardHeader className="border-b bg-muted/30 pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </div>
             Allergies & Conditions
           </CardTitle>
         </CardHeader>
