@@ -3,7 +3,7 @@
 import { use, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
 import { ClientProfileHeader } from "@/components/clients/profile-header"
 import { ClientTabs } from "@/components/clients/client-tabs"
@@ -45,7 +45,7 @@ export default function ClientProfilePageInner({
   return (
     <>
       <AppHeader
-        title={`${client.firstName} ${client.lastName}`}
+        title={client.nickname ? `${client.firstName} "${client.nickname}" ${client.lastName}` : `${client.firstName} ${client.lastName}`}
         onOpenCommandPalette={openCmd}
         breadcrumb={
           <Link
@@ -73,6 +73,7 @@ export default function ClientProfilePageInner({
               tasks={clientTasks}
               onEditPersonal={() => openEditClient("personal")}
               onEditContact={() => openEditClient("contact")}
+              onEditAddresses={() => openEditClient("addresses")}
               onEditMedicare={() => openEditClient("medicare")}
             />
           </div>

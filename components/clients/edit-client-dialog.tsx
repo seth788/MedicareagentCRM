@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -19,12 +19,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { AddressForm } from "@/components/clients/address-form"
+import { AddressCard } from "@/components/clients/address-card"
 import { useCRMStore } from "@/lib/store"
 import { getT65FromDob } from "@/lib/date-utils"
 import { goeyToast } from "goey-toast"
-import type { Client } from "@/lib/types"
+import type { Client, ClientAddress } from "@/lib/types"
 
-export type EditClientSection = "personal" | "contact" | "medicare"
+/** Clients that can be chosen as spouse. Today: all except current; later filter by current user's clients (auth). */
+function getClientsEligibleForSpouseLink(
+  clients: Client[],
+  currentClientId: string,
+  _currentAgent: string
+): Client[] {
+  return clients.filter((c) => c.id !== currentClientId)
+}
+
+function createEmptyAddress(): ClientAddress {
+  return {
+    id: `addr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    type: "Home",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    isPreferred: false,
+  }
+}
+
+export type EditClientSection = "personal" | "contact" | "addresses" | "medicare"
 
 interface EditClientDialogProps {
   client: Client
@@ -36,47 +61,89 @@ interface EditClientDialogProps {
 
 const CREATED_BY = "Sarah Mitchell"
 
+const LANGUAGE_OPTIONS = [
+  "English",
+  "Spanish",
+  "Mandarin",
+  "Cantonese",
+  "Vietnamese",
+  "Korean",
+  "Tagalog",
+  "Russian",
+  "Arabic",
+  "French",
+  "Portuguese",
+  "Hindi",
+  "Polish",
+  "Italian",
+  "German",
+  "Other",
+]
+
 export function EditClientDialog({
   client,
   open,
   onOpenChange,
   section: sectionProp = null,
 }: EditClientDialogProps) {
-  const { updateClient, addActivity } = useCRMStore()
+  const { clients, currentAgent, updateClient, addActivity } = useCRMStore()
   const section = sectionProp ?? null
   const [form, setForm] = useState({
+    title: "",
     firstName: "",
+    middleName: "",
     lastName: "",
-    phone: "",
-    email: "",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
+    suffix: "",
+    nickname: "",
+    gender: "" as "" | "M" | "F",
+    funFacts: "",
+    addresses: [] as ClientAddress[],
     dob: "",
     language: "English",
     preferredContactMethod: "phone" as "phone" | "email" | "text",
-    householdMembersStr: "",
+    spouseId: null as string | null,
     medicareNumber: "",
     partAEffectiveDate: "",
     partBEffectiveDate: "",
   })
+  const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null)
+  const [alsoUpdateSpouseAddresses, setAlsoUpdateSpouseAddresses] = useState(false)
+  const [spouseSearch, setSpouseSearch] = useState("")
+  const eligibleClients = useMemo(
+    () => getClientsEligibleForSpouseLink(clients, client.id, currentAgent),
+    [clients, client.id, currentAgent]
+  )
+  const filteredEligibleClients = useMemo(() => {
+    if (!spouseSearch.trim()) return eligibleClients
+    const q = spouseSearch.toLowerCase().trim()
+    return eligibleClients.filter(
+      (c) =>
+        c.firstName.toLowerCase().includes(q) ||
+        c.lastName.toLowerCase().includes(q) ||
+        `${c.firstName} ${c.lastName}`.toLowerCase().includes(q)
+    )
+  }, [eligibleClients, spouseSearch])
+  const selectedSpouse = form.spouseId ? eligibleClients.find((c) => c.id === form.spouseId) : null
 
   useEffect(() => {
     if (open && client) {
       setForm({
+        title: client.title || "",
         firstName: client.firstName,
+        middleName: client.middleName || "",
         lastName: client.lastName,
-        phone: client.phone,
-        email: client.email,
-        address: client.address,
-        city: client.city,
-        state: client.state,
-        zip: client.zip,
+        suffix: client.suffix || "",
+        nickname: client.nickname || "",
+        gender: client.gender || "",
+        funFacts: client.funFacts || "",
+        addresses:
+          client.addresses?.length > 0
+            ? client.addresses.map((a) => ({ ...a, id: a.id || `addr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` }))
+            : [{ ...createEmptyAddress(), isPreferred: true }],
         dob: client.dob?.includes("T") ? client.dob.slice(0, 10) : client.dob || "",
         language: client.language || "English",
         preferredContactMethod: client.preferredContactMethod,
-        householdMembersStr: client.householdMembers?.join(", ") || "",
+        spouseId: client.spouseId ?? null,
         medicareNumber: client.medicareNumber || "",
         partAEffectiveDate: client.partAEffectiveDate?.includes("T")
           ? client.partAEffectiveDate.slice(0, 10)
@@ -85,11 +152,15 @@ export function EditClientDialog({
           ? client.partBEffectiveDate.slice(0, 10)
           : client.partBEffectiveDate || "",
       })
+      setEditingAddressIndex(null)
+      setAlsoUpdateSpouseAddresses(false)
+      setSpouseSearch("")
     }
   }, [open, client])
 
   const showPersonal = section === null || section === "personal"
   const showContact = section === null || section === "contact"
+  const showAddresses = section === null || section === "addresses"
   const showMedicare = section === null || section === "medicare"
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,31 +171,75 @@ export function EditClientDialog({
     }
 
     const dobStr = form.dob || client.dob || ""
-    const householdMembers = form.householdMembersStr
-      ? form.householdMembersStr.split(",").map((s) => s.trim()).filter(Boolean)
-      : []
 
     const updates: Partial<Client> = {}
     if (showPersonal) {
+      const previousSpouseId = client.spouseId
+      const newSpouseId = form.spouseId || undefined
       Object.assign(updates, {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         dob: dobStr,
         turning65Date: getT65FromDob(dobStr),
         language: form.language.trim() || "English",
-        householdMembers: householdMembers.length ? householdMembers : undefined,
+        spouseId: newSpouseId,
+        title: form.title.trim() || undefined,
+        middleName: form.middleName.trim() || undefined,
+        suffix: form.suffix.trim() || undefined,
+        nickname: form.nickname.trim() || undefined,
+        gender: (form.gender === "M" || form.gender === "F" ? form.gender : undefined) as "M" | "F" | undefined,
+        funFacts: form.funFacts.trim() || undefined,
       })
+      if (previousSpouseId !== newSpouseId) {
+        if (previousSpouseId) {
+          updateClient(previousSpouseId, { spouseId: undefined })
+        }
+        if (newSpouseId) {
+          updateClient(newSpouseId, { spouseId: client.id })
+        }
+      }
     }
     if (showContact) {
       Object.assign(updates, {
-        phone: form.phone.trim(),
-        email: form.email.trim(),
-        address: form.address.trim(),
-        city: form.city.trim(),
-        state: form.state.trim(),
-        zip: form.zip.trim(),
         preferredContactMethod: form.preferredContactMethod,
       })
+    }
+    if (showAddresses) {
+      const addresses = form.addresses
+        .filter((a) => (a.address || a.city || a.zip || a.state)?.trim())
+        .map((a, i) => ({
+          ...a,
+          isPreferred:
+            form.addresses.length === 1
+              ? true
+              : a.isPreferred ?? (i === 0 && !form.addresses.some((x) => x.isPreferred)),
+        }))
+      if (addresses.length && !addresses.some((a) => a.isPreferred))
+        addresses[0] = { ...addresses[0], isPreferred: true }
+      const finalAddresses = addresses.length ? addresses : form.addresses
+      Object.assign(updates, {
+        addresses: finalAddresses,
+      })
+      if (alsoUpdateSpouseAddresses && client.spouseId) {
+        const spouse = clients.find((c) => c.id === client.spouseId)
+        if (spouse) {
+          const spouseAddresses = finalAddresses.map((a, i) => ({
+            ...a,
+            id: `addr-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 9)}`,
+          }))
+          updateClient(spouse.id, { addresses: spouseAddresses })
+          const sourceName = [client.title, client.firstName, client.lastName, client.suffix].filter(Boolean).join(" ")
+          addActivity({
+            id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            relatedType: "Client",
+            relatedId: spouse.id,
+            type: "note",
+            description: `Addresses updated from ${sourceName}'s profile`,
+            createdAt: new Date().toISOString(),
+            createdBy: CREATED_BY,
+          })
+        }
+      }
     }
     if (showMedicare) {
       Object.assign(updates, {
@@ -141,9 +256,11 @@ export function EditClientDialog({
         ? "Personal details updated"
         : section === "contact"
           ? "Contact information updated"
-          : section === "medicare"
-            ? "Medicare information updated"
-            : "Profile information updated"
+          : section === "addresses"
+            ? "Addresses updated"
+            : section === "medicare"
+              ? "Medicare information updated"
+              : "Profile information updated"
     addActivity({
       id: `act-${Date.now()}`,
       relatedType: "Client",
@@ -159,9 +276,11 @@ export function EditClientDialog({
         ? "Personal details updated"
         : section === "contact"
           ? "Contact information updated"
-          : section === "medicare"
-            ? "Medicare information updated"
-            : "Profile updated",
+          : section === "addresses"
+            ? "Addresses updated"
+            : section === "medicare"
+              ? "Medicare information updated"
+              : "Profile updated",
       {
         description:
           section === "personal" || section === null
@@ -177,17 +296,21 @@ export function EditClientDialog({
       ? "Edit personal details"
       : section === "contact"
         ? "Edit contact information"
-        : section === "medicare"
-          ? "Edit Medicare information"
-          : "Edit client"
+        : section === "addresses"
+          ? "Edit addresses"
+          : section === "medicare"
+            ? "Edit Medicare information"
+            : "Edit client"
   const description =
     section === "personal"
-      ? "Update name, date of birth, language, and household members."
+      ? "Update name, date of birth, language, spouse, gender, title, nickname, and fun facts."
       : section === "contact"
-        ? "Update phone, email, address, and preferred contact method."
-        : section === "medicare"
-          ? "Update Medicare number and Part A/B effective dates."
-          : "Update personal, contact, and Medicare information for this client."
+        ? "Update phone, email, and preferred contact method."
+        : section === "addresses"
+          ? "Add or edit addresses and set a preferred address."
+          : section === "medicare"
+            ? "Update Medicare number and Part A/B effective dates."
+            : "Update personal, contact, and Medicare information for this client."
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,6 +328,27 @@ export function EditClientDialog({
           <div className="grid gap-4">
             {showPersonal && (
               <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-title">Title</Label>
+                  <Select
+                    value={form.title || "__none__"}
+                    onValueChange={(v) => setForm({ ...form, title: v === "__none__" ? "" : v })}
+                  >
+                    <SelectTrigger id="edit-title">
+                      <SelectValue placeholder="Select title" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      <SelectItem value="Mr.">Mr.</SelectItem>
+                      <SelectItem value="Mrs.">Mrs.</SelectItem>
+                      <SelectItem value="Miss">Miss</SelectItem>
+                      <SelectItem value="Ms.">Ms.</SelectItem>
+                      <SelectItem value="Dr.">Dr.</SelectItem>
+                      <SelectItem value="Rev.">Rev.</SelectItem>
+                      <SelectItem value="Prof.">Prof.</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="edit-firstName">First name</Label>
@@ -225,6 +369,63 @@ export function EditClientDialog({
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-middleName">Middle name</Label>
+                    <Input
+                      id="edit-middleName"
+                      value={form.middleName}
+                      onChange={(e) => setForm({ ...form, middleName: e.target.value })}
+                      placeholder="Jane"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-suffix">Suffix</Label>
+                    <Select
+                      value={form.suffix || "__none__"}
+                      onValueChange={(v) => setForm({ ...form, suffix: v === "__none__" ? "" : v })}
+                    >
+                      <SelectTrigger id="edit-suffix">
+                        <SelectValue placeholder="Select suffix" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        <SelectItem value="Jr.">Jr.</SelectItem>
+                        <SelectItem value="Sr.">Sr.</SelectItem>
+                        <SelectItem value="II">II</SelectItem>
+                        <SelectItem value="III">III</SelectItem>
+                        <SelectItem value="IV">IV</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-nickname">Nickname</Label>
+                  <Input
+                    id="edit-nickname"
+                    value={form.nickname}
+                    onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                    placeholder="Goes by..."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-gender">Gender</Label>
+                  <Select
+                    value={form.gender || "__none__"}
+                    onValueChange={(v) =>
+                      setForm({ ...form, gender: v === "__none__" ? "" : (v as "M" | "F") })
+                    }
+                  >
+                    <SelectTrigger id="edit-gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      <SelectItem value="M">Male</SelectItem>
+                      <SelectItem value="F">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-dob">Date of birth</Label>
                   <Input
@@ -236,50 +437,100 @@ export function EditClientDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-language">Language</Label>
-                  <Input
-                    id="edit-language"
-                    value={form.language}
-                    onChange={(e) => setForm({ ...form, language: e.target.value })}
-                    placeholder="English"
-                  />
+                  <Select
+                    value={form.language || "English"}
+                    onValueChange={(v) => setForm({ ...form, language: v })}
+                  >
+                    <SelectTrigger id="edit-language">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGE_OPTIONS.map((lang) => (
+                        <SelectItem key={lang} value={lang}>
+                          {lang}
+                        </SelectItem>
+                      ))}
+                      {form.language &&
+                        !LANGUAGE_OPTIONS.includes(form.language) && (
+                          <SelectItem value={form.language}>
+                            {form.language}
+                          </SelectItem>
+                        )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-household">Household members</Label>
-                  <Input
-                    id="edit-household"
-                    value={form.householdMembersStr}
-                    onChange={(e) => setForm({ ...form, householdMembersStr: e.target.value })}
-                    placeholder="Comma-separated names"
+                  <Label>Spouse</Label>
+                  {selectedSpouse ? (
+                    <div className="flex items-center gap-2 rounded-md border border-input bg-muted/30 px-3 py-2">
+                      <span className="text-sm flex-1">
+                        {selectedSpouse.title} {selectedSpouse.firstName} {selectedSpouse.lastName}
+                        {selectedSpouse.suffix ? ` ${selectedSpouse.suffix}` : ""}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setForm((prev) => ({ ...prev, spouseId: null }))}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Input
+                        placeholder="Search clients to link as spouse..."
+                        value={spouseSearch}
+                        onChange={(e) => setSpouseSearch(e.target.value)}
+                        className="mb-1"
+                      />
+                      <div className="max-h-40 overflow-y-auto rounded-md border border-input bg-muted/20 divide-y">
+                        {filteredEligibleClients.length === 0 ? (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">
+                            {spouseSearch.trim() ? "No matching clients" : "No other clients"}
+                          </p>
+                        ) : (
+                          filteredEligibleClients.slice(0, 20).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                              onClick={() => {
+                                setForm((prev) => ({ ...prev, spouseId: c.id }))
+                                setSpouseSearch("")
+                              }}
+                            >
+                              {c.title} {c.firstName} {c.lastName}
+                              {c.suffix ? ` ${c.suffix}` : ""}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-funFacts">Fun facts</Label>
+                  <Textarea
+                    id="edit-funFacts"
+                    value={form.funFacts}
+                    onChange={(e) => setForm({ ...form, funFacts: e.target.value })}
+                    placeholder="Anything memorable to remember about this client"
+                    rows={4}
+                    className="resize-none"
                   />
                 </div>
               </>
             )}
 
             {showContact && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-phone">Phone</Label>
-                    <Input
-                      id="edit-phone"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="(555) 123-4567"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-email">Email</Label>
-                    <Input
-                      id="edit-email"
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="mary@email.com"
-                    />
-                  </div>
-                </div>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Add or edit phone numbers and email addresses in the Contact card on the client profile.
+                </p>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-preferredContact">Preferred contact</Label>
+                  <Label htmlFor="edit-preferredContact">Preferred contact method</Label>
                   <Select
                     value={form.preferredContactMethod}
                     onValueChange={(v) =>
@@ -296,45 +547,106 @@ export function EditClientDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-address">Address</Label>
-                  <Input
-                    id="edit-address"
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    placeholder="123 Main Street"
-                  />
+              </div>
+            )}
+
+            {showAddresses && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-foreground">Addresses</p>
+                  {client.spouseId && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="edit-addresses-also-spouse"
+                        checked={alsoUpdateSpouseAddresses}
+                        onCheckedChange={(v) => setAlsoUpdateSpouseAddresses(v === true)}
+                      />
+                      <label htmlFor="edit-addresses-also-spouse" className="text-sm cursor-pointer">Also update spouse&apos;s addresses</label>
+                    </div>
+                  )}
+                  {form.addresses.length === 0 ? (
+                    <AddressForm
+                      address={createEmptyAddress()}
+                      onChange={(patch) => {
+                        const newAddr = { ...createEmptyAddress(), ...patch, isPreferred: true }
+                        setForm((prev) => ({ ...prev, addresses: [newAddr] }))
+                        setEditingAddressIndex(null)
+                      }}
+                      showType={true}
+                      showPreferred={false}
+                      allowManualEntry={true}
+                      dialogOpen={open}
+                    />
+                  ) : (
+                    <>
+                      {form.addresses.map((addr, index) => (
+                        <div key={addr.id}>
+                          {editingAddressIndex === index ? (
+                            <AddressForm
+                              address={addr}
+                              onChange={(patch) => {
+                                const next = form.addresses.map((a, i) =>
+                                  i === index ? { ...a, ...patch } : a
+                                )
+                                if (patch.isPreferred) {
+                                  const normalized = next.map((a, i) => ({
+                                    ...a,
+                                    isPreferred: i === index,
+                                  }))
+                                  setForm((prev) => ({ ...prev, addresses: normalized }))
+                                } else {
+                                  setForm((prev) => ({ ...prev, addresses: next }))
+                                }
+                              }}
+                              onRemove={
+                                form.addresses.length > 1
+                                  ? () => {
+                                      const next = form.addresses.filter((_, i) => i !== index)
+                                      if (addr.isPreferred && next.length)
+                                        next[0] = { ...next[0], isPreferred: true }
+                                      setForm((prev) => ({ ...prev, addresses: next }))
+                                      setEditingAddressIndex(null)
+                                    }
+                                  : undefined
+                              }
+                              showType={true}
+                              showPreferred={form.addresses.length > 1}
+                              allowManualEntry={true}
+                              dialogOpen={open}
+                            />
+                          ) : (
+                            <AddressCard
+                              address={addr}
+                              onEdit={() => setEditingAddressIndex(index)}
+                              onRemove={
+                                form.addresses.length > 1
+                                  ? () => {
+                                      const next = form.addresses.filter((_, i) => i !== index)
+                                      if (addr.isPreferred && next.length)
+                                        next[0] = { ...next[0], isPreferred: true }
+                                      setForm((prev) => ({ ...prev, addresses: next }))
+                                    }
+                                  : undefined
+                              }
+                              hidePreferredWhenOnlyOne={form.addresses.length === 1}
+                            />
+                          )}
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newAddr = createEmptyAddress()
+                          setForm((prev) => ({ ...prev, addresses: [...prev.addresses, newAddr] }))
+                          setEditingAddressIndex(form.addresses.length)
+                        }}
+                      >
+                        Add address
+                      </Button>
+                    </>
+                  )}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-city">City</Label>
-                    <Input
-                      id="edit-city"
-                      value={form.city}
-                      onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-state">State</Label>
-                    <Input
-                      id="edit-state"
-                      value={form.state}
-                      onChange={(e) => setForm({ ...form, state: e.target.value })}
-                      maxLength={2}
-                      placeholder="CA"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-zip">ZIP</Label>
-                    <Input
-                      id="edit-zip"
-                      value={form.zip}
-                      onChange={(e) => setForm({ ...form, zip: e.target.value })}
-                      placeholder="90210"
-                    />
-                  </div>
-                </div>
-              </>
             )}
 
             {showMedicare && (

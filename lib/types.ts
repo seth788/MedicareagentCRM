@@ -46,16 +46,54 @@ export interface Lead {
   clientId?: string
 }
 
+export type DoctorImportance = "essential" | "preferred" | "flexible"
+
 export interface Doctor {
   name: string
   specialty: string
   phone: string
+  /** NPI-sourced; prefer with firstName + lastName for display */
+  firstName?: string
+  lastName?: string
+  providerId?: string
+  facilityAddress?: string
+  /** Single note for the consumer (e.g. special instructions); only editable when editing the doctor */
+  note?: string
+  /** Importance level: Essential (red), Preferred (yellow, default from search), Flexible (green) */
+  importance?: DoctorImportance
 }
 
 export interface Medication {
+  /** Display name (e.g. from NLM typeahead); kept for list display and backward compat */
   name: string
-  dosage: string
+  /** Dosage/variant display for list (backward compat); prefer dosageDisplay when set */
+  dosage?: string
   frequency: string
+  /** Default 30 in UI when adding */
+  quantity?: number
+  notes?: string
+  /** ISO date or date-only */
+  firstPrescribed?: string
+  /** @deprecated prefer drugName, dosageDisplay, doseForm, isPackageDrug, packageDescription, packageNdc */
+  package?: string
+  allowGenerics?: boolean
+  /** RxNorm concept ID (selected SCD/SBD) */
+  rxcui?: string
+  ndcs?: string[]
+  /** Display name from typeahead (Layer 1) */
+  drugName?: string
+  /** Full concept name from RxNorm (e.g. "insulin lispro 100 UNT/mL Cartridge [Humalog]") */
+  dosageDisplay?: string
+  /** Extracted dose form string (e.g. "Cartridge", "Oral Tablet") */
+  doseForm?: string
+  /** True when dose form is package-required (injectable, inhaler, etc.) */
+  isPackageDrug?: boolean
+  /** Human-readable package (e.g. "5 CARTRIDGES in 1 CARTON"); only for package drugs */
+  packageDescription?: string
+  /** NDC for selected package; only for package drugs */
+  packageNdc?: string
+  /** Brand name when drug is branded (SBD); used to show "Brand" pill */
+  brandName?: string
 }
 
 export interface Pharmacy {
@@ -65,6 +103,36 @@ export interface Pharmacy {
 }
 
 export type PlanType = "MA" | "MAPD" | "PDP" | "Supp"
+
+export type AddressType = "Home" | "Mailing" | "Secondary Home" | "Secondary Mailing"
+
+export interface ClientAddress {
+  id: string
+  type: AddressType
+  address: string
+  unit?: string
+  city: string
+  state: string
+  zip: string
+  isPreferred: boolean
+}
+
+export type ClientPhoneType = "Cell" | "Home" | "Work" | "Other"
+
+export interface ClientPhone {
+  id: string
+  number: string
+  type: ClientPhoneType
+  isPreferred: boolean
+  note?: string
+}
+
+export interface ClientEmail {
+  id: string
+  value: string
+  isPreferred: boolean
+  note?: string
+}
 
 export interface Coverage {
   planType: PlanType
@@ -80,17 +148,25 @@ export interface Client {
   id: string
   firstName: string
   lastName: string
-  phone: string
-  email: string
-  address: string
-  city: string
-  state: string
-  zip: string
+  /** Mr., Mrs., Miss, Ms., Dr., etc. */
+  title?: string
+  middleName?: string
+  /** Jr., Sr., II, III, IV, etc. */
+  suffix?: string
+  nickname?: string
+  gender?: "M" | "F"
+  funFacts?: string
+  phones: ClientPhone[]
+  emails: ClientEmail[]
+  addresses: ClientAddress[]
   dob: string
   turning65Date: string
   preferredContactMethod: "phone" | "email" | "text"
   language: string
+  /** @deprecated Use spouseId for spouse linking. */
   householdMembers?: string[]
+  /** Client id of linked spouse; link is bidirectional. */
+  spouseId?: string
   medicareNumber: string
   partAEffectiveDate: string
   partBEffectiveDate: string
@@ -99,6 +175,8 @@ export interface Client {
   pharmacies: Pharmacy[]
   allergies: string[]
   conditions: string[]
+  /** Selected items from the fixed health tracker list (condition/disorder/disease checkboxes) */
+  healthTracker?: string[]
   coverage?: Coverage
   createdAt: string
   updatedAt: string

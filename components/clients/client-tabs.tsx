@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   FileText,
   StickyNote,
-} from "lucide-react"
+} from "@/components/icons"
 import {
   ContactSection,
   HealthSection,
@@ -39,6 +39,7 @@ interface ClientTabsProps {
   tasks: Task[]
   onEditPersonal?: () => void
   onEditContact?: () => void
+  onEditAddresses?: () => void
   onEditMedicare?: () => void
 }
 
@@ -48,6 +49,7 @@ export function ClientTabs({
   tasks,
   onEditPersonal,
   onEditContact,
+  onEditAddresses,
   onEditMedicare,
 }: ClientTabsProps) {
   const router = useRouter()
@@ -96,6 +98,7 @@ export function ClientTabs({
     onNavigateToSection: setActiveSection,
     onEditPersonal,
     onEditContact,
+    onEditAddresses,
     onEditMedicare,
   }
 

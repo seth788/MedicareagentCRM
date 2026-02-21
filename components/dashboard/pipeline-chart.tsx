@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3, Info } from "lucide-react"
+import { BarChart3, Info } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCRMStore } from "@/lib/store"
 import {

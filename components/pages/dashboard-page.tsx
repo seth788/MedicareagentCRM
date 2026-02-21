@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { UserPlus, Users, Plus } from "lucide-react"
+import { UserPlus, Users, Plus } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
 import { KPICards } from "@/components/dashboard/kpi-cards"
 import { Turning65Widget } from "@/components/dashboard/turning-65-widget"

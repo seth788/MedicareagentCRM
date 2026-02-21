@@ -15,7 +15,7 @@ import {
   Heart,
   Shield,
   MessageSquare,
-} from "lucide-react"
+} from "@/components/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -26,6 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useCRMStore } from "@/lib/store"
+import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
 import { goeyToast } from "goey-toast"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { MarkAsLeadDialog } from "@/components/clients/mark-as-lead-dialog"
@@ -161,7 +162,7 @@ export function ClientProfileHeader({
           {/* Name and badges */}
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-2xl font-bold tracking-tight text-foreground">
-              {client.firstName} {client.lastName}
+              {client.nickname ? `${client.firstName} "${client.nickname}" ${client.lastName}` : `${client.firstName} ${client.lastName}`}
             </h2>
             {mounted && (isFuture ? (
               <Badge className="border-primary/25 bg-primary/10 text-primary font-semibold" variant="outline">
@@ -206,34 +207,54 @@ export function ClientProfileHeader({
             {/* Contact info */}
             <TooltipProvider delayDuration={300}>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <a
-                      href={`tel:${client.phone}`}
-                      className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Phone className="h-4 w-4 shrink-0 text-primary/70" />
-                      {client.phone}
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent>Call {client.firstName}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <a
-                      href={`mailto:${client.email}`}
-                      className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Mail className="h-4 w-4 shrink-0 text-primary/70" />
-                      {client.email}
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent>Email {client.firstName}</TooltipContent>
-                </Tooltip>
-                <span className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
-                  {client.city}, {client.state} {client.zip}
-                </span>
+                {(() => {
+                  const phone = getPreferredOrFirstPhone(client)
+                  if (!phone?.number) return null
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={`tel:${phone.number}`}
+                          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <Phone className="h-4 w-4 shrink-0 text-primary/70" />
+                          {phone.number}
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent>Call {client.firstName}</TooltipContent>
+                    </Tooltip>
+                  )
+                })()}
+                {(() => {
+                  const email = getPreferredOrFirstEmail(client)
+                  if (!email?.value) return null
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={`mailto:${email.value}`}
+                          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <Mail className="h-4 w-4 shrink-0 text-primary/70" />
+                          {email.value}
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent>Email {client.firstName}</TooltipContent>
+                    </Tooltip>
+                  )
+                })()}
+                {(() => {
+                  const addr = getPreferredOrFirstAddress(client)
+                  if (!addr) return null
+                  const location = [addr.city, addr.state, addr.zip].filter(Boolean).join(", ")
+                  if (!location) return null
+                  return (
+                    <span className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
+                      {location}
+                    </span>
+                  )
+                })()}
                 <span className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-muted-foreground">
                   <MessageSquare className="h-4 w-4 shrink-0 text-primary/70" />
                   Prefers <span className="capitalize font-medium text-foreground">{client.preferredContactMethod}</span>

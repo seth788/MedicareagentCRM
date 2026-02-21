@@ -1,5 +1,6 @@
 import { useSyncExternalStore, useCallback } from "react"
 import type { Lead, Client, Activity, Task, Flow, Stage } from "./types"
+import { getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "./utils"
 import {
   mockLeads,
   mockClients,
@@ -17,6 +18,7 @@ interface CRMState {
   tasks: Task[]
   flows: Flow[]
   stages: Stage[]
+  currentAgent: string
 }
 
 let state: CRMState = {
@@ -26,6 +28,7 @@ let state: CRMState = {
   tasks: [...mockTasks],
   flows: [defaultFlow],
   stages: [...defaultStages],
+  currentAgent: agents[0],
 }
 
 const listeners = new Set<() => void>()
@@ -132,19 +135,21 @@ export function useCRMStore() {
       if (!client) return null
       const stage = state.stages.find((s) => s.id === stageId && s.flowId === flowId)
       if (!stage) return null
+      const phone = getPreferredOrFirstPhone(client)
+      const email = getPreferredOrFirstEmail(client)
       const now = new Date().toISOString()
       const lead: Lead = {
         id: generateLeadId(),
         firstName: client.firstName,
         lastName: client.lastName,
-        phone: client.phone,
-        email: client.email,
+        phone: phone?.number ?? "",
+        email: email?.value ?? "",
         source: "Referral",
         flowId,
         stageId,
         notes: ["Marked as lead from client profile"],
         tags: [],
-        assignedTo: agents[0],
+        assignedTo: state.currentAgent,
         createdAt: now,
         updatedAt: now,
         nextFollowUpAt: null,

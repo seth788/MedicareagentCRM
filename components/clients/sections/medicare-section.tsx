@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Eye, EyeOff, ShieldAlert } from "lucide-react"
+import { Eye, EyeOff, ShieldAlert } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

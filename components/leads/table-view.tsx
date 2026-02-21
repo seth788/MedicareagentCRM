@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { MoreHorizontal, ArrowUpDown, Trash2, Eye, ArrowRightLeft } from "lucide-react"
+import { MoreHorizontal, ArrowUpDown, Trash2, Eye, ArrowRightLeft } from "@/components/icons"
 import {
   Table,
   TableBody,

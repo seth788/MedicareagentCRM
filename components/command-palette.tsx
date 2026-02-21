@@ -9,7 +9,7 @@ import {
   Settings,
   Plus,
   Search,
-} from "lucide-react"
+} from "@/components/icons"
 import {
   CommandDialog,
   CommandInput,
@@ -20,6 +20,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command"
 import { useCRMStore } from "@/lib/store"
+import { getPreferredOrFirstAddress } from "@/lib/utils"
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
@@ -93,7 +94,10 @@ export function CommandPalette() {
               <Search className="mr-2 h-4 w-4" />
               {c.firstName} {c.lastName}
               <span className="ml-auto text-xs text-muted-foreground">
-                {c.city}, {c.state}
+                {(() => {
+                  const addr = getPreferredOrFirstAddress(c)
+                  return addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
+                })()}
               </span>
             </CommandItem>
           ))}

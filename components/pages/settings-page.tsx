@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useTheme } from "next-themes"
 import { goeyToast } from "goey-toast"
-import { Moon, Sun, Monitor } from "lucide-react"
+import { Moon, Sun, Monitor } from "@/components/icons"
 
 export default function SettingsPageInner() {
   const { theme, setTheme } = useTheme()

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { GripVertical, Phone, Calendar } from "lucide-react"
+import { GripVertical, Phone, Calendar } from "@/components/icons"
 import {
   DndContext,
   DragOverlay,

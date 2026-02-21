@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, UserPlus, CalendarClock, AlertTriangle, Info } from "lucide-react"
+import { Users, UserPlus, CalendarClock, AlertTriangle, Info } from "@/components/icons"
 import { parseLocalDate, getT65FromDob } from "@/lib/date-utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { useCRMStore } from "@/lib/store"

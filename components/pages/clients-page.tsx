@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { format, differenceInDays } from "date-fns"
 import { parseLocalDate, getT65FromDob, getAgeFromDob } from "@/lib/date-utils"
-import { Plus, Search, Phone, Mail } from "lucide-react"
+import { Plus, Search, Phone, Mail } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table"
 import { NewClientDialog } from "@/components/clients/new-client-dialog"
 import { useCRMStore } from "@/lib/store"
+import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
 
 type QuickFilter = "all" | "turning65" | "hasReview"
 
@@ -38,12 +39,19 @@ export default function ClientsPageInner() {
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(
-        (c) =>
-          c.firstName.toLowerCase().includes(q) ||
-          c.lastName.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          c.phone.includes(q) ||
-          c.city.toLowerCase().includes(q)
+        (c) => {
+          const addr = getPreferredOrFirstAddress(c)
+          const city = addr?.city?.toLowerCase() ?? ""
+          const phone = getPreferredOrFirstPhone(c)?.number ?? ""
+          const email = getPreferredOrFirstEmail(c)?.value ?? ""
+          return (
+            c.firstName.toLowerCase().includes(q) ||
+            c.lastName.toLowerCase().includes(q) ||
+            email.toLowerCase().includes(q) ||
+            phone.includes(q) ||
+            city.includes(q)
+          )
+        }
       )
     }
     if (quickFilter === "turning65") {
@@ -156,23 +164,26 @@ export default function ClientsPageInner() {
                             {client.firstName} {client.lastName}
                           </Link>
                           <p className="text-xs text-muted-foreground md:hidden">
-                            {client.phone}
+                            {getPreferredOrFirstPhone(client)?.number ?? "—"}
                           </p>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <span className="flex items-center gap-1.5 text-muted-foreground">
                             <Phone className="h-3 w-3" />
-                            {client.phone}
+                            {getPreferredOrFirstPhone(client)?.number ?? "—"}
                           </span>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <span className="flex items-center gap-1.5 text-muted-foreground">
                             <Mail className="h-3 w-3" />
-                            {client.email}
+                            {getPreferredOrFirstEmail(client)?.value ?? "—"}
                           </span>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {client.city}, {client.state}
+                          {(() => {
+                            const addr = getPreferredOrFirstAddress(client)
+                            return addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

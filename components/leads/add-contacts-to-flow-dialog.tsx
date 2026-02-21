@@ -22,9 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useCRMStore } from "@/lib/store"
+import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
 import { goeyToast } from "goey-toast"
 import type { Stage } from "@/lib/types"
-import { Search } from "lucide-react"
+import { Search } from "@/components/icons"
 
 const CREATED_BY = "Sarah Mitchell"
 
@@ -62,12 +63,17 @@ export function AddContactsToFlowDialog({
   const availableClients = useMemo(
     () =>
       clients.filter(
-        (c) =>
-          !alreadyInFlowIds.has(c.id) &&
-          (!search ||
-            `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-            c.email?.toLowerCase().includes(search.toLowerCase()) ||
-            c.phone?.includes(search))
+        (c) => {
+          const phone = getPreferredOrFirstPhone(c)?.number ?? ""
+          const email = getPreferredOrFirstEmail(c)?.value ?? ""
+          return (
+            !alreadyInFlowIds.has(c.id) &&
+            (!search ||
+              `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+              email.toLowerCase().includes(search.toLowerCase()) ||
+              phone.includes(search))
+          )
+        }
       ),
     [clients, alreadyInFlowIds, search]
   )
@@ -227,11 +233,15 @@ export function AddContactsToFlowDialog({
                       <span className="text-sm truncate">
                         {client.firstName} {client.lastName}
                       </span>
-                      {client.city && (
-                        <span className="text-xs text-muted-foreground truncate ml-auto">
-                          {client.city}, {client.state}
-                        </span>
-                      )}
+                      {(() => {
+                        const addr = getPreferredOrFirstAddress(client)
+                        const location = addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
+                        return location ? (
+                          <span className="text-xs text-muted-foreground truncate ml-auto">
+                            {location}
+                          </span>
+                        ) : null
+                      })()}
                     </label>
                   ))
                 )}

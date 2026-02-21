@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Phone, Mail, MessageSquare, CalendarPlus, ArrowRightLeft } from "lucide-react"
+import { Phone, Mail, MessageSquare, CalendarPlus, ArrowRightLeft } from "@/components/icons"
 import {
   Sheet,
   SheetContent,

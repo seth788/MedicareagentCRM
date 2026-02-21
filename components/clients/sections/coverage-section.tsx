@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Shield, Plus, FileText } from "lucide-react"
+import { Shield, Plus, FileText } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

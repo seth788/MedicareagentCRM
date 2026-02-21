@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Kanban, TableIcon, Search, Settings2, UserPlus } from "lucide-react"
+import { Kanban, TableIcon, Search, Settings2, UserPlus } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,6 @@ import { TableView } from "@/components/leads/table-view"
 import { FlowStageManager } from "@/components/leads/flow-stage-manager"
 import { AddContactsToFlowDialog } from "@/components/leads/add-contacts-to-flow-dialog"
 import { useCRMStore } from "@/lib/store"
-import { agents } from "@/lib/mock-data"
 import type { LeadSource } from "@/lib/types"
 
 const sources: LeadSource[] = ["Facebook", "Referral", "Website", "Call-in", "Direct Mail", "Event"]
@@ -32,11 +31,11 @@ export default function LeadsPageInner() {
   const [search, setSearch] = useState("")
   const [stageFilter, setStageFilter] = useState<string>("all")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
-  const [agentFilter, setAgentFilter] = useState<string>("all")
 
   const {
     leads,
     flows,
+    currentAgent,
     getStagesByFlowId,
     getDefaultFlow,
   } = useCRMStore()
@@ -50,8 +49,8 @@ export default function LeadsPageInner() {
   const activeFlow = flows.find((f) => f.id === activeFlowId)
   const activeStages = activeFlowId ? getStagesByFlowId(activeFlowId) : []
   const leadsInFlow = useMemo(
-    () => leads.filter((l) => l.flowId === activeFlowId),
-    [leads, activeFlowId]
+    () => leads.filter((l) => l.flowId === activeFlowId && l.assignedTo === currentAgent),
+    [leads, activeFlowId, currentAgent]
   )
 
   const filtered = useMemo(() => {
@@ -67,10 +66,9 @@ export default function LeadsPageInner() {
       }
       if (stageFilter !== "all" && l.stageId !== stageFilter) return false
       if (sourceFilter !== "all" && l.source !== sourceFilter) return false
-      if (agentFilter !== "all" && l.assignedTo !== agentFilter) return false
       return true
     })
-  }, [leadsInFlow, search, stageFilter, sourceFilter, agentFilter])
+  }, [leadsInFlow, search, stageFilter, sourceFilter])
 
   useEffect(() => {
     if (activeFlowId && flowIdFromUrl !== activeFlowId) {
@@ -155,17 +153,6 @@ export default function LeadsPageInner() {
               <SelectItem value="all">All Sources</SelectItem>
               {sources.map((s) => (
                 <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={agentFilter} onValueChange={setAgentFilter}>
-            <SelectTrigger className="h-8 w-[130px] text-xs hidden md:flex">
-              <SelectValue placeholder="Agent" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Agents</SelectItem>
-              {agents.map((a) => (
-                <SelectItem key={a} value={a}>{a.split(" ")[0]}</SelectItem>
               ))}
             </SelectContent>
           </Select>

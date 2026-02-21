@@ -3,11 +3,12 @@
 import { useState } from "react"
 import { format, differenceInDays } from "date-fns"
 import { parseLocalDate, getT65FromDob } from "@/lib/date-utils"
-import { Phone, Plus, Cake, Info } from "lucide-react"
+import { Phone, Plus, Cake, Info } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useCRMStore } from "@/lib/store"
+import { getPreferredOrFirstPhone } from "@/lib/utils"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import Link from "next/link"
 import {
@@ -96,7 +97,7 @@ export function Turning65Widget() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                            <a href={`tel:${client.phone}`}>
+                            <a href={`tel:${getPreferredOrFirstPhone(client)?.number ?? ""}`}>
                               <Phone className="h-3.5 w-3.5" />
                               <span className="sr-only">Call {client.firstName}</span>
                             </a>

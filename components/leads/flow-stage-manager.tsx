@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Star, MoreVertical } from "lucide-react"
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Star, MoreVertical } from "@/components/icons"
 import {
   Sheet,
   SheetContent,

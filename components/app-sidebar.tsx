@@ -9,7 +9,7 @@ import {
   UserPlus,
   Settings,
   Shield,
-} from "lucide-react"
+} from "@/components/icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Sidebar,
