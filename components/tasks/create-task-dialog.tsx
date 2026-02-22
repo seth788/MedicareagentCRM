@@ -42,7 +42,7 @@ export function CreateTaskDialog({
   defaultTitle = "",
   defaultDescription = "",
 }: CreateTaskDialogProps) {
-  const { addTask, addActivity } = useCRMStore()
+  const { addTask, addActivity, currentAgent } = useCRMStore()
   const [title, setTitle] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [description, setDescription] = useState("")
@@ -66,7 +66,7 @@ export function CreateTaskDialog({
       ? new Date(dueDate + "T12:00:00").toISOString()
       : new Date().toISOString()
     const task: Task = {
-      id: `task-${Date.now()}`,
+      id: crypto.randomUUID(),
       relatedType,
       relatedId,
       relatedName,
@@ -83,7 +83,7 @@ export function CreateTaskDialog({
       type: "note",
       description: `Task: ${trimmedTitle}${dueDate ? ` — Due ${dueDate}` : ""}`,
       createdAt: new Date().toISOString(),
-      createdBy: "Sarah Mitchell",
+      createdBy: currentAgent,
     })
     goeyToast.success("Task created")
     onOpenChange(false)

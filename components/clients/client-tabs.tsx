@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
   User,
@@ -55,8 +55,6 @@ export function ClientTabs({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const contentRef = useRef<HTMLDivElement>(null)
-
   const sectionFromUrl = searchParams.get("section")
   const initialSection = isValidSection(sectionFromUrl) ? sectionFromUrl : "contact"
 
@@ -85,11 +83,6 @@ export function ClientTabs({
     },
     [pathname, router, searchParams]
   )
-
-  // Scroll content area to top when section changes
-  useEffect(() => {
-    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }, [activeSection])
 
   const sectionProps = {
     client,
@@ -141,7 +134,6 @@ export function ClientTabs({
 
       {/* Content area */}
       <div
-        ref={contentRef}
         id="section-content"
         className="min-h-[400px] pt-6"
         role="tabpanel"

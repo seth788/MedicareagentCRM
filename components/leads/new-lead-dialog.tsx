@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useCRMStore, generateLeadId } from "@/lib/store"
-import { agents } from "@/lib/mock-data"
 import type { LeadSource } from "@/lib/types"
 import { goeyToast } from "goey-toast"
 
@@ -36,14 +35,13 @@ interface NewLeadDialogProps {
 }
 
 export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDialogProps) {
-  const { addLead, flows, getStagesByFlowId, getDefaultFlow } = useCRMStore()
+  const { addLead, flows, getStagesByFlowId, getDefaultFlow, currentAgent } = useCRMStore()
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     phone: "",
     email: "",
     source: "Website" as LeadSource,
-    assignedTo: agents[0],
     flowId: "" as string,
     stageId: "" as string,
   })
@@ -73,7 +71,7 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
       phone: form.phone,
       email: form.email,
       source: form.source,
-      assignedTo: form.assignedTo,
+      assignedTo: currentAgent,
       flowId: effectiveFlowId,
       stageId: effectiveStageId,
       notes: [],
@@ -91,7 +89,6 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
       phone: "",
       email: "",
       source: "Website",
-      assignedTo: agents[0],
       flowId: "",
       stageId: "",
     })
@@ -188,20 +185,6 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
                 <SelectContent>
                   {sources.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Assigned To</Label>
-              <Select
-                value={form.assignedTo}
-                onValueChange={(v) => setForm({ ...form, assignedTo: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {agents.map((a) => (
-                    <SelectItem key={a} value={a}>{a}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

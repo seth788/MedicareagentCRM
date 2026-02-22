@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Star, MoreVertical } from "@/components/icons"
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, MoreVertical } from "@/components/icons"
 import {
   Sheet,
   SheetContent,
@@ -89,10 +89,10 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     const name = newFlowName.trim() || "New flow"
     const maxOrder = flows.length ? Math.max(...flows.map((f) => f.order)) : -1
     addFlow({
-      id: `flow-${Date.now()}`,
+      id: crypto.randomUUID(),
       name,
       order: maxOrder + 1,
-      isDefault: flows.length === 0,
+      isDefault: false,
       createdAt: new Date().toISOString(),
     })
     setNewFlowName("")
@@ -119,15 +119,10 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     }
   }
 
-  const handleSetDefaultFlow = (id: string) => {
-    updateFlow(id, { isDefault: true })
-    goeyToast.success("Default flow updated")
-  }
-
   const handleAddStage = () => {
     if (!selectedFlowId) return
     const name = newStageName.trim() || "New stage"
-    addStage(selectedFlowId, { name })
+    addStage(selectedFlowId, { name, colorKey: STAGE_COLOR_PRESETS[0] })
     setNewStageName("")
     goeyToast.success(name)
   }
@@ -241,11 +236,6 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
                           >
                             {flow.name}
                           </button>
-                          {flow.isDefault && (
-                            <span title="Default flow">
-                              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                            </span>
-                          )}
                           <span className="text-xs text-muted-foreground">
                             {leadCountByFlow(flow.id)} contact{leadCountByFlow(flow.id) === 1 ? "" : "s"}
                           </span>
@@ -265,12 +255,6 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
                                 <Pencil className="mr-2 h-3.5 w-3.5" />
                                 Edit name
                               </DropdownMenuItem>
-                              {!flow.isDefault && (
-                                <DropdownMenuItem onClick={() => handleSetDefaultFlow(flow.id)}>
-                                  <Star className="mr-2 h-3.5 w-3.5" />
-                                  Set as default
-                                </DropdownMenuItem>
-                              )}
                               <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => handleDeleteFlow(flow.id)}

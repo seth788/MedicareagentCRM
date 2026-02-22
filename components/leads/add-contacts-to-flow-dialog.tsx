@@ -27,7 +27,6 @@ import { goeyToast } from "goey-toast"
 import type { Stage } from "@/lib/types"
 import { Search } from "@/components/icons"
 
-const CREATED_BY = "Sarah Mitchell"
 
 interface AddContactsToFlowDialogProps {
   open: boolean
@@ -44,7 +43,7 @@ export function AddContactsToFlowDialog({
   flowName,
   stages,
 }: AddContactsToFlowDialogProps) {
-  const { clients, leads, createLeadFromClient, addActivity, getStageById } = useCRMStore()
+  const { clients, leads, createLeadFromClient, addActivity, getStageById, currentAgent } = useCRMStore()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [stageId, setStageId] = useState(stages[0]?.id ?? "")
   const [search, setSearch] = useState("")
@@ -133,7 +132,7 @@ export function AddContactsToFlowDialog({
           type: "note",
           description: `Added to ${flowName} (stage: ${stage?.name ?? effectiveStageId})`,
           createdAt: now,
-          createdBy: CREATED_BY,
+          createdBy: currentAgent,
         })
       }
     }

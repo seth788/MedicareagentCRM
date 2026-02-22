@@ -26,6 +26,14 @@ export interface Stage {
   colorKey?: string
 }
 
+/** A single note with timestamp (stored as ISO string, displayed in user's local time). */
+export interface NoteEntry {
+  text: string
+  createdAt: string
+  /** Set when the note was last edited; omitted if never edited. */
+  updatedAt?: string
+}
+
 export interface Lead {
   id: string
   firstName: string
@@ -35,7 +43,7 @@ export interface Lead {
   source: LeadSource
   flowId: string
   stageId: string
-  notes: string[]
+  notes: NoteEntry[]
   tags: string[]
   assignedTo: string
   createdAt: string
@@ -177,6 +185,10 @@ export interface Client {
   conditions: string[]
   /** Selected items from the fixed health tracker list (condition/disorder/disease checkboxes) */
   healthTracker?: string[]
+  /** How the client was acquired (e.g. Website, Facebook, Referral); agents can add custom sources. */
+  source?: string
+  /** Agent-added notes (free-form) with timestamps; action-based events are in the activity timeline. */
+  notes?: NoteEntry[]
   coverage?: Coverage
   createdAt: string
   updatedAt: string

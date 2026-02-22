@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -19,17 +20,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { AddressForm } from "@/components/clients/address-form"
 import { useCRMStore } from "@/lib/store"
+import { formatPhoneNumber } from "@/lib/utils"
 import { getT65FromDob } from "@/lib/date-utils"
 import { goeyToast } from "goey-toast"
-import type { ClientAddress, ClientPhone, ClientEmail, ClientPhoneType } from "@/lib/types"
+import type { ClientAddress, ClientPhone, ClientEmail } from "@/lib/types"
 
-const PHONE_TYPES: ClientPhoneType[] = ["Cell", "Home", "Work", "Other"]
+const DEFAULT_SOURCE_OPTIONS = [
+  "Website",
+  "Facebook",
+  "Referral",
+  "Call-in",
+  "Direct Mail",
+  "Event",
+  "Other",
+]
 
 function createEmptyAddress(): ClientAddress {
   return {
-    id: `addr-${Date.now()}`,
+    id: crypto.randomUUID(),
     type: "Home",
     address: "",
     city: "",
@@ -41,7 +56,7 @@ function createEmptyAddress(): ClientAddress {
 
 function createEmptyPhone(): ClientPhone {
   return {
-    id: `phone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     number: "",
     type: "Cell",
     isPreferred: false,
@@ -50,7 +65,7 @@ function createEmptyPhone(): ClientPhone {
 
 function createEmptyEmail(): ClientEmail {
   return {
-    id: `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     value: "",
     isPreferred: false,
   }
@@ -62,10 +77,12 @@ interface NewClientDialogProps {
 }
 
 export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
-  const { addClient } = useCRMStore()
+  const router = useRouter()
+  const { addClient, currentAgent, agentCustomSources, addAgentCustomSource } = useCRMStore()
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
+    source: "",
     phones: [{ ...createEmptyPhone(), isPreferred: true }] as ClientPhone[],
     emails: [{ ...createEmptyEmail(), isPreferred: true }] as ClientEmail[],
     dob: "",
@@ -73,11 +90,27 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
     preferredContactMethod: "phone" as "phone" | "email" | "text",
     language: "English",
   })
+  const [addSourceOpen, setAddSourceOpen] = useState(false)
+  const [newSourceValue, setNewSourceValue] = useState("")
+  const allSourceOptions = useMemo(() => {
+    const custom = agentCustomSources[currentAgent] ?? []
+    const combined = [...DEFAULT_SOURCE_OPTIONS, ...custom]
+    return [...new Set(combined)]
+  }, [currentAgent, agentCustomSources])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.firstName || !form.lastName) {
-      goeyToast.error("First and last name are required")
+    if (!form.firstName?.trim()) {
+      goeyToast.error("First name is required")
+      return
+    }
+    if (!form.lastName?.trim()) {
+      goeyToast.error("Last name is required")
+      return
+    }
+    const addr = form.addresses[0]
+    if (!addr?.address?.trim() || !addr?.city?.trim()) {
+      goeyToast.error("Address is required (street and city)")
       return
     }
     const addresses = form.addresses.map((a) => ({
@@ -105,11 +138,13 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
     if (emails.length && !emails.some((e) => e.isPreferred)) emails[0] = { ...emails[0], isPreferred: true }
 
     const dobStr = form.dob || "1961-01-01"
+    const clientId = crypto.randomUUID()
 
     addClient({
-      id: `client-${Date.now()}`,
+      id: clientId,
       firstName: form.firstName,
       lastName: form.lastName,
+      source: form.source.trim() || undefined,
       phones: phones.length ? phones : [{ ...createEmptyPhone(), isPreferred: true }],
       emails: emails.length ? emails : [{ ...createEmptyEmail(), isPreferred: true }],
       dob: dobStr,
@@ -129,12 +164,10 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-    goeyToast.success("Client created", {
-      description: `${form.firstName} ${form.lastName} has been added`,
-    })
     setForm({
       firstName: "",
       lastName: "",
+      source: "",
       phones: [{ ...createEmptyPhone(), isPreferred: true }],
       emails: [{ ...createEmptyEmail(), isPreferred: true }],
       dob: "",
@@ -143,16 +176,26 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
       language: "English",
     })
     onOpenChange(false)
+    router.push(`/clients/${clientId}?new=1`)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent
+        className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0"
+        onPointerDownOutside={(e) => {
+          if ((e.target as Element).closest?.("[data-address-autocomplete-listbox]")) {
+            e.preventDefault()
+          }
+        }}
+      >
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-2 pr-10">
           <DialogTitle>New Client</DialogTitle>
           <DialogDescription>Add a new client to your book of business.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
+          <div className="grid gap-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="c-firstName">First Name</Label>
@@ -173,166 +216,125 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
               />
             </div>
           </div>
-          <div className="space-y-3">
-            <Label>Contact</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                {form.phones.map((phone, index) => (
-                  <div key={phone.id} className="space-y-1">
-                    <div className="flex gap-2 items-start">
-                      <Select
-                        value={phone.type}
-                        onValueChange={(v) => {
-                          const next = form.phones.map((p, i) =>
-                            i === index ? { ...p, type: v as ClientPhoneType } : p
-                          )
-                          setForm((prev) => ({ ...prev, phones: next }))
-                        }}
-                      >
-                        <SelectTrigger className="w-[90px] shrink-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PHONE_TYPES.map((t) => (
-                            <SelectItem key={t} value={t}>{t}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        value={phone.number}
-                        onChange={(e) => {
-                          const next = form.phones.map((p, i) =>
-                            i === index ? { ...p, number: e.target.value } : p
-                          )
-                          setForm((prev) => ({ ...prev, phones: next }))
-                        }}
-                        placeholder="(555) 123-4567"
-                        className="flex-1 min-w-0"
-                      />
-                      {form.phones.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const next = form.phones.filter((_, i) => i !== index)
-                            if (phone.isPreferred && next.length) next[0] = { ...next[0], isPreferred: true }
-                            setForm((prev) => ({ ...prev, phones: next }))
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                    {form.phones.length > 1 && (
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="radio"
-                          name="new-preferred-phone"
-                          checked={phone.isPreferred}
-                          onChange={() => {
-                            const next = form.phones.map((p, i) => ({ ...p, isPreferred: i === index }))
-                            setForm((prev) => ({ ...prev, phones: next }))
-                          }}
-                        />
-                        Preferred
-                      </label>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setForm((prev) => ({ ...prev, phones: [...prev.phones, createEmptyPhone()] }))}
-                >
-                  Add phone
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {form.emails.map((email, index) => (
-                  <div key={email.id} className="space-y-1">
-                    <div className="flex gap-2 items-start">
-                      <Input
-                        type="email"
-                        value={email.value}
-                        onChange={(ev) => {
-                          const next = form.emails.map((em, i) =>
-                            i === index ? { ...em, value: ev.target.value } : em
-                          )
-                          setForm((prev) => ({ ...prev, emails: next }))
-                        }}
-                        placeholder="mary@email.com"
-                        className="flex-1 min-w-0"
-                      />
-                      {form.emails.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const next = form.emails.filter((_, i) => i !== index)
-                            if (email.isPreferred && next.length) next[0] = { ...next[0], isPreferred: true }
-                            setForm((prev) => ({ ...prev, emails: next }))
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                    {form.emails.length > 1 && (
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="radio"
-                          name="new-preferred-email"
-                          checked={email.isPreferred}
-                          onChange={() => {
-                            const next = form.emails.map((e, i) => ({ ...e, isPreferred: i === index }))
-                            setForm((prev) => ({ ...prev, emails: next }))
-                          }}
-                        />
-                        Preferred
-                      </label>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setForm((prev) => ({ ...prev, emails: [...prev.emails, createEmptyEmail()] }))}
-                >
-                  Add email
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="c-dob">Date of Birth</Label>
-              <Input
-                id="c-dob"
-                type="date"
-                value={form.dob}
-                onChange={(e) => setForm({ ...form, dob: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Preferred Contact</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-source">Source</Label>
+            <div className="flex gap-2">
               <Select
-                value={form.preferredContactMethod}
+                value={form.source || "__none__"}
                 onValueChange={(v) =>
-                  setForm({ ...form, preferredContactMethod: v as "phone" | "email" | "text" })
+                  setForm({ ...form, source: v === "__none__" ? "" : v })
                 }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="c-source" className="flex-1">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="phone">Phone</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {allSourceOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                  {form.source &&
+                    !allSourceOptions.includes(form.source) && (
+                      <SelectItem value={form.source}>
+                        {form.source}
+                      </SelectItem>
+                    )}
                 </SelectContent>
               </Select>
+              <Popover open={addSourceOpen} onOpenChange={setAddSourceOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="default">
+                    Add Source
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72" align="end">
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Add a new source. It will be saved for your account and appear in the dropdown.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="e.g. LinkedIn"
+                        value={newSourceValue}
+                        onChange={(e) => setNewSourceValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            const v = newSourceValue.trim()
+                            if (v) {
+                              addAgentCustomSource(currentAgent, v)
+                              setForm((prev) => ({ ...prev, source: v }))
+                              setNewSourceValue("")
+                              setAddSourceOpen(false)
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const v = newSourceValue.trim()
+                          if (v) {
+                            addAgentCustomSource(currentAgent, v)
+                            setForm((prev) => ({ ...prev, source: v }))
+                            setNewSourceValue("")
+                            setAddSourceOpen(false)
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-phone">Phone</Label>
+            <Input
+              id="c-phone"
+              value={form.phones[0]?.number ?? ""}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "").slice(0, 10)
+                const formatted = formatPhoneNumber(digits)
+                setForm((prev) => ({
+                  ...prev,
+                  phones: [{ ...prev.phones[0], id: prev.phones[0]?.id ?? crypto.randomUUID(), number: formatted, type: "Cell", isPreferred: true }],
+                }))
+              }}
+              placeholder="(555) 123-4567"
+              inputMode="numeric"
+              maxLength={14}
+              autoComplete="tel"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-email">Email</Label>
+            <Input
+              id="c-email"
+              type="email"
+              value={form.emails[0]?.value ?? ""}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  emails: [{ ...prev.emails[0], id: prev.emails[0]?.id ?? crypto.randomUUID(), value: e.target.value, isPreferred: true }],
+                }))
+              }
+              placeholder="mary@email.com"
+              autoComplete="email"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-dob">Date of Birth</Label>
+            <Input
+              id="c-dob"
+              type="date"
+              value={form.dob}
+              onChange={(e) => setForm({ ...form, dob: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Address</Label>
@@ -350,7 +352,9 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
               dialogOpen={open}
             />
           </div>
-          <DialogFooter className="pt-2">
+          </div>
+          </div>
+          <DialogFooter className="shrink-0 px-6 py-4 pt-2 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

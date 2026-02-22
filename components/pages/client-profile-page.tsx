@@ -1,9 +1,10 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft } from "@/components/icons"
+import { goeyToast } from "goey-toast"
 import { AppHeader } from "@/components/app-header"
 import { ClientProfileHeader } from "@/components/clients/profile-header"
 import { ClientTabs } from "@/components/clients/client-tabs"
@@ -16,10 +17,23 @@ export default function ClientProfilePageInner({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { clients, activities, tasks } = useCRMStore()
   const client = clients.find((c) => c.id === id)
   const [editClientOpen, setEditClientOpen] = useState(false)
   const [editClientSection, setEditClientSection] = useState<EditClientSection | null>(null)
+  const hasShownNewToast = useRef(false)
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1" || !client || hasShownNewToast.current) return
+    hasShownNewToast.current = true
+    goeyToast.info("You can complete setting up the profile")
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("new")
+    const qs = params.toString()
+    router.replace(qs ? `/clients/${id}?${qs}` : `/clients/${id}`, { scroll: false })
+  }, [searchParams, client, id, router])
 
   const openEditClient = (section?: EditClientSection | null) => {
     setEditClientSection(section ?? null)

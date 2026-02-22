@@ -69,6 +69,7 @@ import {
   Search01Icon,
   SentIcon,
   Settings01Icon,
+  Share05Icon,
   Shield01Icon,
   StethoscopeIcon,
   StickyNote01Icon,
@@ -173,6 +174,7 @@ export const CheckCircle2 = createIcon(CheckmarkCircle02Icon, "CheckCircle2")
 export const Clock = createIcon(Clock01Icon, "Clock")
 export const Globe = createIcon(GlobeIcon, "Globe")
 export const UserMinus = createIcon(UserMinus01Icon, "UserMinus")
+export const Share05 = createIcon(Share05Icon, "Share05")
 
 // Health tracker category icons
 export const CheckmarkBadge = createIcon(CheckmarkBadge01Icon, "CheckmarkBadge")

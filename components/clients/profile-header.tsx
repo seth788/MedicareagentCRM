@@ -41,7 +41,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { Client } from "@/lib/types"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ChevronDown } from "@/components/icons"
+import type { Client, Lead } from "@/lib/types"
 
 interface ClientProfileHeaderProps {
   client: Client
@@ -58,13 +66,15 @@ export function ClientProfileHeader({
   editClientSection,
   onRequestEdit,
 }: ClientProfileHeaderProps) {
-  const { leads, deleteLead, addActivity, flows, activities, tasks } = useCRMStore()
+  const { leads, deleteLead, addActivity, flows, activities, tasks, currentAgent } = useCRMStore()
   const [mounted, setMounted] = useState(false)
   const [createTaskOpen, setCreateTaskOpen] = useState(false)
   const [markAsLeadOpen, setMarkAsLeadOpen] = useState(false)
   const [removeLeadOpen, setRemoveLeadOpen] = useState(false)
+  const [removeLeadTarget, setRemoveLeadTarget] = useState<Lead | null>(null)
 
-  const leadForClient = leads.find((l) => l.clientId === client.id)
+  const leadsForClient = leads.filter((l) => l.clientId === client.id)
+  const canAddToFlow = flows.some((f) => !leadsForClient.some((l) => l.flowId === f.id))
 
   useEffect(() => {
     setMounted(true)
@@ -83,26 +93,30 @@ export function ClientProfileHeader({
   )
   const pendingTasks = clientTasks.filter((t) => !t.completedAt)
 
-  const handleRemoveFromLeads = () => {
-    if (leadForClient) {
-      const flow = flows.find((f) => f.id === leadForClient.flowId)
-      const flowName = flow?.name ?? "flow"
-      const now = new Date().toISOString()
-      addActivity({
-        id: `act-${Date.now()}`,
-        relatedType: "Client",
-        relatedId: client.id,
-        type: "note",
-        description: `Removed from ${flowName}`,
-        createdAt: now,
-        createdBy: "Sarah Mitchell",
-      })
-      deleteLead(leadForClient.id)
-      goeyToast.success("Removed from flow", {
-        description: `${client.firstName} ${client.lastName} is no longer in ${flowName}`,
-      })
-      setRemoveLeadOpen(false)
-    }
+  const handleRemoveFromLead = (leadToRemove: Lead) => {
+    const flow = flows.find((f) => f.id === leadToRemove.flowId)
+    const flowName = flow?.name ?? "flow"
+    const now = new Date().toISOString()
+    addActivity({
+      id: `act-${Date.now()}`,
+      relatedType: "Client",
+      relatedId: client.id,
+      type: "note",
+      description: `Removed from "${flowName}" Flow`,
+      createdAt: now,
+      createdBy: currentAgent,
+    })
+    deleteLead(leadToRemove.id)
+    goeyToast.success("Removed from flow", {
+      description: `${client.firstName} ${client.lastName} is no longer in ${flowName}`,
+    })
+    setRemoveLeadOpen(false)
+    setRemoveLeadTarget(null)
+  }
+
+  const openRemoveConfirm = (lead: Lead) => {
+    setRemoveLeadTarget(lead)
+    setRemoveLeadOpen(true)
   }
 
   return (
@@ -123,39 +137,48 @@ export function ClientProfileHeader({
               {client.lastName[0]}
             </div>
             <div className="flex flex-wrap gap-2 pb-1">
-              <Button size="sm" variant="outline" className="bg-card/80 backdrop-blur-sm" onClick={() => onRequestEdit()}>
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                Edit
-              </Button>
-              <Button size="sm" className="shadow-sm" onClick={() => setCreateTaskOpen(true)}>
-                <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                Task
-              </Button>
-              {leadForClient ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="bg-card/80 backdrop-blur-sm"
-                  onClick={() => setRemoveLeadOpen(true)}
-                  aria-label="Remove from leads pipeline"
-                >
-                  <UserMinus className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Remove from leads</span>
-                  <span className="sm:hidden">Remove</span>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="bg-card/80 backdrop-blur-sm"
-                  onClick={() => setMarkAsLeadOpen(true)}
-                  aria-label="Mark as lead"
-                >
-                  <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Mark as lead</span>
-                  <span className="sm:hidden">Lead</span>
-                </Button>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="bg-card/80 backdrop-blur-sm" aria-label="Actions">
+                    Actions
+                    <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => onRequestEdit()}>
+                    <Pencil className="mr-2 h-3.5 w-3.5" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCreateTaskOpen(true)}>
+                    <Calendar className="mr-2 h-3.5 w-3.5" />
+                    Task
+                  </DropdownMenuItem>
+                  {canAddToFlow && (
+                    <DropdownMenuItem onClick={() => setMarkAsLeadOpen(true)}>
+                      <UserPlus className="mr-2 h-3.5 w-3.5" />
+                      Add to flow
+                    </DropdownMenuItem>
+                  )}
+                  {leadsForClient.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      {leadsForClient.map((lead) => {
+                        const flowName = flows.find((f) => f.id === lead.flowId)?.name ?? "flow"
+                        return (
+                          <DropdownMenuItem
+                            key={lead.id}
+                            onClick={() => openRemoveConfirm(lead)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <UserMinus className="mr-2 h-3.5 w-3.5" />
+                            Remove from &quot;{flowName}&quot;
+                          </DropdownMenuItem>
+                        )
+                      })}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -178,9 +201,9 @@ export function ClientProfileHeader({
                 {client.coverage.carrier} {client.coverage.planType}
               </Badge>
             )}
-            {leadForClient && (
+            {leadsForClient.length > 0 && (
               <Badge className="border-chart-2/25 bg-chart-2/10 text-chart-2 font-medium" variant="outline">
-                Active Lead
+                {leadsForClient.length === 1 ? "Active Lead" : `In ${leadsForClient.length} flows`}
               </Badge>
             )}
           </div>
@@ -319,19 +342,30 @@ export function ClientProfileHeader({
         section={editClientSection}
       />
 
-      <AlertDialog open={removeLeadOpen} onOpenChange={setRemoveLeadOpen}>
+      <AlertDialog
+        open={removeLeadOpen}
+        onOpenChange={(open) => {
+          if (!open) setRemoveLeadTarget(null)
+          setRemoveLeadOpen(open)
+        }}
+      >
         <AlertDialogContent aria-describedby="remove-lead-description">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove from leads?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Remove from {removeLeadTarget ? flows.find((f) => f.id === removeLeadTarget.flowId)?.name ?? "flow" : ""}?
+            </AlertDialogTitle>
             <AlertDialogDescription id="remove-lead-description">
-              This will remove {client.firstName} {client.lastName} from the leads pipeline. They
-              will remain a client; you can add them back to leads anytime.
+              This will remove {client.firstName} {client.lastName} from this flow. They will remain
+              a client and stay in any other flows; you can add them back to this flow anytime.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveFromLeads}>
-              Remove from leads
+            <AlertDialogAction
+              onClick={() => removeLeadTarget && handleRemoveFromLead(removeLeadTarget)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove from flow
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

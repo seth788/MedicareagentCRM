@@ -28,10 +28,19 @@ interface MarkAsLeadDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-const CREATED_BY = "Sarah Mitchell"
 
 export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialogProps) {
-  const { createLeadFromClient, addActivity, flows, getStagesByFlowId, getDefaultFlow, getStageById } = useCRMStore()
+  const { leads, createLeadFromClient, addActivity, flows, getStagesByFlowId, getDefaultFlow, getStageById, currentAgent } =
+    useCRMStore()
+
+  const availableFlows = useMemo(
+    () =>
+      flows
+        .filter((f) => !leads.some((l) => l.clientId === client.id && l.flowId === f.id))
+        .sort((a, b) => a.order - b.order),
+    [flows, leads, client.id]
+  )
+
   const defaultFlow = getDefaultFlow()
   const [flowId, setFlowId] = useState(defaultFlow?.id ?? "")
   const [stageId, setStageId] = useState("")
@@ -42,11 +51,11 @@ export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialo
 
   useEffect(() => {
     if (open) {
-      const df = getDefaultFlow()
-      setFlowId(df?.id ?? flows[0]?.id ?? "")
+      const first = availableFlows.find((f) => f.id === (defaultFlow?.id ?? flows[0]?.id)) ?? availableFlows[0]
+      setFlowId(first?.id ?? "")
       setStageId("")
     }
-  }, [open, getDefaultFlow, flows])
+  }, [open, defaultFlow?.id, flows, availableFlows])
 
   useEffect(() => {
     if (flowId && !flowStages.some((s) => s.id === stageId)) {
@@ -70,7 +79,7 @@ export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialo
         type: "note",
         description: `Added to ${flowName} (stage: ${stageName})`,
         createdAt: now,
-        createdBy: CREATED_BY,
+        createdBy: currentAgent,
       })
       goeyToast.success(`Added to ${flowName}`, {
         description: `${lead.firstName} ${lead.lastName} is now in this flow`,
@@ -83,44 +92,52 @@ export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" aria-describedby="mark-as-lead-description">
         <DialogHeader>
-          <DialogTitle>Mark as lead</DialogTitle>
+          <DialogTitle>Add to flow</DialogTitle>
           <DialogDescription id="mark-as-lead-description">
-            Choose the flow and stage where this client should start. They will appear on the board under that stage.
+            {availableFlows.length === 0
+              ? "This client is already in every flow."
+              : "Choose a flow and stage. They will appear on the board under that stage."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-flow">Flow</Label>
-            <Select value={flowId} onValueChange={(v) => { setFlowId(v); setStageId("") }}>
-              <SelectTrigger id="lead-flow" aria-label="Select flow">
-                <SelectValue placeholder="Select flow" />
-              </SelectTrigger>
-              <SelectContent>
-                {flows.sort((a, b) => a.order - b.order).map((f) => (
-                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-stage">Starting stage</Label>
-            <Select value={effectiveStageId} onValueChange={setStageId}>
-              <SelectTrigger id="lead-stage" aria-label="Select lead stage">
-                <SelectValue placeholder="Select stage" />
-              </SelectTrigger>
-              <SelectContent>
-                {flowStages.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {availableFlows.length > 0 && (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="lead-flow">Flow</Label>
+                <Select value={flowId} onValueChange={(v) => { setFlowId(v); setStageId("") }}>
+                  <SelectTrigger id="lead-flow" aria-label="Select flow">
+                    <SelectValue placeholder="Select flow" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableFlows.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lead-stage">Starting stage</Label>
+                <Select value={effectiveStageId} onValueChange={setStageId}>
+                  <SelectTrigger id="lead-stage" aria-label="Select lead stage">
+                    <SelectValue placeholder="Select stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flowStages.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!flowId || !effectiveStageId}>Add to leads</Button>
+          <Button onClick={handleConfirm} disabled={!flowId || !effectiveStageId || availableFlows.length === 0}>
+            Add to flow
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

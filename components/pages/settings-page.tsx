@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,13 +11,58 @@ import { Badge } from "@/components/ui/badge"
 import { useTheme } from "next-themes"
 import { goeyToast } from "goey-toast"
 import { Moon, Sun, Monitor } from "@/components/icons"
+import { getSettingsProfile, updateProfileSettings } from "@/app/actions/settings"
+import type { SettingsProfile as SettingsProfileType } from "@/app/actions/settings"
 
 export default function SettingsPageInner() {
-  const { theme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
+  const [profile, setProfile] = useState<SettingsProfileType | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState<SettingsProfileType>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    npn: "",
+    theme: "light",
+  })
+
+  useEffect(() => {
+    getSettingsProfile().then((data) => {
+      if (data) {
+        setProfile(data)
+        setForm(data)
+      }
+      setLoading(false)
+    })
+  }, [])
 
   const openCmd = () => {
     const fn = (window as unknown as Record<string, unknown>).__openCommandPalette
     if (typeof fn === "function") (fn as () => void)()
+  }
+
+  const handleSaveProfile = async () => {
+    setSaving(true)
+    try {
+      await updateProfileSettings({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        npn: form.npn,
+        theme: form.theme,
+      })
+      setProfile({ ...form })
+      goeyToast.success("Profile updated")
+    } catch (e) {
+      goeyToast.error(e instanceof Error ? e.message : "Failed to update profile")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleThemeChange = (value: "light" | "dark" | "system") => {
+    setForm((f) => ({ ...f, theme: value }))
+    setTheme(value)
   }
 
   return (
@@ -38,60 +84,82 @@ export default function SettingsPageInner() {
                 <CardDescription>Your agent profile information.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>First Name</Label>
-                    <Input defaultValue="Sarah" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Last Name</Label>
-                    <Input defaultValue="Mitchell" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input defaultValue="sarah.mitchell@medicrm.com" type="email" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>NPN (National Producer Number)</Label>
-                  <Input defaultValue="12345678" />
-                </div>
-                <Button
-                  className="w-fit"
-                  onClick={() => goeyToast.success("Profile updated")}
-                >
-                  Save Changes
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Appearance</CardTitle>
-                <CardDescription>Customize the look of your workspace.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1.5">
-                  <Label>Theme</Label>
-                  <div className="flex gap-2">
-                    {([
-                      { value: "light", label: "Light", icon: Sun },
-                      { value: "dark", label: "Dark", icon: Moon },
-                      { value: "system", label: "System", icon: Monitor },
-                    ] as const).map((opt) => (
-                      <Button
-                        key={opt.value}
-                        variant={theme === opt.value ? "secondary" : "outline"}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setTheme(opt.value)}
-                      >
-                        <opt.icon className="h-3.5 w-3.5" />
-                        {opt.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">Loading profile…</p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>First Name</Label>
+                        <Input
+                          value={form.firstName}
+                          onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                          placeholder="First name"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Last Name</Label>
+                        <Input
+                          value={form.lastName}
+                          onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                          placeholder="Last name"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Email</Label>
+                      <Input
+                        value={form.email}
+                        readOnly
+                        type="email"
+                        className="bg-muted"
+                        title="Email is managed by your account sign-in."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Email is managed by your account sign-in.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>NPN (National Producer Number)</Label>
+                      <Input
+                        value={form.npn}
+                        onChange={(e) => setForm((f) => ({ ...f, npn: e.target.value }))}
+                        placeholder="NPN"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Appearance</Label>
+                      <div className="flex gap-2">
+                        {([
+                          { value: "light", label: "Light", icon: Sun },
+                          { value: "dark", label: "Dark", icon: Moon },
+                          { value: "system", label: "System", icon: Monitor },
+                        ] as const).map((opt) => (
+                          <Button
+                            key={opt.value}
+                            variant={form.theme === opt.value ? "secondary" : "outline"}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => handleThemeChange(opt.value)}
+                          >
+                            <opt.icon className="h-3.5 w-3.5" />
+                            {opt.label}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Saved with your profile and applied when you sign in.
+                      </p>
+                    </div>
+                    <Button
+                      className="w-fit"
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                    >
+                      {saving ? "Saving…" : "Save Changes"}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 

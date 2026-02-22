@@ -123,7 +123,7 @@ export function ContactSection({
   onEditAddresses,
 }: SectionProps) {
   const [mounted, setMounted] = useState(false)
-  const { clients, completeTask, updateClient, addActivity } = useCRMStore()
+  const { clients, completeTask, updateClient, addActivity, currentAgent } = useCRMStore()
   const spouse = client.spouseId ? clients.find((c) => c.id === client.spouseId) : null
   const sourceClientName = getClientDisplayName(client)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -147,7 +147,8 @@ export function ContactSection({
   const age = mounted ? getAgeFromDob(client.dob) : 0
   const pendingTasks = tasks.filter((t) => !t.completedAt)
   const completedTasks = tasks.filter((t) => t.completedAt)
-  const sortedActivities = [...activities].sort(
+  const actionActivities = activities.filter((a) => a.type !== "note")
+  const sortedActivities = [...actionActivities].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
   const quickActivities = sortedActivities.slice(0, QUICK_ACTIVITY_LIMIT)
@@ -210,6 +211,12 @@ export function ContactSection({
               <span className="text-sm text-muted-foreground">Language</span>
               <span className="text-sm text-foreground">{client.language}</span>
             </div>
+            {client.source && (
+              <div className="flex items-center justify-between gap-4 px-6 py-3.5">
+                <span className="text-sm text-muted-foreground">Source</span>
+                <span className="text-sm text-foreground">{client.source}</span>
+              </div>
+            )}
             {client.nickname && (
               <div className="flex items-center justify-between gap-4 px-6 py-3.5">
                 <span className="text-sm text-muted-foreground">Nickname</span>
@@ -383,7 +390,7 @@ export function ContactSection({
                                     type: "note",
                                     description: `Phone updated from ${sourceClientName}'s profile`,
                                     createdAt: new Date().toISOString(),
-                                    createdBy: "Sarah Mitchell",
+                                    createdBy: currentAgent,
                                   })
                                 }
                                 setEditingPhoneId(null)
@@ -566,7 +573,7 @@ export function ContactSection({
                                     type: "note",
                                     description: `Email updated from ${sourceClientName}'s profile`,
                                     createdAt: new Date().toISOString(),
-                                    createdBy: "Sarah Mitchell",
+                                    createdBy: currentAgent,
                                   })
                                 }
                                 setEditingEmailId(null)
@@ -748,7 +755,7 @@ export function ContactSection({
                     type: "note",
                     description: `Phone added from ${sourceClientName}'s profile`,
                     createdAt: new Date().toISOString(),
-                    createdBy: "Sarah Mitchell",
+                    createdBy: currentAgent,
                   })
                 }
                 goeyToast.success(alsoUpdateSpouse && spouse ? "Phone added to both profiles" : "Phone added")
@@ -849,7 +856,7 @@ export function ContactSection({
                     type: "note",
                     description: `Email added from ${sourceClientName}'s profile`,
                     createdAt: new Date().toISOString(),
-                    createdBy: "Sarah Mitchell",
+                    createdBy: currentAgent,
                   })
                 }
                 goeyToast.success(alsoUpdateSpouse && spouse ? "Email added to both profiles" : "Email added")
@@ -1078,7 +1085,7 @@ export function ContactSection({
                     type: "note",
                     description: `Address added from ${sourceClientName}'s profile`,
                     createdAt: new Date().toISOString(),
-                    createdBy: "Sarah Mitchell",
+                    createdBy: currentAgent,
                   })
                 }
                 goeyToast.success(alsoUpdateSpouse && spouse ? "Address added to both profiles" : "Address added")
@@ -1180,7 +1187,7 @@ export function ContactSection({
                     type: "note",
                     description: `Address updated from ${sourceClientName}'s profile`,
                     createdAt: new Date().toISOString(),
-                    createdBy: "Sarah Mitchell",
+                    createdBy: currentAgent,
                   })
                 }
                 goeyToast.success(alsoUpdateSpouse && spouse ? "Address updated on both profiles" : "Address updated")
@@ -1386,10 +1393,7 @@ export function ContactSection({
                         </p>
                       )}
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {activity.createdBy} ·{" "}
-                        {formatDistanceToNow(new Date(activity.createdAt), {
-                          addSuffix: true,
-                        })}
+                        {activity.createdBy} · {format(new Date(activity.createdAt), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                   </div>

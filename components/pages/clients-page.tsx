@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { getRefetchCRM } from "@/lib/store"
 import Link from "next/link"
 import { format, differenceInDays } from "date-fns"
 import { parseLocalDate, getT65FromDob, getAgeFromDob } from "@/lib/date-utils"
@@ -22,7 +23,7 @@ import { NewClientDialog } from "@/components/clients/new-client-dialog"
 import { useCRMStore } from "@/lib/store"
 import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
 
-type QuickFilter = "all" | "turning65" | "hasReview"
+type QuickFilter = "all" | "turning65"
 
 export default function ClientsPageInner() {
   const searchParams = useSearchParams()
@@ -30,9 +31,15 @@ export default function ClientsPageInner() {
   const [newOpen, setNewOpen] = useState(searchParams.get("new") === "true")
   const [search, setSearch] = useState("")
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all")
-  const { clients } = useCRMStore()
+  const { clients, hydrated } = useCRMStore()
 
   const now = new Date()
+
+  useEffect(() => {
+    if (hydrated && clients.length === 0) {
+      getRefetchCRM()?.()
+    }
+  }, [hydrated, clients.length])
 
   const filtered = useMemo(() => {
     let result = [...clients]
@@ -59,13 +66,6 @@ export default function ClientsPageInner() {
         const t65 = getT65FromDob(c.dob)
         const days = differenceInDays(parseLocalDate(t65), now)
         return days >= 0 && days <= 90
-      })
-    }
-    if (quickFilter === "hasReview") {
-      result = result.filter((c) => {
-        if (!c.coverage?.lastReviewDate) return true
-        const days = differenceInDays(now, parseLocalDate(c.coverage.lastReviewDate))
-        return days > 30
       })
     }
     return result
@@ -101,7 +101,6 @@ export default function ClientsPageInner() {
               [
                 { label: "All", value: "all" },
                 { label: "Turning 65", value: "turning65" },
-                { label: "Needs Review", value: "hasReview" },
               ] as const
             ).map((f) => (
               <Button

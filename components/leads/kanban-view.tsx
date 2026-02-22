@@ -203,14 +203,13 @@ function DroppableColumn({ stage, children }: { stage: Stage; children: React.Re
   )
 }
 
-const CREATED_BY = "Sarah Mitchell"
 
 export function KanbanView({ leads, stages }: KanbanViewProps) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const justFinishedDragRef = useRef(false)
-  const { updateLeadStage, addActivity, flows } = useCRMStore()
+  const { updateLeadStage, addActivity, flows, currentAgent } = useCRMStore()
 
   const getStageName = useCallback((stageId: string) => stages.find((s) => s.id === stageId)?.name ?? stageId, [stages])
 
@@ -229,7 +228,7 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
           type: "note",
           description: `Moved to ${stageName} in ${flowName}`,
           createdAt: new Date().toISOString(),
-          createdBy: CREATED_BY,
+          createdBy: currentAgent,
         })
       }
       goeyToast.success(`Moved to ${getStageName(stageId)}`)
@@ -335,7 +334,7 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
                   <div className="flex min-h-[120px] flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto p-2 pt-0">
                     {stageLeads.length === 0 ? (
                       <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed p-6">
-                        <p className="text-xs text-muted-foreground">No leads</p>
+                        <p className="text-xs text-muted-foreground">No clients</p>
                       </div>
                     ) : (
                       stageLeads.map((lead) => (

@@ -255,7 +255,7 @@ function formatPharmacyAddress(address: string | undefined): string {
 }
 
 export function HealthSection({ client }: SectionProps) {
-  const { updateClient, addActivity } = useCRMStore()
+  const { updateClient, addActivity, currentAgent } = useCRMStore()
 
   const defaultDoctorForm = (): Doctor => ({
     name: "",
@@ -427,7 +427,7 @@ export function HealthSection({ client }: SectionProps) {
       type: "note",
       description,
       createdAt: new Date().toISOString(),
-      createdBy: "Sarah Mitchell",
+      createdBy: currentAgent,
     })
   }
 

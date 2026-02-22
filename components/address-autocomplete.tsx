@@ -181,7 +181,7 @@ export function AddressAutocomplete({
     []
   )
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (container = input + inline listbox)
   useEffect(() => {
     if (!open) return
     const onDocClick = (e: MouseEvent) => {
@@ -255,7 +255,7 @@ export function AddressAutocomplete({
           <div
             id={id ? `${id}-listbox` : undefined}
             role="listbox"
-            className="absolute z-50 mt-1 w-full rounded-md border bg-popover py-1 text-popover-foreground shadow-md"
+            className="absolute z-[100] mt-1 w-full rounded-md border bg-popover py-1 text-popover-foreground shadow-md"
           >
             {loading ? (
               <div className="px-3 py-4 text-center text-sm text-muted-foreground">
@@ -276,8 +276,9 @@ export function AddressAutocomplete({
                         highlightIndex === i && "bg-accent text-accent-foreground"
                       )}
                       onMouseEnter={() => setHighlightIndex(i)}
-                      onMouseDown={(e) => {
+                      onClick={(e) => {
                         e.preventDefault()
+                        e.stopPropagation()
                         selectPlace(p.place_id, p.description)
                       }}
                     >

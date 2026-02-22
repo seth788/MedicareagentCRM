@@ -1,4 +1,8 @@
-import type { Lead, Client, Activity, Task, Flow, Stage } from "./types"
+import type { Lead, Client, Activity, Task, Flow, Stage, NoteEntry } from "./types"
+
+function notes(...entries: [string, string][]): NoteEntry[] {
+  return entries.map(([text, createdAt]) => ({ text, createdAt }))
+}
 
 // Use a fixed base date to prevent SSR/client hydration mismatches
 const BASE = "2026-02-17T12:00:00.000Z"
@@ -49,7 +53,10 @@ export const mockLeads: Lead[] = [
     source: "Facebook",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.New,
-    notes: ["Interested in Medicare Advantage plans", "Prefers morning calls"],
+    notes: notes(
+      ["Interested in Medicare Advantage plans", day(-1)],
+      ["Prefers morning calls", day(-1)]
+    ),
     tags: ["T65", "Priority"],
     assignedTo: "Sarah Mitchell",
     createdAt: day(-2),
@@ -66,7 +73,10 @@ export const mockLeads: Lead[] = [
     source: "Referral",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Contacted,
-    notes: ["Referred by existing client Mary Adams", "Has questions about Part D"],
+    notes: notes(
+      ["Referred by existing client Mary Adams", day(-1)],
+      ["Has questions about Part D", day(-1)]
+    ),
     tags: ["Referral", "Part D"],
     assignedTo: "Sarah Mitchell",
     createdAt: day(-5),
@@ -83,7 +93,10 @@ export const mockLeads: Lead[] = [
     source: "Website",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Scheduled,
-    notes: ["Appointment set for Thursday", "Wants to compare Supplement plans"],
+    notes: notes(
+      ["Appointment set for Thursday", day(-2)],
+      ["Wants to compare Supplement plans", day(-2)]
+    ),
     tags: ["Supplement", "Appointment"],
     assignedTo: "James Carter",
     createdAt: day(-7),
@@ -100,7 +113,7 @@ export const mockLeads: Lead[] = [
     source: "Call-in",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.New,
-    notes: ["Called asking about enrollment periods"],
+    notes: notes(["Called asking about enrollment periods", day(-1)]),
     tags: ["T65"],
     assignedTo: "Lisa Wang",
     createdAt: day(-1),
@@ -117,7 +130,11 @@ export const mockLeads: Lead[] = [
     source: "Direct Mail",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Nurture,
-    notes: ["Not ready yet", "Follow up in 2 weeks", "Interested in MAPD"],
+    notes: notes(
+      ["Not ready yet", day(-5)],
+      ["Follow up in 2 weeks", day(-5)],
+      ["Interested in MAPD", day(-5)]
+    ),
     tags: ["Long-term", "MAPD"],
     assignedTo: "Sarah Mitchell",
     createdAt: day(-30),
@@ -133,7 +150,10 @@ export const mockLeads: Lead[] = [
     source: "Event",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Contacted,
-    notes: ["Met at senior center event", "Spouse also needs coverage"],
+    notes: notes(
+      ["Met at senior center event", day(-1)],
+      ["Spouse also needs coverage", day(-1)]
+    ),
     tags: ["Couple", "Event"],
     assignedTo: "James Carter",
     createdAt: day(-3),
@@ -150,7 +170,10 @@ export const mockLeads: Lead[] = [
     source: "Facebook",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Converted,
-    notes: ["Enrolled in Aetna MAPD plan", "Very satisfied"],
+    notes: notes(
+      ["Enrolled in Aetna MAPD plan", day(-3)],
+      ["Very satisfied", day(-3)]
+    ),
     tags: ["MAPD", "Converted"],
     assignedTo: "Lisa Wang",
     createdAt: day(-45),
@@ -168,7 +191,10 @@ export const mockLeads: Lead[] = [
     source: "Referral",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS["Closed-Lost"],
-    notes: ["Went with another agent", "May reconsider at AEP"],
+    notes: notes(
+      ["Went with another agent", day(-10)],
+      ["May reconsider at AEP", day(-10)]
+    ),
     tags: ["Lost"],
     assignedTo: "Sarah Mitchell",
     createdAt: day(-60),
@@ -184,7 +210,7 @@ export const mockLeads: Lead[] = [
     source: "Website",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.New,
-    notes: ["Submitted form online"],
+    notes: notes(["Submitted form online", day(0)]),
     tags: ["Online", "T65"],
     assignedTo: "James Carter",
     createdAt: day(0),
@@ -201,7 +227,10 @@ export const mockLeads: Lead[] = [
     source: "Call-in",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Scheduled,
-    notes: ["Appointment next Monday", "Needs help with Part B enrollment"],
+    notes: notes(
+      ["Appointment next Monday", day(-1)],
+      ["Needs help with Part B enrollment", day(-1)]
+    ),
     tags: ["Part B", "Appointment"],
     assignedTo: "Lisa Wang",
     createdAt: day(-4),
@@ -217,7 +246,7 @@ export const mockLeads: Lead[] = [
     source: "Facebook",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Contacted,
-    notes: ["Interested in supplement plans"],
+    notes: notes(["Interested in supplement plans", day(-2)]),
     tags: ["Supplement"],
     assignedTo: "Sarah Mitchell",
     createdAt: day(-6),
@@ -233,7 +262,10 @@ export const mockLeads: Lead[] = [
     source: "Event",
     flowId: defaultFlow.id,
     stageId: STAGE_IDS.Nurture,
-    notes: ["Needs to wait until retirement", "Follow up in Q4"],
+    notes: notes(
+      ["Needs to wait until retirement", day(-8)],
+      ["Follow up in Q4", day(-8)]
+    ),
     tags: ["Future"],
     assignedTo: "James Carter",
     createdAt: day(-20),

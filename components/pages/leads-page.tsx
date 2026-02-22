@@ -186,13 +186,69 @@ export default function LeadsPageInner() {
             ) : (
               <TableView leads={filtered} stages={activeStages} />
             )
+          ) : flows.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Kanban className="h-10 w-10" />
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <h3 className="text-lg font-semibold text-foreground">No flows yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create your first flow to organize leads through stages—from first contact to converted client.
+                </p>
+              </div>
+              <Button onClick={() => setManageOpen(true)}>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Create your first flow
+              </Button>
+            </div>
+          ) : !activeFlowId ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                <Kanban className="h-10 w-10" />
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <h3 className="text-lg font-semibold text-foreground">Select a flow</h3>
+                <p className="text-sm text-muted-foreground">
+                  Choose a flow from the dropdown above, or open Manage flows to create or edit flows and stages.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => setManageOpen(true)}>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Manage flows &amp; stages
+              </Button>
+            </div>
+          ) : activeStages.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Settings2 className="h-10 w-10" />
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <h3 className="text-lg font-semibold text-foreground">Add stages to this flow</h3>
+                <p className="text-sm text-muted-foreground">
+                  &quot;{activeFlow?.name}&quot; has no stages yet. Add stages like New, Contacted, and Converted to move leads through your pipeline.
+                </p>
+              </div>
+              <Button onClick={() => setManageOpen(true)}>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Manage flows &amp; stages
+              </Button>
+            </div>
           ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-center text-muted-foreground">
-              {!activeFlowId
-                ? "No flow selected. Add a flow in Manage flows & stages."
-                : activeStages.length === 0
-                  ? "This flow has no stages. Add stages in Manage flows & stages."
-                  : "No leads in this flow."}
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                <UserPlus className="h-10 w-10" />
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <h3 className="text-lg font-semibold text-foreground">No leads in this flow</h3>
+                <p className="text-sm text-muted-foreground">
+                  Add contacts from your clients or create new leads to start moving them through &quot;{activeFlow?.name}&quot;.
+                </p>
+              </div>
+              <Button onClick={() => setAddContactsOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add contacts
+              </Button>
             </div>
           )}
         </div>

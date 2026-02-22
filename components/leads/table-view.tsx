@@ -48,7 +48,6 @@ interface TableViewProps {
   stages: Stage[]
 }
 
-const CREATED_BY = "Sarah Mitchell"
 
 export function TableView({ leads, stages }: TableViewProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -56,7 +55,7 @@ export function TableView({ leads, stages }: TableViewProps) {
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [detailLead, setDetailLead] = useState<Lead | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null)
-  const { updateLeadStage, deleteLead, addActivity, flows } = useCRMStore()
+  const { updateLeadStage, deleteLead, addActivity, flows, currentAgent } = useCRMStore()
 
   const getStage = (stageId: string) => stages.find((s) => s.id === stageId)
 
@@ -124,7 +123,7 @@ export function TableView({ leads, stages }: TableViewProps) {
           type: "note",
           description: `Moved to ${stageName} in ${flowName}`,
           createdAt: now,
-          createdBy: CREATED_BY,
+          createdBy: currentAgent,
         })
       }
     })
@@ -142,9 +141,9 @@ export function TableView({ leads, stages }: TableViewProps) {
           relatedType: "Client",
           relatedId: deleteTarget.clientId,
           type: "note",
-          description: `Removed from ${flowName}`,
+          description: `Removed from "${flowName}" Flow`,
           createdAt: new Date().toISOString(),
-          createdBy: CREATED_BY,
+          createdBy: currentAgent,
         })
       }
       deleteLead(deleteTarget.id)
@@ -311,7 +310,7 @@ export function TableView({ leads, stages }: TableViewProps) {
                                         type: "note",
                                         description: `Moved to ${s.name} in ${flowName}`,
                                         createdAt: new Date().toISOString(),
-                                        createdBy: CREATED_BY,
+                                        createdBy: currentAgent,
                                       })
                                     }
                                     goeyToast.success(`Moved to ${s.name}`)

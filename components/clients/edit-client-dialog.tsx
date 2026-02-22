@@ -21,6 +21,11 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { AddressForm } from "@/components/clients/address-form"
 import { AddressCard } from "@/components/clients/address-card"
 import { useCRMStore } from "@/lib/store"
@@ -59,7 +64,16 @@ interface EditClientDialogProps {
   section?: EditClientSection | null
 }
 
-const CREATED_BY = "Sarah Mitchell"
+
+const DEFAULT_SOURCE_OPTIONS = [
+  "Website",
+  "Facebook",
+  "Referral",
+  "Call-in",
+  "Direct Mail",
+  "Event",
+  "Other",
+]
 
 const LANGUAGE_OPTIONS = [
   "English",
@@ -86,7 +100,7 @@ export function EditClientDialog({
   onOpenChange,
   section: sectionProp = null,
 }: EditClientDialogProps) {
-  const { clients, currentAgent, updateClient, addActivity } = useCRMStore()
+  const { clients, currentAgent, updateClient, addActivity, agentCustomSources, addAgentCustomSource } = useCRMStore()
   const section = sectionProp ?? null
   const [form, setForm] = useState({
     title: "",
@@ -102,10 +116,18 @@ export function EditClientDialog({
     language: "English",
     preferredContactMethod: "phone" as "phone" | "email" | "text",
     spouseId: null as string | null,
+    source: "",
     medicareNumber: "",
     partAEffectiveDate: "",
     partBEffectiveDate: "",
   })
+  const [addSourceOpen, setAddSourceOpen] = useState(false)
+  const [newSourceValue, setNewSourceValue] = useState("")
+  const allSourceOptions = useMemo(() => {
+    const custom = agentCustomSources[currentAgent] ?? []
+    const combined = [...DEFAULT_SOURCE_OPTIONS, ...custom]
+    return [...new Set(combined)]
+  }, [currentAgent, agentCustomSources])
   const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null)
   const [alsoUpdateSpouseAddresses, setAlsoUpdateSpouseAddresses] = useState(false)
   const [spouseSearch, setSpouseSearch] = useState("")
@@ -144,6 +166,7 @@ export function EditClientDialog({
         language: client.language || "English",
         preferredContactMethod: client.preferredContactMethod,
         spouseId: client.spouseId ?? null,
+        source: client.source || "",
         medicareNumber: client.medicareNumber || "",
         partAEffectiveDate: client.partAEffectiveDate?.includes("T")
           ? client.partAEffectiveDate.slice(0, 10)
@@ -189,6 +212,7 @@ export function EditClientDialog({
         nickname: form.nickname.trim() || undefined,
         gender: (form.gender === "M" || form.gender === "F" ? form.gender : undefined) as "M" | "F" | undefined,
         funFacts: form.funFacts.trim() || undefined,
+        source: form.source.trim() || undefined,
       })
       if (previousSpouseId !== newSpouseId) {
         if (previousSpouseId) {
@@ -236,7 +260,7 @@ export function EditClientDialog({
             type: "note",
             description: `Addresses updated from ${sourceName}'s profile`,
             createdAt: new Date().toISOString(),
-            createdBy: CREATED_BY,
+            createdBy: currentAgent,
           })
         }
       }
@@ -268,7 +292,7 @@ export function EditClientDialog({
       type: "note",
       description: desc,
       createdAt: new Date().toISOString(),
-      createdBy: CREATED_BY,
+      createdBy: currentAgent,
     })
 
     goeyToast.success(
@@ -303,7 +327,7 @@ export function EditClientDialog({
             : "Edit client"
   const description =
     section === "personal"
-      ? "Update name, date of birth, language, spouse, gender, title, nickname, and fun facts."
+      ? "Update name, date of birth, language, source, spouse, gender, title, nickname, and fun facts."
       : section === "contact"
         ? "Update phone, email, and preferred contact method."
         : section === "addresses"
@@ -317,6 +341,11 @@ export function EditClientDialog({
       <DialogContent
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         aria-describedby="edit-client-description"
+        onPointerDownOutside={(e) => {
+          if ((e.target as Element).closest?.("[data-address-autocomplete-listbox]")) {
+            e.preventDefault()
+          }
+        }}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -458,6 +487,82 @@ export function EditClientDialog({
                         )}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-source">Source</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={form.source || "__none__"}
+                      onValueChange={(v) =>
+                        setForm({ ...form, source: v === "__none__" ? "" : v })
+                      }
+                    >
+                      <SelectTrigger id="edit-source" className="flex-1">
+                        <SelectValue placeholder="Select source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {allSourceOptions.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                        {form.source &&
+                          !allSourceOptions.includes(form.source) && (
+                            <SelectItem value={form.source}>
+                              {form.source}
+                            </SelectItem>
+                          )}
+                      </SelectContent>
+                    </Select>
+                    <Popover open={addSourceOpen} onOpenChange={setAddSourceOpen}>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" size="default">
+                          Add Source
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72" align="end">
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Add a new source. It will be saved for your account and appear in the dropdown.
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="e.g. LinkedIn"
+                              value={newSourceValue}
+                              onChange={(e) => setNewSourceValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault()
+                                  const v = newSourceValue.trim()
+                                  if (v) {
+                                    addAgentCustomSource(currentAgent, v)
+                                    setForm((prev) => ({ ...prev, source: v }))
+                                    setNewSourceValue("")
+                                    setAddSourceOpen(false)
+                                  }
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                const v = newSourceValue.trim()
+                                if (v) {
+                                  addAgentCustomSource(currentAgent, v)
+                                  setForm((prev) => ({ ...prev, source: v }))
+                                  setNewSourceValue("")
+                                  setAddSourceOpen(false)
+                                }
+                              }}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Spouse</Label>

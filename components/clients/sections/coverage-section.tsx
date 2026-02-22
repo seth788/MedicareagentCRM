@@ -29,7 +29,7 @@ import type { PlanType } from "@/lib/types"
 import type { SectionProps } from "./types"
 
 export function CoverageSection({ client }: SectionProps) {
-  const { updateClient, addActivity } = useCRMStore()
+  const { updateClient, addActivity, currentAgent } = useCRMStore()
   const [editCoverageOpen, setEditCoverageOpen] = useState(false)
   const [coverageForm, setCoverageForm] = useState({
     planType: (client.coverage?.planType || "MA") as PlanType,
@@ -63,7 +63,7 @@ export function CoverageSection({ client }: SectionProps) {
       type: "note",
       description,
       createdAt: new Date().toISOString(),
-      createdBy: "Sarah Mitchell",
+      createdBy: currentAgent,
     })
   }
 
