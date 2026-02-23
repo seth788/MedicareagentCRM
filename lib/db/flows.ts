@@ -13,7 +13,7 @@ export async function fetchFlows(agentId: string): Promise<Flow[]> {
     id: r.id,
     name: r.name,
     order: r.order,
-    isDefault: r.is_default,
+    isDefault: Boolean(r.is_default),
     createdAt: r.created_at,
   }))
 }
@@ -73,9 +73,24 @@ export async function updateFlow(
   updates: { name?: string; order?: number; isDefault?: boolean }
 ): Promise<void> {
   const supabase = await createClient()
+  if (updates.isDefault === true) {
+    const { error: clearErr } = await supabase
+      .from("flows")
+      .update({ is_default: false })
+      .eq("agent_id", agentId)
+    if (clearErr) throw clearErr
+    const { error: setErr } = await supabase
+      .from("flows")
+      .update({ is_default: true })
+      .eq("id", id)
+      .eq("agent_id", agentId)
+    if (setErr) throw setErr
+    return
+  }
   const payload: Record<string, unknown> = {}
   if (updates.name !== undefined) payload.name = updates.name
   if (updates.order !== undefined) payload.order = updates.order
+  if (updates.isDefault !== undefined) payload.is_default = updates.isDefault
   if (Object.keys(payload).length === 0) return
   const { error } = await supabase.from("flows").update(payload).eq("id", id).eq("agent_id", agentId)
   if (error) throw error

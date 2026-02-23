@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
     if (last_name && enumerationType === "NPI-1") params.set("last_name", last_name)
 
     const url = `${NPI_BASE}?${params.toString()}`
-    const res = await fetch(url, { next: { revalidate: 0 } })
+    // Cache 24h — NPI Registry reference data updates periodically.
+    const res = await fetch(url, { next: { revalidate: 86400 } })
     if (!res.ok) return []
     const data = (await res.json()) as NPIResponse
     return data.results ?? []

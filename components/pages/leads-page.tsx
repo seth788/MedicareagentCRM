@@ -18,9 +18,6 @@ import { TableView } from "@/components/leads/table-view"
 import { FlowStageManager } from "@/components/leads/flow-stage-manager"
 import { AddContactsToFlowDialog } from "@/components/leads/add-contacts-to-flow-dialog"
 import { useCRMStore } from "@/lib/store"
-import type { LeadSource } from "@/lib/types"
-
-const sources: LeadSource[] = ["Facebook", "Referral", "Website", "Call-in", "Direct Mail", "Event"]
 
 export default function LeadsPageInner() {
   const router = useRouter()
@@ -53,6 +50,11 @@ export default function LeadsPageInner() {
     [leads, activeFlowId, currentAgent]
   )
 
+  const sourcesInFlow = useMemo(
+    () => [...new Set(leadsInFlow.map((l) => l.source))].sort(),
+    [leadsInFlow]
+  )
+
   const filtered = useMemo(() => {
     return leadsInFlow.filter((l) => {
       if (search) {
@@ -69,6 +71,12 @@ export default function LeadsPageInner() {
       return true
     })
   }, [leadsInFlow, search, stageFilter, sourceFilter])
+
+  useEffect(() => {
+    if (sourceFilter !== "all" && !sourcesInFlow.includes(sourceFilter)) {
+      setSourceFilter("all")
+    }
+  }, [sourcesInFlow, sourceFilter])
 
   useEffect(() => {
     if (activeFlowId && flowIdFromUrl !== activeFlowId) {
@@ -151,7 +159,7 @@ export default function LeadsPageInner() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sources</SelectItem>
-              {sources.map((s) => (
+              {sourcesInFlow.map((s) => (
                 <SelectItem key={s} value={s}>{s}</SelectItem>
               ))}
             </SelectContent>

@@ -119,6 +119,7 @@ export function AddContactsToFlowDialog({
       return
     }
     const stage = getStageById(effectiveStageId)
+    const stageName = stage?.name ?? effectiveStageId
     const now = new Date().toISOString()
     let added = 0
     for (const clientId of toAdd) {
@@ -126,11 +127,11 @@ export function AddContactsToFlowDialog({
       if (lead) {
         added++
         addActivity({
-          id: `act-${Date.now()}-${clientId}`,
+          id: `act-${Date.now()}-${clientId}-${added}`,
           relatedType: "Client",
           relatedId: clientId,
           type: "note",
-          description: `Added to ${flowName} (stage: ${stage?.name ?? effectiveStageId})`,
+          description: `Added to ${flowName} — Stage: ${stageName}`,
           createdAt: now,
           createdBy: currentAgent,
         })

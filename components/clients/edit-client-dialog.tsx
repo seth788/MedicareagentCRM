@@ -29,7 +29,7 @@ import {
 import { AddressForm } from "@/components/clients/address-form"
 import { AddressCard } from "@/components/clients/address-card"
 import { useCRMStore } from "@/lib/store"
-import { getT65FromDob } from "@/lib/date-utils"
+import { getT65FromDob, effectiveDateToMonthValue, monthValueToEffectiveDate } from "@/lib/date-utils"
 import { goeyToast } from "goey-toast"
 import type { Client, ClientAddress } from "@/lib/types"
 
@@ -131,6 +131,7 @@ export function EditClientDialog({
   const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null)
   const [alsoUpdateSpouseAddresses, setAlsoUpdateSpouseAddresses] = useState(false)
   const [spouseSearch, setSpouseSearch] = useState("")
+  const [loadingMedicareNumber, setLoadingMedicareNumber] = useState(false)
   const eligibleClients = useMemo(
     () => getClientsEligibleForSpouseLink(clients, client.id, currentAgent),
     [clients, client.id, currentAgent]
@@ -168,18 +169,41 @@ export function EditClientDialog({
         spouseId: client.spouseId ?? null,
         source: client.source || "",
         medicareNumber: client.medicareNumber || "",
-        partAEffectiveDate: client.partAEffectiveDate?.includes("T")
-          ? client.partAEffectiveDate.slice(0, 10)
-          : client.partAEffectiveDate || "",
-        partBEffectiveDate: client.partBEffectiveDate?.includes("T")
-          ? client.partBEffectiveDate.slice(0, 10)
-          : client.partBEffectiveDate || "",
+        partAEffectiveDate: effectiveDateToMonthValue(client.partAEffectiveDate),
+        partBEffectiveDate: effectiveDateToMonthValue(client.partBEffectiveDate),
       })
       setEditingAddressIndex(null)
       setAlsoUpdateSpouseAddresses(false)
       setSpouseSearch("")
     }
   }, [open, client])
+
+  // Pre-fill Medicare number when opening Medicare section and client has MBI on file (reveal API)
+  useEffect(() => {
+    if (!open || section !== "medicare" || !client?.id || !client?.hasMedicareNumber) {
+      setLoadingMedicareNumber(false)
+      return
+    }
+    let cancelled = false
+    setLoadingMedicareNumber(true)
+    fetch(`/api/clients/${client.id}/reveal-mbi`)
+      .then((res) => {
+        if (!res.ok) return null
+        return res.json() as Promise<{ medicareNumber?: string }>
+      })
+      .then((data) => {
+        if (cancelled) return
+        setForm((prev) => ({ ...prev, medicareNumber: data?.medicareNumber ?? "" }))
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingMedicareNumber(false)
+      })
+    return () => {
+      cancelled = true
+      setLoadingMedicareNumber(false)
+    }
+  }, [open, section, client?.id, client?.hasMedicareNumber])
 
   const showPersonal = section === null || section === "personal"
   const showContact = section === null || section === "contact"
@@ -266,10 +290,12 @@ export function EditClientDialog({
       }
     }
     if (showMedicare) {
+      const mbiTrimmed = form.medicareNumber.trim()
       Object.assign(updates, {
-        medicareNumber: form.medicareNumber.trim(),
-        partAEffectiveDate: form.partAEffectiveDate || "",
-        partBEffectiveDate: form.partBEffectiveDate || "",
+        medicareNumber: mbiTrimmed,
+        hasMedicareNumber: mbiTrimmed !== "",
+        partAEffectiveDate: monthValueToEffectiveDate(form.partAEffectiveDate),
+        partBEffectiveDate: monthValueToEffectiveDate(form.partBEffectiveDate),
       })
     }
 
@@ -762,7 +788,9 @@ export function EditClientDialog({
                     id="edit-medicare"
                     value={form.medicareNumber}
                     onChange={(e) => setForm({ ...form, medicareNumber: e.target.value })}
-                    placeholder="1EG4-TE5-MK72"
+                    placeholder={loadingMedicareNumber ? "Loading…" : "1EG4-TE5-MK72"}
+                    disabled={loadingMedicareNumber}
+                    aria-busy={loadingMedicareNumber}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -770,7 +798,7 @@ export function EditClientDialog({
                     <Label htmlFor="edit-partA">Part A effective date</Label>
                     <Input
                       id="edit-partA"
-                      type="date"
+                      type="month"
                       value={form.partAEffectiveDate}
                       onChange={(e) => setForm({ ...form, partAEffectiveDate: e.target.value })}
                     />
@@ -779,7 +807,7 @@ export function EditClientDialog({
                     <Label htmlFor="edit-partB">Part B effective date</Label>
                     <Input
                       id="edit-partB"
-                      type="date"
+                      type="month"
                       value={form.partBEffectiveDate}
                       onChange={(e) => setForm({ ...form, partBEffectiveDate: e.target.value })}
                     />

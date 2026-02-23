@@ -29,25 +29,28 @@ import { LogActivityDialog } from "@/components/activities/log-activity-dialog"
 import type { ActivityType } from "@/lib/types"
 import type { SectionProps } from "./types"
 
-const activityIcons: Record<Exclude<ActivityType, "note">, React.ElementType> = {
+const activityIcons: Record<ActivityType, React.ElementType> = {
   call: Phone,
   email: Mail,
   text: MessageSquare,
   appointment: Calendar,
+  note: StickyNote,
 }
 
-const activityColors: Record<Exclude<ActivityType, "note">, string> = {
+const activityColors: Record<ActivityType, string> = {
   call: "bg-chart-1/10 text-chart-1 border-chart-1/20",
   email: "bg-chart-2/10 text-chart-2 border-chart-2/20",
   text: "bg-chart-3/10 text-chart-3 border-chart-3/20",
   appointment: "bg-chart-4/10 text-chart-4 border-chart-4/20",
+  note: "bg-muted/50 text-muted-foreground border-muted",
 }
 
-const activityLabels: Record<Exclude<ActivityType, "note">, string> = {
+const activityLabels: Record<ActivityType, string> = {
   call: "Call",
   email: "Email",
   text: "Text",
   appointment: "Appointment",
+  note: "Note",
 }
 
 export function NotesSection({ client, activities }: SectionProps) {
@@ -59,8 +62,7 @@ export function NotesSection({ client, activities }: SectionProps) {
   const [editingDraft, setEditingDraft] = useState("")
 
   const clientNotes = client.notes ?? []
-  const actionActivities = activities.filter((a) => a.type !== "note")
-  const sortedActivities = [...actionActivities].sort(
+  const sortedActivities = [...activities].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 
@@ -259,9 +261,9 @@ export function NotesSection({ client, activities }: SectionProps) {
           ) : (
             <div className="space-y-1">
               {sortedActivities.map((activity) => {
-                const Icon = activityIcons[activity.type as Exclude<ActivityType, "note">]
-                const colorClass = activityColors[activity.type as Exclude<ActivityType, "note">]
-                const label = activityLabels[activity.type as Exclude<ActivityType, "note">]
+                const Icon = activityIcons[activity.type]
+                const colorClass = activityColors[activity.type]
+                const label = activityLabels[activity.type]
                 return (
                   <div
                     key={activity.id}

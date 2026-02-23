@@ -1,5 +1,6 @@
 import { useSyncExternalStore, useCallback } from "react"
 import type { Lead, Client, Activity, Task, Flow, Stage } from "./types"
+import type { LeadSource } from "./types"
 import { getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "./utils"
 import type { HydratePayload } from "@/app/actions/crm-data"
 
@@ -114,10 +115,13 @@ export function useCRMStore() {
     if (!lead) return
     const stage = state.stages.find((s) => s.id === newStageId)
     if (!stage || stage.flowId !== lead.flowId) return
+    const now = new Date().toISOString()
     state = {
       ...state,
       leads: state.leads.map((l) =>
-        l.id === leadId ? { ...l, stageId: newStageId, updatedAt: new Date().toISOString() } : l
+        l.id === leadId
+          ? { ...l, stageId: newStageId, updatedAt: now, lastTouchedAt: now }
+          : l
       ),
     }
     emitChange()
@@ -221,6 +225,8 @@ export function useCRMStore() {
     persistHandlers.completeTask?.(taskId)
   }, [])
 
+const VALID_LEAD_SOURCES: LeadSource[] = ["Facebook", "Referral", "Website", "Call-in", "Direct Mail", "Event"]
+
   const createLeadFromClient = useCallback(
     (clientId: string, flowId: string, stageId: string): Lead | null => {
       const client = state.clients.find((c) => c.id === clientId)
@@ -234,13 +240,17 @@ export function useCRMStore() {
       const phone = getPreferredOrFirstPhone(client)
       const email = getPreferredOrFirstEmail(client)
       const now = new Date().toISOString()
+      const source: LeadSource =
+        client.source && VALID_LEAD_SOURCES.includes(client.source as LeadSource)
+          ? (client.source as LeadSource)
+          : "Referral"
       const lead: Lead = {
         id: crypto.randomUUID(),
         firstName: client.firstName,
         lastName: client.lastName,
         phone: phone?.number ?? "",
         email: email?.value ?? "",
-        source: "Referral",
+        source,
         flowId,
         stageId,
         notes: [{ text: "Marked as lead from client profile", createdAt: now }],
@@ -248,6 +258,7 @@ export function useCRMStore() {
         assignedTo: state.currentAgent,
         createdAt: now,
         updatedAt: now,
+        lastTouchedAt: now,
         nextFollowUpAt: null,
         dob: client.dob,
         clientId,
@@ -265,7 +276,8 @@ export function useCRMStore() {
   }, [])
 
   const getDefaultFlow = useCallback((): Flow | undefined => {
-    return state.flows[0]
+    const defaultFlow = state.flows.find((f) => f.isDefault)
+    return defaultFlow ?? state.flows[0] ?? undefined
   }, [])
 
   const getStageById = useCallback((stageId: string): Stage | undefined => {
@@ -279,6 +291,17 @@ export function useCRMStore() {
   }, [])
 
   const updateFlow = useCallback((id: string, updates: Partial<Omit<Flow, "id">>) => {
+    if (updates.isDefault === true) {
+      state = {
+        ...state,
+        flows: state.flows.map((f) =>
+          f.id === id ? { ...f, ...updates } : { ...f, isDefault: false }
+        ),
+      }
+      emitChange()
+      persistHandlers.updateFlow?.(id, updates)
+      return
+    }
     state = {
       ...state,
       flows: state.flows.map((f) => (f.id === id ? { ...f, ...updates } : f)),

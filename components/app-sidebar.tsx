@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Users,
-  UserPlus,
+  BarChart3,
   Settings,
   Shield,
 } from "@/components/icons"
@@ -36,7 +36,7 @@ import { signOut } from "@/app/actions/auth"
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Flows", url: "/flows", icon: UserPlus },
+  { title: "Flows", url: "/flows", icon: BarChart3 },
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ]

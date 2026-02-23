@@ -1,11 +1,13 @@
 import type { Client } from "@/lib/types"
 import { createClient } from "@/lib/supabase/server"
+import { encrypt } from "@/lib/encryption"
+import { logPhiAccess } from "@/lib/db/phi-access-log"
 
 export async function fetchClients(agentId: string): Promise<Client[]> {
   const supabase = await createClient()
   const { data: rows, error } = await supabase
     .from("clients")
-    .select("*")
+    .select("id, first_name, last_name, title, middle_name, suffix, nickname, gender, fun_facts, dob, turning65_date, preferred_contact_method, language, spouse_id, medicare_number, part_a_effective_date, part_b_effective_date, allergies, conditions, health_tracker, source, created_at, updated_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
   if (error) throw error
@@ -14,14 +16,14 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
   const clientIds = rows.map((r) => r.id)
   const [phonesRes, emailsRes, addressesRes, doctorsRes, medsRes, pharmaciesRes, notesRes, coverageRes] =
     await Promise.all([
-      supabase.from("client_phones").select("*").in("client_id", clientIds),
-      supabase.from("client_emails").select("*").in("client_id", clientIds),
-      supabase.from("client_addresses").select("*").in("client_id", clientIds),
-      supabase.from("client_doctors").select("*").in("client_id", clientIds),
-      supabase.from("client_medications").select("*").in("client_id", clientIds),
-      supabase.from("client_pharmacies").select("*").in("client_id", clientIds),
-      supabase.from("client_notes").select("*").in("client_id", clientIds),
-      supabase.from("client_coverage").select("*").in("client_id", clientIds),
+      supabase.from("client_phones").select("id, client_id, number, type, is_preferred, note").in("client_id", clientIds),
+      supabase.from("client_emails").select("id, client_id, value, is_preferred, note").in("client_id", clientIds),
+      supabase.from("client_addresses").select("id, client_id, type, address, unit, city, state, zip, is_preferred").in("client_id", clientIds),
+      supabase.from("client_doctors").select("client_id, name, specialty, phone, first_name, last_name, provider_id, facility_address, importance, note").in("client_id", clientIds),
+      supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
+      supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
+      supabase.from("client_notes").select("client_id, text, created_at, updated_at").in("client_id", clientIds),
+      supabase.from("client_coverage").select("client_id, plan_type, carrier, plan_name, effective_date, application_id, premium, last_review_date").in("client_id", clientIds),
     ])
 
   const byClient = (arr: { client_id: string }[]) => {
@@ -87,7 +89,8 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       preferredContactMethod: c.preferred_contact_method,
       language: c.language,
       spouseId: c.spouse_id ?? undefined,
-      medicareNumber: c.medicare_number ?? "",
+      medicareNumber: "",
+      hasMedicareNumber: !!(c.medicare_number != null && String(c.medicare_number).trim() !== ""),
       partAEffectiveDate: c.part_a_effective_date ?? "",
       partBEffectiveDate: c.part_b_effective_date ?? "",
       doctors: (doctorsBy[c.id] ?? []).map((d) => ({
@@ -151,6 +154,8 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
 export async function insertClient(agentId: string, client: Client): Promise<Client> {
   const supabase = await createClient()
   const now = new Date().toISOString()
+  const rawMbi = (client.medicareNumber ?? "").trim()
+  const medicareNumberDb = rawMbi ? encrypt(rawMbi) : null
   const { error: clientError } = await supabase.from("clients").insert({
     id: client.id,
     agent_id: agentId,
@@ -167,7 +172,7 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
     preferred_contact_method: client.preferredContactMethod,
     language: client.language ?? "English",
     spouse_id: client.spouseId ?? null,
-    medicare_number: client.medicareNumber ?? null,
+    medicare_number: medicareNumberDb,
     part_a_effective_date: client.partAEffectiveDate ?? null,
     part_b_effective_date: client.partBEffectiveDate ?? null,
     source: client.source ?? null,
@@ -291,6 +296,15 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
       : Promise.resolve(),
   ])
 
+  if (rawMbi) {
+    await logPhiAccess({
+      userId: agentId,
+      clientId: client.id,
+      fieldAccessed: "medicare_number",
+      accessType: "update",
+    })
+  }
+
   return { ...client, createdAt: now, updatedAt: now }
 }
 
@@ -316,7 +330,10 @@ export async function updateClient(
     clientRow.preferred_contact_method = updates.preferredContactMethod
   if (updates.language !== undefined) clientRow.language = updates.language
   if (updates.spouseId !== undefined) clientRow.spouse_id = updates.spouseId
-  if (updates.medicareNumber !== undefined) clientRow.medicare_number = updates.medicareNumber
+  if (updates.medicareNumber !== undefined) {
+    const raw = (updates.medicareNumber ?? "").trim()
+    clientRow.medicare_number = raw ? encrypt(raw) : null
+  }
   if (updates.partAEffectiveDate !== undefined)
     clientRow.part_a_effective_date = updates.partAEffectiveDate
   if (updates.partBEffectiveDate !== undefined)
@@ -333,6 +350,14 @@ export async function updateClient(
       .eq("id", clientId)
       .eq("agent_id", agentId)
     if (error) throw error
+    if (updates.medicareNumber !== undefined) {
+      await logPhiAccess({
+        userId: agentId,
+        clientId,
+        fieldAccessed: "medicare_number",
+        accessType: "update",
+      })
+    }
   }
 
   if (updates.phones !== undefined) {

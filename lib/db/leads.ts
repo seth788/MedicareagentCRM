@@ -6,7 +6,7 @@ export async function fetchLeads(agentId: string): Promise<Lead[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("leads")
-    .select("*")
+    .select("id, first_name, last_name, phone, email, source, flow_id, stage_id, notes, tags, assigned_to_agent_id, created_at, updated_at, last_touched_at, next_follow_up_at, dob, client_id")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
   if (error) throw error
@@ -34,6 +34,7 @@ export async function fetchLeads(agentId: string): Promise<Lead[]> {
     assignedTo: names[r.assigned_to_agent_id] ?? r.assigned_to_agent_id,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    lastTouchedAt: r.last_touched_at ?? undefined,
     nextFollowUpAt: r.next_follow_up_at,
     dob: r.dob ?? undefined,
     clientId: r.client_id ?? undefined,
@@ -58,6 +59,8 @@ export async function insertLead(agentId: string, lead: Lead): Promise<Lead> {
     tags: lead.tags ?? [],
     next_follow_up_at: lead.nextFollowUpAt ?? null,
     dob: lead.dob ?? null,
+    created_at: lead.createdAt,
+    updated_at: lead.updatedAt,
   })
   if (error) throw error
   return lead

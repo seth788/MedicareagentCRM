@@ -136,8 +136,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const url = `${RXNORM_DRUGS_BASE}?name=${searchTerm}`
+    // Cache 24h — RxNorm drug data changes infrequently (reference data).
     const res = await fetch(url, {
-      next: { revalidate: 0 },
+      next: { revalidate: 86400 },
       headers: {
         "User-Agent": "MedicareAgentCRM/1.0 (https://github.com; medication lookup)",
         Accept: "application/json",

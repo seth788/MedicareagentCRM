@@ -62,6 +62,7 @@ import {
   Medicine01Icon,
   Message01Icon,
   Moon01Icon,
+  Moon02Icon,
   MoreHorizontalIcon,
   PanelLeftIcon,
   PillIcon,
@@ -157,7 +158,7 @@ export const MapPin = createIcon(Location03Icon, "MapPin")
 export const Shield = createIcon(Shield01Icon, "Shield")
 export const ShieldAlert = createIcon(Shield01Icon, "ShieldAlert")
 export const FileText = createIcon(File01Icon, "FileText")
-export const Moon = createIcon(Moon01Icon, "Moon")
+export const Moon = createIcon(Moon02Icon, "Moon")
 export const Sun = createIcon(Sun01Icon, "Sun")
 export const Monitor = createIcon(ComputerIcon, "Monitor")
 export const PanelLeft = createIcon(PanelLeftIcon, "PanelLeft")

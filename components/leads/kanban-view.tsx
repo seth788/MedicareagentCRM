@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
-import { format } from "date-fns"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
+import { format, formatDistanceToNow } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { GripVertical, Phone, Calendar } from "@/components/icons"
+import { GripVertical, Phone, Calendar, Clock } from "@/components/icons"
 import {
   DndContext,
   DragOverlay,
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LeadDetailSheet } from "./lead-detail-sheet"
+import { getLeadLastTouchedAt, lastTouchedColorClass } from "@/lib/lead-utils"
 import type { Lead, Stage } from "@/lib/types"
 import { useCRMStore } from "@/lib/store"
 import { goeyToast } from "goey-toast"
@@ -52,7 +53,7 @@ interface KanbanViewProps {
   stages: Stage[]
 }
 
-function LeadCardContent({ lead }: { lead: Lead }) {
+function LeadCardContent({ lead, lastTouchedAt }: { lead: Lead; lastTouchedAt: string | null }) {
   return (
     <>
       <div className="flex items-start justify-between">
@@ -84,18 +85,26 @@ function LeadCardContent({ lead }: { lead: Lead }) {
           {format(parseLocalDate(lead.nextFollowUpAt), "MMM d")}
         </div>
       )}
+      {lastTouchedAt && (
+        <div className={`mt-1.5 flex items-center gap-1 text-xs ${lastTouchedColorClass(lastTouchedAt)}`}>
+          <Clock className="h-3 w-3" />
+          {formatDistanceToNow(new Date(lastTouchedAt), { addSuffix: true })}
+        </div>
+      )}
     </>
   )
 }
 
 function DraggableLeadCard({
   lead,
+  lastTouchedAt,
   stages,
   onOpenDetail,
   onMoveTo,
   justFinishedDragRef,
 }: {
   lead: Lead
+  lastTouchedAt: string | null
   stages: Stage[]
   onOpenDetail: (lead: Lead) => void
   onMoveTo: (leadId: string, stageId: string) => void
@@ -182,6 +191,12 @@ function DraggableLeadCard({
           {format(parseLocalDate(lead.nextFollowUpAt), "MMM d")}
         </div>
       )}
+      {lastTouchedAt && (
+        <div className={`mt-1.5 flex items-center gap-1 text-xs ${lastTouchedColorClass(lastTouchedAt)}`}>
+          <Clock className="h-3 w-3" />
+          {formatDistanceToNow(new Date(lastTouchedAt), { addSuffix: true })}
+        </div>
+      )}
     </Card>
   )
 }
@@ -209,7 +224,11 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const justFinishedDragRef = useRef(false)
-  const { updateLeadStage, addActivity, flows, currentAgent } = useCRMStore()
+  const { updateLeadStage, addActivity, flows, currentAgent, clients, activities, tasks } = useCRMStore()
+  const lastTouchedContext = useMemo(
+    () => ({ clients, activities, tasks }),
+    [clients, activities, tasks]
+  )
 
   const getStageName = useCallback((stageId: string) => stages.find((s) => s.id === stageId)?.name ?? stageId, [stages])
 
@@ -217,23 +236,35 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
     (leadId: string, stageId: string) => {
       const lead = leads.find((l) => l.id === leadId)
       updateLeadStage(leadId, stageId)
-      if (lead?.clientId) {
+      if (lead) {
         const flow = flows.find((f) => f.id === lead.flowId)
         const flowName = flow?.name ?? lead.flowId
         const stageName = getStageName(stageId)
-        addActivity({
-          id: `act-${Date.now()}-${leadId}`,
-          relatedType: "Client",
-          relatedId: lead.clientId,
-          type: "note",
-          description: `Moved to ${stageName} in ${flowName}`,
-          createdAt: new Date().toISOString(),
-          createdBy: currentAgent,
-        })
+        if (lead.clientId) {
+          addActivity({
+            id: `act-${Date.now()}-${leadId}`,
+            relatedType: "Client",
+            relatedId: lead.clientId,
+            type: "note",
+            description: `Moved to ${stageName} in ${flowName}`,
+            createdAt: new Date().toISOString(),
+            createdBy: currentAgent,
+          })
+        } else {
+          addActivity({
+            id: `act-${Date.now()}-${leadId}`,
+            relatedType: "Lead",
+            relatedId: lead.id,
+            type: "note",
+            description: `Moved to ${stageName} in ${flowName}`,
+            createdAt: new Date().toISOString(),
+            createdBy: currentAgent,
+          })
+        }
       }
       goeyToast.success(`Moved to ${getStageName(stageId)}`)
     },
-    [leads, updateLeadStage, addActivity, flows, getStageName]
+    [leads, updateLeadStage, addActivity, flows, getStageName, currentAgent]
   )
 
   const sensors = useSensors(
@@ -341,6 +372,7 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
                         <DraggableLeadCard
                           key={`${stage.id}-${lead.id}`}
                           lead={lead}
+                          lastTouchedAt={getLeadLastTouchedAt(lead, lastTouchedContext)}
                           stages={stages}
                           onOpenDetail={setSelectedLead}
                           onMoveTo={handleMoveTo}
@@ -357,7 +389,10 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
           <DragOverlay dropAnimation={null}>
             {activeLead ? (
               <Card className="cursor-grabbing w-72 shrink-0 p-3 shadow-xl ring-2 ring-primary/20">
-                <LeadCardContent lead={activeLead} />
+                <LeadCardContent
+                  lead={activeLead}
+                  lastTouchedAt={getLeadLastTouchedAt(activeLead, lastTouchedContext)}
+                />
               </Card>
             ) : null}
           </DragOverlay>

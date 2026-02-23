@@ -6,7 +6,7 @@ export async function fetchActivities(agentId: string): Promise<Activity[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("activities")
-    .select("*")
+    .select("id, related_type, related_id, type, description, outcome, due_date, completed_at, created_at, created_by_agent_id")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
   if (error) throw error

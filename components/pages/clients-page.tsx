@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { getRefetchCRM } from "@/lib/store"
 import Link from "next/link"
-import { format, differenceInDays } from "date-fns"
+import { format, differenceInDays, differenceInCalendarDays, startOfDay } from "date-fns"
 import { parseLocalDate, getT65FromDob, getAgeFromDob } from "@/lib/date-utils"
 import { Plus, Search, Phone, Mail } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
@@ -33,7 +33,7 @@ export default function ClientsPageInner() {
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all")
   const { clients, hydrated } = useCRMStore()
 
-  const now = new Date()
+  const today = startOfDay(new Date())
 
   useEffect(() => {
     if (hydrated && clients.length === 0) {
@@ -63,13 +63,17 @@ export default function ClientsPageInner() {
     }
     if (quickFilter === "turning65") {
       result = result.filter((c) => {
+        const age = getAgeFromDob(c.dob)
+        if (age >= 65) return false
         const t65 = getT65FromDob(c.dob)
-        const days = differenceInDays(parseLocalDate(t65), now)
-        return days >= 0 && days <= 90
+        const t65Date = parseLocalDate(t65)
+        if (Number.isNaN(t65Date.getTime())) return false
+        const days = differenceInCalendarDays(t65Date, today)
+        return days >= 0
       })
     }
     return result
-  }, [clients, search, quickFilter])
+  }, [clients, search, quickFilter, today])
 
   const openCmd = () => {
     const fn = (window as unknown as Record<string, unknown>).__openCommandPalette
@@ -146,7 +150,7 @@ export default function ClientsPageInner() {
                   filtered.map((client) => {
                     const t65 = getT65FromDob(client.dob)
                     const age = getAgeFromDob(client.dob)
-                    const days = differenceInDays(parseLocalDate(t65), now)
+                    const days = differenceInCalendarDays(parseLocalDate(t65), today)
                     const isSoon = days >= 0 && days <= 60
                     return (
                       <TableRow

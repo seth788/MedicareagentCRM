@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { format } from "date-fns"
+import { useState, useMemo } from "react"
+import { format, formatDistanceToNow } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
 import { MoreHorizontal, ArrowUpDown, Trash2, Eye, ArrowRightLeft } from "@/components/icons"
 import {
@@ -36,11 +36,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { StageBadge } from "./stage-badge"
 import { LeadDetailSheet } from "./lead-detail-sheet"
+import { getLeadLastTouchedAt, lastTouchedColorClass } from "@/lib/lead-utils"
 import type { Lead, Stage } from "@/lib/types"
 import { useCRMStore } from "@/lib/store"
 import { goeyToast } from "goey-toast"
 
-type SortField = "name" | "source" | "stage" | "createdAt" | "nextFollowUpAt"
+type SortField = "name" | "source" | "stage" | "createdAt" | "lastTouchedAt"
 type SortDir = "asc" | "desc"
 
 interface TableViewProps {
@@ -55,7 +56,11 @@ export function TableView({ leads, stages }: TableViewProps) {
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [detailLead, setDetailLead] = useState<Lead | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null)
-  const { updateLeadStage, deleteLead, addActivity, flows, currentAgent } = useCRMStore()
+  const { updateLeadStage, deleteLead, addActivity, flows, currentAgent, clients, activities, tasks } = useCRMStore()
+  const lastTouchedContext = useMemo(
+    () => ({ clients, activities, tasks }),
+    [clients, activities, tasks]
+  )
 
   const getStage = (stageId: string) => stages.find((s) => s.id === stageId)
 
@@ -70,6 +75,8 @@ export function TableView({ leads, stages }: TableViewProps) {
 
   const sorted = [...leads].sort((a, b) => {
     const dir = sortDir === "asc" ? 1 : -1
+    const aTouched = getLeadLastTouchedAt(a, lastTouchedContext) ?? a.createdAt
+    const bTouched = getLeadLastTouchedAt(b, lastTouchedContext) ?? b.createdAt
     switch (sortField) {
       case "name":
         return dir * `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`)
@@ -82,9 +89,8 @@ export function TableView({ leads, stages }: TableViewProps) {
       }
       case "createdAt":
         return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      case "nextFollowUpAt":
-        return dir * ((a.nextFollowUpAt ? new Date(a.nextFollowUpAt).getTime() : Infinity) -
-          (b.nextFollowUpAt ? new Date(b.nextFollowUpAt).getTime() : Infinity))
+      case "lastTouchedAt":
+        return dir * (new Date(aTouched).getTime() - new Date(bTouched).getTime())
       default:
         return 0
     }
@@ -115,16 +121,28 @@ export function TableView({ leads, stages }: TableViewProps) {
     selected.forEach((id) => {
       updateLeadStage(id, stageId)
       const lead = leads.find((l) => l.id === id)
-      if (lead?.clientId) {
-        addActivity({
-          id: `act-${Date.now()}-${id}`,
-          relatedType: "Client",
-          relatedId: lead.clientId,
-          type: "note",
-          description: `Moved to ${stageName} in ${flowName}`,
-          createdAt: now,
-          createdBy: currentAgent,
-        })
+      if (lead) {
+        if (lead.clientId) {
+          addActivity({
+            id: `act-${Date.now()}-${id}`,
+            relatedType: "Client",
+            relatedId: lead.clientId,
+            type: "note",
+            description: `Moved to ${stageName} in ${flowName}`,
+            createdAt: now,
+            createdBy: currentAgent,
+          })
+        } else {
+          addActivity({
+            id: `act-${Date.now()}-${id}`,
+            relatedType: "Lead",
+            relatedId: lead.id,
+            type: "note",
+            description: `Moved to ${stageName} in ${flowName}`,
+            createdAt: now,
+            createdBy: currentAgent,
+          })
+        }
       }
     })
     goeyToast.success(`Moved ${selected.size} leads to ${stage?.name ?? stageId}`)
@@ -212,12 +230,12 @@ export function TableView({ leads, stages }: TableViewProps) {
                 <TableHead className="hidden lg:table-cell">Email</TableHead>
                 <TableHead><SortButton field="source">Source</SortButton></TableHead>
                 <TableHead><SortButton field="stage">Stage</SortButton></TableHead>
-                <TableHead className="hidden md:table-cell">
-                  <SortButton field="nextFollowUpAt">Follow-up</SortButton>
-                </TableHead>
                 <TableHead className="hidden lg:table-cell">Assigned</TableHead>
                 <TableHead className="hidden md:table-cell">
                   <SortButton field="createdAt">Created</SortButton>
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <SortButton field="lastTouchedAt">Last touched</SortButton>
                 </TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -265,16 +283,21 @@ export function TableView({ leads, stages }: TableViewProps) {
                         )
                       })()}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
-                      {lead.nextFollowUpAt
-                        ? format(parseLocalDate(lead.nextFollowUpAt), "MMM d")
-                        : "-"}
-                    </TableCell>
                     <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {lead.assignedTo.split(" ")[0]}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
                       {format(parseLocalDate(lead.createdAt), "MMM d")}
+                    </TableCell>
+                    <TableCell
+                      className={`hidden md:table-cell ${lastTouchedColorClass(
+                        getLeadLastTouchedAt(lead, lastTouchedContext) ?? lead.createdAt
+                      )}`}
+                    >
+                      {formatDistanceToNow(
+                        new Date(getLeadLastTouchedAt(lead, lastTouchedContext) ?? lead.updatedAt),
+                        { addSuffix: true }
+                      )}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
@@ -300,13 +323,23 @@ export function TableView({ leads, stages }: TableViewProps) {
                                   key={s.id}
                                   onClick={() => {
                                     updateLeadStage(lead.id, s.id)
+                                    const flow = flows.find((f) => f.id === lead.flowId)
+                                    const flowName = flow?.name ?? lead.flowId
                                     if (lead.clientId) {
-                                      const flow = flows.find((f) => f.id === lead.flowId)
-                                      const flowName = flow?.name ?? lead.flowId
                                       addActivity({
                                         id: `act-${Date.now()}-${lead.id}`,
                                         relatedType: "Client",
                                         relatedId: lead.clientId,
+                                        type: "note",
+                                        description: `Moved to ${s.name} in ${flowName}`,
+                                        createdAt: new Date().toISOString(),
+                                        createdBy: currentAgent,
+                                      })
+                                    } else {
+                                      addActivity({
+                                        id: `act-${Date.now()}-${lead.id}`,
+                                        relatedType: "Lead",
+                                        relatedId: lead.id,
                                         type: "note",
                                         description: `Moved to ${s.name} in ${flowName}`,
                                         createdAt: new Date().toISOString(),

@@ -19,15 +19,45 @@ import {
 } from "@/components/ui/alert-dialog"
 import type { SectionProps } from "./types"
 
-function maskMedicare(num: string, show: boolean) {
-  if (!num) return "Not on file"
-  if (show) return num
-  return num.replace(/[A-Z0-9]/gi, (_, i: number) => (i > num.length - 5 ? _ : "*"))
-}
+const MASKED_PLACEHOLDER = "••••••••••" // Shown when client has MBI on file but not revealed
 
 export function MedicareSection({ client, onEditMedicare }: SectionProps) {
   const [showMedicare, setShowMedicare] = useState(false)
   const [revealDialog, setRevealDialog] = useState(false)
+  const [revealedMbi, setRevealedMbi] = useState<string | null>(null)
+  const [loadingReveal, setLoadingReveal] = useState(false)
+  const hasMedicareNumber = client.hasMedicareNumber ?? false
+
+  const displayValue = !hasMedicareNumber
+    ? "Not on file"
+    : showMedicare && revealedMbi
+      ? revealedMbi
+      : MASKED_PLACEHOLDER
+
+  async function handleConfirmReveal() {
+    setRevealDialog(false)
+    setLoadingReveal(true)
+    try {
+      const res = await fetch(`/api/clients/${client.id}/reveal-mbi`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to load")
+      }
+      const data = (await res.json()) as { medicareNumber: string }
+      setRevealedMbi(data.medicareNumber ?? "")
+      setShowMedicare(true)
+    } catch {
+      setRevealedMbi(null)
+      setShowMedicare(false)
+    } finally {
+      setLoadingReveal(false)
+    }
+  }
+
+  function handleHide() {
+    setShowMedicare(false)
+    setRevealedMbi(null)
+  }
 
   return (
     <div className="max-w-3xl">
@@ -62,9 +92,8 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
                   Protected Health Information (PHI)
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  This section contains sensitive data protected under HIPAA. In production, data
-                  would be encrypted at rest and in transit, with role-based access controls and
-                  full audit logging.
+                  This section contains sensitive data protected under HIPAA. Data is encrypted at
+                  rest and in transit, with role-based access controls and full audit logging.
                 </p>
               </div>
             </div>
@@ -75,36 +104,39 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
               <span className="text-sm text-muted-foreground">Medicare Number</span>
               <div className="flex items-center gap-2">
                 <code className="font-mono text-sm font-medium text-foreground">
-                  {maskMedicare(client.medicareNumber, showMedicare)}
+                  {displayValue}
                 </code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => {
-                    if (showMedicare) {
-                      setShowMedicare(false)
-                    } else {
-                      setRevealDialog(true)
-                    }
-                  }}
-                >
-                  {showMedicare ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">
-                    {showMedicare ? "Hide" : "Reveal"} Medicare number
-                  </span>
-                </Button>
+                {hasMedicareNumber && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={loadingReveal}
+                    onClick={() => {
+                      if (showMedicare) {
+                        handleHide()
+                      } else {
+                        setRevealDialog(true)
+                      }
+                    }}
+                  >
+                    {showMedicare ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">
+                      {showMedicare ? "Hide" : "Reveal"} Medicare number
+                    </span>
+                  </Button>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-between gap-4 px-4 py-3.5">
               <span className="text-sm text-muted-foreground">Part A Effective Date</span>
               <span className="text-sm text-foreground">
                 {client.partAEffectiveDate
-                  ? format(parseLocalDate(client.partAEffectiveDate), "MMMM d, yyyy")
+                  ? format(parseLocalDate(client.partAEffectiveDate), "MM/dd/yyyy")
                   : "Not on file"}
               </span>
             </div>
@@ -112,7 +144,7 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
               <span className="text-sm text-muted-foreground">Part B Effective Date</span>
               <span className="text-sm text-foreground">
                 {client.partBEffectiveDate
-                  ? format(parseLocalDate(client.partBEffectiveDate), "MMMM d, yyyy")
+                  ? format(parseLocalDate(client.partBEffectiveDate), "MM/dd/yyyy")
                   : "Not on file"}
               </span>
             </div>
@@ -135,12 +167,7 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowMedicare(true)
-                setRevealDialog(false)
-              }}
-            >
+            <AlertDialogAction onClick={handleConfirmReveal}>
               Reveal
             </AlertDialogAction>
           </AlertDialogFooter>

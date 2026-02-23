@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useTheme } from "next-themes"
 import { createClient } from "@/lib/supabase/client"
-import { fetchCRMData } from "@/app/actions/crm-data"
-import { hydrateCRM, setHydrated, setPersistHandlers, setRefetchCRM } from "@/lib/store"
+import { fetchCRMData, type HydratePayload } from "@/app/actions/crm-data"
+import { hydrateCRM, setHydrated, setPersistHandlers, setRefetchCRM, getRefetchCRM } from "@/lib/store"
 import {
   persistAddLead,
   persistUpdateLead,
@@ -36,9 +36,18 @@ function doFetchAndHydrate(setTheme: (theme: string) => void) {
   })
 }
 
-export function CrmDataLoader({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true)
+export function CrmDataLoader({
+  children,
+  initialData,
+}: {
+  children: React.ReactNode
+  /** When provided, hydrate store immediately and skip client-side fetch on mount. */
+  initialData?: HydratePayload | null
+}) {
+  const hasInitialData = initialData != null
+  const [loading, setLoading] = useState(!hasInitialData)
   const { setTheme } = useTheme()
+  const initialThemeAppliedRef = useRef(false)
   const refetch = useCallback(() => {
     return doFetchAndHydrate(setTheme)
   }, [setTheme])
@@ -47,9 +56,26 @@ export function CrmDataLoader({ children }: { children: React.ReactNode }) {
     return () => setRefetchCRM(null)
   }, [refetch])
   useEffect(() => {
+    if (hasInitialData && initialData) {
+      hydrateCRM(initialData)
+      if (!initialThemeAppliedRef.current) {
+        initialThemeAppliedRef.current = true
+        setTheme(initialData.theme)
+      }
+    }
+  }, [hasInitialData, setTheme, initialData])
+  const refetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
     setPersistHandlers({
       addLead: (lead) => {
-        persistAddLead(lead).then((r) => r.error && goeyToast.error(r.error))
+        persistAddLead(lead).then((r) => {
+          if (r.error) goeyToast.error(r.error)
+          if (refetchTimeoutRef.current) clearTimeout(refetchTimeoutRef.current)
+          refetchTimeoutRef.current = setTimeout(() => {
+            refetchTimeoutRef.current = null
+            getRefetchCRM()?.()
+          }, 1800)
+        })
       },
       updateLead: (id, u) => {
         persistUpdateLead(id, u).then((r) => r.error && goeyToast.error(r.error))
@@ -99,6 +125,7 @@ export function CrmDataLoader({ children }: { children: React.ReactNode }) {
     })
   }, [])
   useEffect(() => {
+    if (hasInitialData) return
     let cancelled = false
     fetchCRMData()
       .then((payload) => {
@@ -117,7 +144,7 @@ export function CrmDataLoader({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [setTheme])
+  }, [setTheme, hasInitialData])
   useEffect(() => {
     const supabase = createClient()
     const {

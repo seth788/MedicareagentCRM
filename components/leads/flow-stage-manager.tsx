@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, MoreVertical } from "@/components/icons"
+import { useState, useEffect, useMemo } from "react"
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ChevronRight, MoreVertical, Star } from "@/components/icons"
 import {
   Sheet,
   SheetContent,
@@ -23,9 +23,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { useCRMStore } from "@/lib/store"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { useCRMStore, getRefetchCRM } from "@/lib/store"
 import { goeyToast } from "goey-toast"
 import type { Flow, Stage } from "@/lib/types"
+import type { FlowTemplate } from "@/lib/db/flow-templates"
+import { fetchFlowTemplates } from "@/app/actions/crm-data"
+import { createFlowFromTemplate } from "@/app/actions/crm-mutations"
 import { DeleteStageDialog } from "./delete-stage-dialog"
 
 const STAGE_COLOR_PRESETS = [
@@ -75,6 +83,12 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     leadCount: number
     flowId: string
   } | null>(null)
+  const [templates, setTemplates] = useState<FlowTemplate[] | null>(null)
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [creatingFromTemplateId, setCreatingFromTemplateId] = useState<string | null>(null)
+  const [templatesSectionOpen, setTemplatesSectionOpen] = useState(false)
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
+  const [expandedTemplatePreviewId, setExpandedTemplatePreviewId] = useState<string | null>(null)
 
   const selectedFlow = flows.find((f) => f.id === selectedFlowId)
   const flowStages = selectedFlowId ? getStagesByFlowId(selectedFlowId) : []
@@ -84,6 +98,26 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
       setSelectedFlowId(flows[0].id)
     }
   }, [open, flows, selectedFlowId])
+
+  useEffect(() => {
+    if (!open) return
+    setTemplatesLoading(true)
+    fetchFlowTemplates()
+      .then((data) => setTemplates(data ?? []))
+      .finally(() => setTemplatesLoading(false))
+  }, [open])
+
+  const templatesByCategory = useMemo(() => {
+    if (!templates?.length) return []
+    const order = ["Sales", "Seasonal", "Service", "Retention"] as const
+    const byCat = templates.reduce<Record<string, FlowTemplate[]>>((acc, t) => {
+      const cat = t.category || "Other"
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(t)
+      return acc
+    }, {})
+    return order.filter((c) => byCat[c]?.length).map((cat) => ({ category: cat, templates: byCat[cat]! }))
+  }, [templates])
 
   const handleAddFlow = () => {
     const name = newFlowName.trim() || "New flow"
@@ -176,6 +210,21 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
 
   const leadCountByFlow = (flowId: string) => leads.filter((l) => l.flowId === flowId).length
 
+  const handleUseTemplate = async (templateId: string) => {
+    setCreatingFromTemplateId(templateId)
+    const result = await createFlowFromTemplate(templateId)
+    setCreatingFromTemplateId(null)
+    if (result.error) {
+      goeyToast.error(result.error)
+      return
+    }
+    if (result.flowId) {
+      await getRefetchCRM()?.()
+      setSelectedFlowId(result.flowId)
+      goeyToast.success("Flow created", { description: "You can rename it or edit stages below." })
+    }
+  }
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -189,7 +238,134 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
           <ScrollArea className="flex-1 pr-4">
             <div className="space-y-6 pt-5 pb-5 px-2">
               <section>
-                <h3 className="mb-2 text-sm font-medium text-foreground">Flows</h3>
+                <Collapsible open={templatesSectionOpen} onOpenChange={setTemplatesSectionOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring"
+                      aria-expanded={templatesSectionOpen}
+                    >
+                      Start from a template
+                      {templatesSectionOpen ? (
+                        <ChevronDown className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    {templatesLoading ? (
+                      <p className="mt-2 text-sm text-muted-foreground">Loading templates…</p>
+                    ) : templatesByCategory.length > 0 ? (
+                      <div className="mt-3 space-y-1">
+                        {templatesByCategory.map(({ category, templates: catTemplates }) => (
+                          <Collapsible
+                            key={category}
+                            open={expandedCategory === category}
+                            onOpenChange={(open) => setExpandedCategory(open ? category : null)}
+                          >
+                            <CollapsibleTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                                aria-expanded={expandedCategory === category}
+                              >
+                                {category}
+                                {expandedCategory === category ? (
+                                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                                )}
+                              </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="space-y-2 pl-2 pt-1 pb-2">
+                                {catTemplates.map((tpl) => {
+                                  const isPreviewOpen = expandedTemplatePreviewId === tpl.id
+                                  return (
+                                    <div
+                                      key={tpl.id}
+                                      className="rounded-md border bg-card p-3 text-card-foreground shadow-sm"
+                                    >
+                                      <button
+                                        type="button"
+                                        className="w-full text-left focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset rounded"
+                                        onClick={() => setExpandedTemplatePreviewId(isPreviewOpen ? null : tpl.id)}
+                                        aria-expanded={isPreviewOpen}
+                                      >
+                                        <p className="font-medium text-sm">{tpl.name}</p>
+                                        {tpl.description && (
+                                          <p className="mt-0.5 text-xs text-muted-foreground">{tpl.description}</p>
+                                        )}
+                                        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex gap-0.5">
+                                              {tpl.stages.map((s) => (
+                                                <span
+                                                  key={s.id}
+                                                  className="h-2 w-2 shrink-0 rounded-full"
+                                                  style={{ backgroundColor: s.color }}
+                                                  title={s.name}
+                                                  aria-hidden
+                                                />
+                                              ))}
+                                            </div>
+                                            <span>
+                                              {tpl.stages.length} stage{tpl.stages.length === 1 ? "" : "s"}
+                                            </span>
+                                          </div>
+                                          <span className="flex items-center gap-0.5 font-medium text-foreground">
+                                            Preview
+                                            {isPreviewOpen ? (
+                                              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                                            ) : (
+                                              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                                            )}
+                                          </span>
+                                        </div>
+                                      </button>
+                                      {isPreviewOpen && (
+                                        <ul className="mt-2 space-y-1 border-t pt-2">
+                                          {tpl.stages.map((s) => (
+                                            <li
+                                              key={s.id}
+                                              className="flex items-center gap-2 rounded-md border px-2 py-1.5"
+                                            >
+                                              <span
+                                                className="h-3.5 w-3.5 shrink-0 rounded-sm"
+                                                style={{ backgroundColor: s.color }}
+                                                aria-hidden
+                                              />
+                                              <span className="text-sm">{s.name}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="mt-2 w-full"
+                                        onClick={() => handleUseTemplate(tpl.id)}
+                                        disabled={!!creatingFromTemplateId}
+                                      >
+                                        {creatingFromTemplateId === tpl.id ? "Creating…" : "Use template"}
+                                      </Button>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">No templates available.</p>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
+              </section>
+              <section>
+                <h3 className="mb-2 text-sm font-medium text-foreground">Or create a blank flow</h3>
                 <div className="flex gap-2 overflow-visible">
                   <Input
                     placeholder="New flow name"
@@ -229,6 +405,18 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
                         </>
                       ) : (
                         <>
+                          {flows.length > 1 && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={`h-7 w-7 shrink-0 ${flow.isDefault ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-foreground"}`}
+                              onClick={() => updateFlow(flow.id, { isDefault: true })}
+                              aria-label={flow.isDefault ? "Default flow" : "Set as default flow"}
+                              title={flow.isDefault ? "Default flow (shows when page loads)" : "Set as default flow"}
+                            >
+                              <Star className={`h-4 w-4 ${flow.isDefault ? "fill-current" : ""}`} />
+                            </Button>
+                          )}
                           <button
                             type="button"
                             className="min-w-0 flex-1 text-left text-sm font-medium"

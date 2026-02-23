@@ -5,8 +5,9 @@ const RXNORM_RXCUI_BASE = "https://rxnav.nlm.nih.gov/REST/rxcui.json"
 const RXNORM_RELATED_BASE = "https://rxnav.nlm.nih.gov/REST/rxcui"
 const RXNORM_PROPERTY_BASE = "https://rxnav.nlm.nih.gov/REST/rxcui"
 
+// Cache 24h — RxNorm variant data changes infrequently (reference data).
 const fetchOptions: RequestInit = {
-  next: { revalidate: 0 },
+  next: { revalidate: 86400 },
   headers: {
     "User-Agent": "MedicareAgentCRM/1.0 (https://github.com; medication lookup)",
     Accept: "application/json",

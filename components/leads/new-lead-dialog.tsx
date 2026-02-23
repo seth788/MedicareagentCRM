@@ -35,7 +35,7 @@ interface NewLeadDialogProps {
 }
 
 export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDialogProps) {
-  const { addLead, flows, getStagesByFlowId, getDefaultFlow, currentAgent } = useCRMStore()
+  const { addLead, addActivity, flows, getStagesByFlowId, getStageById, getDefaultFlow, currentAgent } = useCRMStore()
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -64,8 +64,10 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
       goeyToast.error("Select a flow and stage")
       return
     }
+    const leadId = generateLeadId()
+    const now = new Date().toISOString()
     addLead({
-      id: generateLeadId(),
+      id: leadId,
       firstName: form.firstName,
       lastName: form.lastName,
       phone: form.phone,
@@ -76,9 +78,22 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
       stageId: effectiveStageId,
       notes: [],
       tags: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       nextFollowUpAt: null,
+    })
+    const flow = flows.find((f) => f.id === effectiveFlowId)
+    const flowName = flow?.name ?? effectiveFlowId
+    const stage = getStageById(effectiveStageId)
+    const stageName = stage?.name ?? effectiveStageId
+    addActivity({
+      id: `act-${Date.now()}-${leadId}`,
+      relatedType: "Lead",
+      relatedId: leadId,
+      type: "note",
+      description: `Added to ${flowName} (stage: ${stageName})`,
+      createdAt: now,
+      createdBy: currentAgent,
     })
     goeyToast.success("Lead created", {
       description: `${form.firstName} ${form.lastName} added as a new lead`,

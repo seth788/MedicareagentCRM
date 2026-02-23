@@ -1,12 +1,7 @@
-"use client"
+import { getSettingsProfile } from "@/app/actions/settings"
+import SettingsPageInner from "@/components/pages/settings-page"
 
-import dynamic from "next/dynamic"
-
-const SettingsPageInner = dynamic(
-  () => import("@/components/pages/settings-page"),
-  { ssr: false }
-)
-
-export default function SettingsPage() {
-  return <SettingsPageInner />
+export default async function SettingsPage() {
+  const profile = await getSettingsProfile()
+  return <SettingsPageInner initialProfile={profile ?? undefined} />
 }

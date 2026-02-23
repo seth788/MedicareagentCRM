@@ -14,20 +14,29 @@ import { Moon, Sun, Monitor } from "@/components/icons"
 import { getSettingsProfile, updateProfileSettings } from "@/app/actions/settings"
 import type { SettingsProfile as SettingsProfileType } from "@/app/actions/settings"
 
-export default function SettingsPageInner() {
+const defaultForm: SettingsProfileType = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  npn: "",
+  theme: "light",
+}
+
+export default function SettingsPageInner({
+  initialProfile,
+}: {
+  /** When provided, form is pre-filled and client skip fetch on mount. */
+  initialProfile?: SettingsProfileType | null
+} = {}) {
   const { setTheme } = useTheme()
-  const [profile, setProfile] = useState<SettingsProfileType | null>(null)
-  const [loading, setLoading] = useState(true)
+  const hasInitial = initialProfile != null
+  const [profile, setProfile] = useState<SettingsProfileType | null>(hasInitial ? initialProfile : null)
+  const [loading, setLoading] = useState(!hasInitial)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState<SettingsProfileType>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    npn: "",
-    theme: "light",
-  })
+  const [form, setForm] = useState<SettingsProfileType>(hasInitial ? initialProfile! : defaultForm)
 
   useEffect(() => {
+    if (hasInitial) return
     getSettingsProfile().then((data) => {
       if (data) {
         setProfile(data)
@@ -35,7 +44,7 @@ export default function SettingsPageInner() {
       }
       setLoading(false)
     })
-  }, [])
+  }, [hasInitial])
 
   const openCmd = () => {
     const fn = (window as unknown as Record<string, unknown>).__openCommandPalette
@@ -60,10 +69,29 @@ export default function SettingsPageInner() {
     }
   }
 
-  const handleThemeChange = (value: "light" | "dark" | "system") => {
+  const handleThemeChange = async (value: "light" | "dark" | "system") => {
     setForm((f) => ({ ...f, theme: value }))
     setTheme(value)
+    try {
+      await updateProfileSettings({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        npn: form.npn,
+        theme: value,
+      })
+      setProfile((p) => (p ? { ...p, theme: value } : p))
+    } catch {
+      goeyToast.error("Could not save theme")
+    }
   }
+
+  const savedProfile = profile ?? defaultForm
+  const hasProfileChanges =
+    form.firstName !== savedProfile.firstName ||
+    form.lastName !== savedProfile.lastName ||
+    form.npn !== savedProfile.npn ||
+    form.theme !== savedProfile.theme
+  const canSave = hasProfileChanges && !saving
 
   return (
     <>
@@ -154,7 +182,7 @@ export default function SettingsPageInner() {
                     <Button
                       className="w-fit"
                       onClick={handleSaveProfile}
-                      disabled={saving}
+                      disabled={!canSave}
                     >
                       {saving ? "Saving…" : "Save Changes"}
                     </Button>

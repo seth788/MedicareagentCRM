@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import * as flowsDb from "@/lib/db/flows"
+import * as flowTemplatesDb from "@/lib/db/flow-templates"
 import * as clientsDb from "@/lib/db/clients"
 import * as leadsDb from "@/lib/db/leads"
 import * as activitiesDb from "@/lib/db/activities"
@@ -208,5 +209,15 @@ export async function persistAddAgentCustomSource(
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to add source" }
+  }
+}
+
+export async function createFlowFromTemplate(templateId: string): Promise<{ error?: string; flowId?: string }> {
+  try {
+    const agentId = await getAgentId()
+    const { flowId } = await flowTemplatesDb.createFlowFromTemplate(agentId, templateId)
+    return { flowId }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to create flow from template" }
   }
 }

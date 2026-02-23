@@ -9,8 +9,9 @@ const VISIBLE_CAP = 10
 /** TTY values to keep in typeahead (top-level drug names only). */
 const ALLOWED_TTY = new Set(["IN", "MIN", "BN"])
 
+// Cache 24h — RxNorm typeahead/reference data changes infrequently.
 const fetchOptions: RequestInit = {
-  next: { revalidate: 0 },
+  next: { revalidate: 86400 },
   headers: {
     "User-Agent": "MedicareAgentCRM/1.0 (https://github.com; medication lookup)",
     Accept: "application/json",

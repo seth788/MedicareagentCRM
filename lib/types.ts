@@ -48,6 +48,8 @@ export interface Lead {
   assignedTo: string
   createdAt: string
   updatedAt: string
+  /** Per-flow: last time this client was touched (stage change, note, activity, profile edit). */
+  lastTouchedAt?: string
   nextFollowUpAt: string | null
   dob?: string
   /** Set when lead was created from a client profile; used to show "Remove from leads" and to remove the right lead */
@@ -175,7 +177,10 @@ export interface Client {
   householdMembers?: string[]
   /** Client id of linked spouse; link is bidirectional. */
   spouseId?: string
+  /** Never populated in list/detail; use reveal API to fetch. Empty string when not revealed. */
   medicareNumber: string
+  /** True when client has a Medicare number on file (allows showing Reveal button). */
+  hasMedicareNumber?: boolean
   partAEffectiveDate: string
   partBEffectiveDate: string
   doctors: Doctor[]

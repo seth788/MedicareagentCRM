@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getOrCreateProfile } from "@/lib/db/profiles"
 import { fetchFlows, fetchStages } from "@/lib/db/flows"
+import { getFlowTemplates } from "@/lib/db/flow-templates"
 import { fetchClients } from "@/lib/db/clients"
 import { fetchLeads } from "@/lib/db/leads"
 import { fetchActivities } from "@/lib/db/activities"
@@ -61,5 +62,18 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     agentCustomSources: { [displayName]: customSources },
     displayName,
     theme,
+  }
+}
+
+export async function fetchFlowTemplates(): Promise<Awaited<ReturnType<typeof getFlowTemplates>> | null> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return null
+    return await getFlowTemplates()
+  } catch {
+    return null
   }
 }

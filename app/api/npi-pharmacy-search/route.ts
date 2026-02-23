@@ -30,7 +30,8 @@ async function fetchPharmaciesForZip(zip5: string): Promise<Record<string, unkno
     limit: "200",
   })
   const url = `${NPI_BASE}?${params.toString()}`
-  const res = await fetch(url, { next: { revalidate: 0 } })
+  // Cache 24h — NPI Registry reference data updates periodically.
+  const res = await fetch(url, { next: { revalidate: 86400 } })
   if (!res.ok) return []
   const data = (await res.json()) as NPIResponse
   return data.results ?? []

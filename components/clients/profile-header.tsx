@@ -83,7 +83,8 @@ export function ClientProfileHeader({
   const t65Date = getT65FromDob(client.dob)
   const age = mounted ? getAgeFromDob(client.dob) : 0
   const days = mounted ? differenceInDays(parseLocalDate(t65Date), new Date()) : 0
-  const isFuture = days >= 0
+  const isAlready65 = age >= 65
+  const isFuture = !isAlready65 && days >= 0
 
   const clientActivities = activities.filter(
     (a) => a.relatedId === client.id && a.relatedType === "Client"

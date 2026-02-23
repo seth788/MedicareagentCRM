@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const url = `${RXNORM_NDC_BASE}/${rxcui}/ndcs.json`
+    // Cache 24h — RxNorm NDC list changes infrequently (reference data).
     const res = await fetch(url, {
-      next: { revalidate: 0 },
+      next: { revalidate: 86400 },
       headers: {
         "User-Agent": "MedicareAgentCRM/1.0 (https://github.com; medication lookup)",
         Accept: "application/json",

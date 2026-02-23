@@ -26,7 +26,8 @@ import {
 import { StageBadge } from "./stage-badge"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { LogActivityDialog } from "@/components/activities/log-activity-dialog"
-import type { Lead, Activity, ActivityType } from "@/lib/types"
+import { getLeadLastTouchedAt } from "@/lib/lead-utils"
+import type { Lead, ActivityType } from "@/lib/types"
 import { useCRMStore } from "@/lib/store"
 import { goeyToast } from "goey-toast"
 
@@ -87,34 +88,19 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
     return [lead]
   }, [lead, leads])
 
+  const displayNotes = useMemo(() => {
+    if (!lead) return []
+    if (lead.clientId) {
+      const client = clients.find((c) => c.id === lead.clientId)
+      return client?.notes ?? []
+    }
+    return lead.notes
+  }, [lead, clients])
+
   const lastTouchedAt = useMemo(() => {
     if (!lead) return null
-    const addedToFlowAt = new Date(lead.createdAt).getTime()
-    const dates: number[] = [addedToFlowAt, new Date(lead.updatedAt).getTime()]
-    const relatedIds = new Set([lead.id])
-    if (lead.clientId) relatedIds.add(lead.clientId)
-    activities.forEach((a) => {
-      if (a.type === "note") return
-      const t = new Date(a.createdAt).getTime()
-      if (t >= addedToFlowAt &&
-        ((a.relatedType === "Lead" && relatedIds.has(a.relatedId)) ||
-          (a.relatedType === "Client" && relatedIds.has(a.relatedId)))
-      ) {
-        dates.push(t)
-      }
-    })
-    tasks.forEach((t) => {
-      const taskTime = new Date(t.createdAt).getTime()
-      if (taskTime >= addedToFlowAt &&
-        ((t.relatedType === "Lead" && relatedIds.has(t.relatedId)) ||
-          (t.relatedType === "Client" && relatedIds.has(t.relatedId)))
-      ) {
-        dates.push(taskTime)
-      }
-    })
-    if (dates.length === 0) return null
-    return new Date(Math.max(...dates)).toISOString()
-  }, [lead, activities, tasks])
+    return getLeadLastTouchedAt(lead, { clients, activities, tasks })
+  }, [lead, clients, activities, tasks])
 
   const recentActivities = useMemo(() => {
     if (!lead) return []
@@ -123,9 +109,8 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
     return activities
       .filter(
         (a) =>
-          a.type !== "note" &&
-          ((a.relatedType === "Lead" && relatedIds.has(a.relatedId)) ||
-            (a.relatedType === "Client" && relatedIds.has(a.relatedId)))
+          (a.relatedType === "Lead" && relatedIds.has(a.relatedId)) ||
+          (a.relatedType === "Client" && relatedIds.has(a.relatedId))
       )
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, RECENT_ACTIVITIES_LIMIT)
@@ -224,10 +209,6 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
     const trimmed = editingDraft.trim()
     if (!trimmed || !lead) return
     const now = new Date().toISOString()
-    const updatedNotes = lead.notes.map((n) =>
-      n.createdAt === createdAt ? { ...n, text: trimmed, updatedAt: now } : n
-    )
-    updateLead(lead.id, { notes: updatedNotes })
     if (lead.clientId) {
       const client = clients.find((c) => c.id === lead.clientId)
       const clientNotes = client?.notes ?? []
@@ -237,6 +218,10 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
         ),
       })
     }
+    const updatedLeadNotes = lead.notes.map((n) =>
+      n.createdAt === createdAt ? { ...n, text: trimmed, updatedAt: now } : n
+    )
+    updateLead(lead.id, { notes: updatedLeadNotes })
     setEditingNoteCreatedAt(null)
     setEditingDraft("")
     goeyToast.success("Note updated")
@@ -260,8 +245,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
             )}
           </div>
           <SheetDescription className="mt-1">
-            Lead &middot; {lead.source} &middot; Created{" "}
-            {formatDistanceToNow(parseLocalDate(lead.createdAt), { addSuffix: true })}
+            Lead &middot; {lead.source}
           </SheetDescription>
         </SheetHeader>
 
@@ -347,7 +331,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
                 Last touched
               </p>
               <p className="text-xs text-foreground">
-                {formatDistanceToNow(parseLocalDate(lastTouchedAt), { addSuffix: true })}
+                {formatDistanceToNow(new Date(lastTouchedAt), { addSuffix: true })}
               </p>
             </div>
           )}
@@ -422,10 +406,10 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
             </Button>
           </div>
           <div className="space-y-2">
-            {lead.notes.length === 0 ? (
+            {displayNotes.length === 0 ? (
               <p className="text-sm text-muted-foreground">No notes yet.</p>
             ) : (
-              [...lead.notes]
+              [...displayNotes]
                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 .map((note) => (
                 <div

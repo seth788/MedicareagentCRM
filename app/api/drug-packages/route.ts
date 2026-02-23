@@ -45,8 +45,9 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Cache 24h — RxNorm/OpenFDA package data changes infrequently (reference data).
   const fetchOptions: RequestInit = {
-    next: { revalidate: 0 },
+    next: { revalidate: 86400 },
     headers: {
       "User-Agent": "MedicareAgentCRM/1.0 (https://github.com; medication lookup)",
       Accept: "application/json",
