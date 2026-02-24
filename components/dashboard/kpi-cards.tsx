@@ -93,7 +93,7 @@ export function KPICards() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label} className="relative overflow-hidden">
-            <CardContent className="flex items-start gap-4 p-5">
+            <CardContent className="flex items-start gap-4 p-4 sm:p-5">
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${kpi.bgColor}`}>
                 <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
               </div>

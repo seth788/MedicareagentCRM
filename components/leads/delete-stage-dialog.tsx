@@ -78,11 +78,11 @@ export function DeleteStageDialog({
             </SelectContent>
           </Select>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={!moveToStageId}>
+          <Button variant="destructive" className="min-h-[40px] w-full sm:w-auto" onClick={handleConfirm} disabled={!moveToStageId}>
             Delete and move
           </Button>
         </DialogFooter>

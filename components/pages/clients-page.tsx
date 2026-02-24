@@ -83,15 +83,15 @@ export default function ClientsPageInner() {
   return (
     <>
       <AppHeader title="Clients" onOpenCommandPalette={openCmd}>
-        <Button size="sm" onClick={() => setNewOpen(true)}>
+        <Button size="sm" className="min-h-[40px]" onClick={() => setNewOpen(true)}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           New Client
         </Button>
       </AppHeader>
 
-      <div className="flex-1 overflow-auto">
-        <div className="flex flex-wrap items-center gap-2 border-b px-6 py-3">
-          <div className="relative flex-1 md:max-w-xs">
+      <div className="flex-1 overflow-auto overflow-x-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:px-6">
+          <div className="relative min-w-0 flex-1 md:max-w-xs">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search clients..."
@@ -120,16 +120,19 @@ export default function ClientsPageInner() {
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="rounded-lg border">
+        <div className="p-4 sm:p-6">
+          <div className="min-w-0 rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Phone</TableHead>
+                  <TableHead>
+                    <span className="lg:hidden">Client</span>
+                    <span className="hidden lg:inline">Name</span>
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">Phone</TableHead>
                   <TableHead className="hidden lg:table-cell">Email</TableHead>
-                  <TableHead className="hidden md:table-cell">Location</TableHead>
-                  <TableHead>Turning 65</TableHead>
+                  <TableHead className="hidden lg:table-cell">Location</TableHead>
+                  <TableHead className="hidden lg:table-cell">Turning 65</TableHead>
                   <TableHead className="hidden lg:table-cell">Coverage</TableHead>
                 </TableRow>
               </TableHeader>
@@ -139,7 +142,7 @@ export default function ClientsPageInner() {
                     <TableCell colSpan={6} className="h-32 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <p className="text-sm text-muted-foreground">No clients found</p>
-                        <Button size="sm" variant="outline" onClick={() => setNewOpen(true)}>
+                        <Button size="sm" variant="outline" className="min-h-[40px]" onClick={() => setNewOpen(true)}>
                           <Plus className="mr-1.5 h-3.5 w-3.5" />
                           Add Client
                         </Button>
@@ -158,7 +161,69 @@ export default function ClientsPageInner() {
                         className="cursor-pointer"
                         onClick={() => router.push(`/clients/${client.id}`)}
                       >
-                        <TableCell>
+                        {/* Stacked profile for small/medium: one cell with all data */}
+                        <TableCell className="py-3 lg:hidden" colSpan={6}>
+                          <div className="flex flex-col gap-0.5">
+                            <Link
+                              href={`/clients/${client.id}`}
+                              className="font-medium text-foreground hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {client.firstName} {client.lastName}
+                            </Link>
+                            {(() => {
+                              const phone = getPreferredOrFirstPhone(client)?.number
+                              if (phone) {
+                                return (
+                                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                                    {phone}
+                                  </span>
+                                )
+                              }
+                              return null
+                            })()}
+                            {(() => {
+                              const email = getPreferredOrFirstEmail(client)?.value
+                              if (email) {
+                                return (
+                                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                                    {email}
+                                  </span>
+                                )
+                              }
+                              return null
+                            })()}
+                            {(() => {
+                              const addr = getPreferredOrFirstAddress(client)
+                              const location = addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
+                              if (location) {
+                                return <span className="text-sm text-muted-foreground">{location}</span>
+                              }
+                              return null
+                            })()}
+                            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                              <span className="text-sm text-foreground">
+                                {age >= 65 ? `Age ${age}` : format(parseLocalDate(t65), "MMM d, yyyy")}
+                              </span>
+                              {isSoon && days >= 0 && (
+                                <Badge className="bg-primary/15 text-primary border-primary/20 text-[10px]" variant="outline">
+                                  {days}d
+                                </Badge>
+                              )}
+                              {(client.coverages?.length ?? 0) > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {client.coverages!.length === 1
+                                    ? `${client.coverages![0].carrier} - ${client.coverages![0].planType}`
+                                    : `${client.coverages!.length} plans`}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        {/* Desktop columns */}
+                        <TableCell className="hidden lg:table-cell">
                           <Link
                             href={`/clients/${client.id}`}
                             className="block py-1 font-medium text-foreground hover:underline"
@@ -166,29 +231,38 @@ export default function ClientsPageInner() {
                           >
                             {client.firstName} {client.lastName}
                           </Link>
-                          <p className="text-xs text-muted-foreground md:hidden">
-                            {getPreferredOrFirstPhone(client)?.number ?? "—"}
-                          </p>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {getPreferredOrFirstPhone(client)?.number ?? "—"}
-                          </span>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground">
+                          {(() => {
+                            const phone = getPreferredOrFirstPhone(client)?.number
+                            if (!phone) return "—"
+                            return (
+                              <span className="flex items-center gap-1.5">
+                                <Phone className="h-3 w-3 shrink-0" />
+                                {phone}
+                              </span>
+                            )
+                          })()}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {getPreferredOrFirstEmail(client)?.value ?? "—"}
-                          </span>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground">
+                          {(() => {
+                            const email = getPreferredOrFirstEmail(client)?.value
+                            if (!email) return "—"
+                            return (
+                              <span className="flex items-center gap-1.5">
+                                <Mail className="h-3 w-3 shrink-0" />
+                                {email}
+                              </span>
+                            )
+                          })()}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground">
+                        <TableCell className="hidden lg:table-cell text-muted-foreground">
                           {(() => {
                             const addr = getPreferredOrFirstAddress(client)
                             return addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
                           })()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden lg:table-cell">
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-foreground">
                               {age >= 65
@@ -203,9 +277,11 @@ export default function ClientsPageInner() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          {client.coverage ? (
+                          {(client.coverages?.length ?? 0) > 0 ? (
                             <Badge variant="secondary" className="text-xs">
-                              {client.coverage.carrier} - {client.coverage.planType}
+                              {client.coverages!.length === 1
+                                ? `${client.coverages![0].carrier} - ${client.coverages![0].planType}`
+                                : `${client.coverages!.length} plans`}
                             </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">None</span>

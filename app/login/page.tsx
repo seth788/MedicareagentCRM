@@ -48,7 +48,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="min-h-[40px] w-full">
               Sign in
             </Button>
           </form>

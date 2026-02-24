@@ -249,11 +249,12 @@ export function AddContactsToFlowDialog({
             </ScrollArea>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
+            className="min-h-[40px] w-full sm:w-auto"
             onClick={handleConfirm}
             disabled={!effectiveStageId || selectedIds.size === 0}
           >

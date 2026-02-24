@@ -17,8 +17,9 @@ export interface AddressCardProps {
 
 export function AddressCard({ address, onEdit, onRemove, hidePreferredWhenOnlyOne, className }: AddressCardProps) {
   const line1 = [address.address, address.unit].filter(Boolean).join(", ")
-  const line2 = [address.city, address.county, address.state, address.zip].filter(Boolean).join(", ")
+  const line2 = [address.city, address.state, address.zip].filter(Boolean).join(", ")
   const fullAddress = [line1, line2].filter(Boolean).join(", ")
+  const displayAddress = address.county ? `${fullAddress} (${address.county})` : fullAddress
   const showPreferred = address.isPreferred && !hidePreferredWhenOnlyOne
 
   return (
@@ -37,7 +38,7 @@ export function AddressCard({ address, onEdit, onRemove, hidePreferredWhenOnlyOn
         {address.type}
       </Badge>
       <div className="min-w-0 flex-1 text-sm text-foreground">
-        {fullAddress}
+        {displayAddress}
       </div>
       {showPreferred && (
         <Badge variant="outline" className="shrink-0 text-xs border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
@@ -49,7 +50,7 @@ export function AddressCard({ address, onEdit, onRemove, hidePreferredWhenOnlyOn
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="flex min-h-[40px] min-w-[40px] shrink-0 items-center justify-center text-destructive hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0"
           onClick={(e) => {
             e.stopPropagation()
             onRemove()

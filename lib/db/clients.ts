@@ -2,16 +2,19 @@ import type { Client } from "@/lib/types"
 import { createClient } from "@/lib/supabase/server"
 import { encrypt } from "@/lib/encryption"
 import { logPhiAccess } from "@/lib/db/phi-access-log"
+import { normalizeCountyToPlainName } from "@/lib/utils"
 
-const COUNTY_SUFFIX_REGEX = /\s+county$/i
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+function toValidUuid(id: string | undefined): string {
+  return UUID_REGEX.test(String(id ?? "")) ? id! : crypto.randomUUID()
+}
+function toValidUuidOrNull(id: string | undefined): string | null {
+  return id != null && UUID_REGEX.test(String(id)) ? id : null
+}
+
 const COUNTY_JURISDICTION_SUFFIX_REGEX =
   /\s+(county|parish|borough|census area|municipality|city and borough)$/i
-
-function normalizeCountyForStorage(value?: string | null): string | null {
-  const trimmed = (value ?? "").trim()
-  if (!trimmed) return null
-  return trimmed.replace(COUNTY_SUFFIX_REGEX, "").trim() || null
-}
 
 function formatCountyForDisplay(value?: string | null): string | undefined {
   const trimmed = (value ?? "").trim()
@@ -40,7 +43,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
       supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
       supabase.from("client_notes").select("client_id, text, created_at, updated_at").in("client_id", clientIds),
-      supabase.from("client_coverage").select("client_id, plan_type, carrier, plan_name, effective_date, application_id, premium, last_review_date").in("client_id", clientIds),
+      supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, notes, created_at, updated_at").in("client_id", clientIds),
     ])
 
   const byClient = (arr: { client_id: string }[]) => {
@@ -58,16 +61,32 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
   const medsBy = byClient(medsRes.data ?? [])
   const pharmaciesBy = byClient(pharmaciesRes.data ?? [])
   const notesBy = byClient(notesRes.data ?? [])
-  const coverageBy = (coverageRes.data ?? []).reduce<{ [key: string]: (typeof coverageRes.data)[number] }>(
-    (acc, c) => {
-      acc[c.client_id] = c
-      return acc
-    },
-    {}
-  )
+  const coveragesBy = byClient(coverageRes.data ?? [])
+  type CoverageRow = (typeof coverageRes.data)[number]
+  function mapCoverageRow(r: CoverageRow): Client["coverages"][number] {
+    return {
+      id: r.id,
+      planType: r.plan_type as "MAPD" | "PDP",
+      companyId: r.company_id ?? undefined,
+      carrier: r.carrier ?? "",
+      planId: r.plan_id ?? undefined,
+      planName: r.plan_name ?? "",
+      status: r.status ?? "",
+      applicationDate: r.application_date ?? "",
+      effectiveDate: r.effective_date ?? "",
+      writtenAs: r.written_as ?? "",
+      electionPeriod: r.election_period ?? "",
+      memberPolicyNumber: r.member_policy_number ?? "",
+      replacingCoverageId: r.replacing_coverage_id ?? undefined,
+      applicationId: r.application_id ?? "",
+      hraCollected: r.hra_collected ?? false,
+      notes: r.notes ?? undefined,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }
+  }
 
   return rows.map((c) => {
-    const cov = coverageBy[c.id]
     return {
       id: c.id,
       firstName: c.first_name,
@@ -152,17 +171,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
         createdAt: n.created_at,
         updatedAt: n.updated_at ?? undefined,
       })),
-      coverage: cov
-        ? {
-            planType: cov.plan_type,
-            carrier: cov.carrier,
-            planName: cov.plan_name,
-            effectiveDate: cov.effective_date,
-            applicationId: cov.application_id,
-            premium: Number(cov.premium),
-            lastReviewDate: cov.last_review_date,
-          }
-        : undefined,
+      coverages: (coveragesBy[c.id] ?? []).map(mapCoverageRow),
       createdAt: c.created_at,
       updatedAt: c.updated_at,
     } as Client
@@ -200,11 +209,14 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
   })
   if (clientError) throw clientError
 
+  const phonesToInsert = (client.phones ?? []).filter((p) => (p.number ?? "").trim() !== "")
+  const emailsToInsert = (client.emails ?? []).filter((e) => (e.value ?? "").trim() !== "")
+
   await Promise.all([
-    (client.phones ?? []).length
+    phonesToInsert.length
       ? supabase.from("client_phones").insert(
-          client.phones!.map((p) => ({
-            id: p.id,
+          phonesToInsert.map((p) => ({
+            id: toValidUuid(p.id),
             client_id: client.id,
             number: p.number,
             type: p.type,
@@ -213,10 +225,10 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
           }))
         )
       : Promise.resolve(),
-    (client.emails ?? []).length
+    emailsToInsert.length
       ? supabase.from("client_emails").insert(
-          client.emails!.map((e) => ({
-            id: e.id,
+          emailsToInsert.map((e) => ({
+            id: toValidUuid(e.id),
             client_id: client.id,
             value: e.value,
             is_preferred: e.isPreferred,
@@ -227,13 +239,13 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
     (client.addresses ?? []).length
       ? supabase.from("client_addresses").insert(
           client.addresses!.map((a) => ({
-            id: a.id,
+            id: toValidUuid(a.id),
             client_id: client.id,
             type: a.type,
             address: a.address,
             unit: a.unit ?? null,
             city: a.city,
-            county: normalizeCountyForStorage(a.county),
+            county: normalizeCountyToPlainName(a.county),
             state: a.state,
             zip: a.zip,
             is_preferred: a.isPreferred,
@@ -301,17 +313,38 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
           }))
         )
       : Promise.resolve(),
-    client.coverage
-      ? supabase.from("client_coverage").insert({
-          client_id: client.id,
-          plan_type: client.coverage.planType,
-          carrier: client.coverage.carrier,
-          plan_name: client.coverage.planName,
-          effective_date: client.coverage.effectiveDate,
-          application_id: client.coverage.applicationId,
-          premium: client.coverage.premium,
-          last_review_date: client.coverage.lastReviewDate,
-        })
+    (client.coverages ?? []).length
+      ? (() => {
+          const covs = client.coverages!
+          const idMap = new Map<string, string>()
+          for (const cov of covs) {
+            idMap.set(cov.id, toValidUuid(cov.id))
+          }
+          return supabase.from("client_coverages").insert(
+            covs.map((cov) => ({
+              id: idMap.get(cov.id)!,
+              client_id: client.id,
+              plan_type: cov.planType,
+              company_id: toValidUuidOrNull(cov.companyId),
+              carrier: cov.carrier ?? "",
+              plan_id: toValidUuidOrNull(cov.planId),
+              plan_name: cov.planName ?? "",
+              status: cov.status ?? "",
+              application_date: cov.applicationDate || null,
+              effective_date: cov.effectiveDate,
+              written_as: cov.writtenAs ?? null,
+              election_period: cov.electionPeriod ?? null,
+              member_policy_number: cov.memberPolicyNumber ?? null,
+              replacing_coverage_id:
+                cov.replacingCoverageId != null
+                  ? idMap.get(cov.replacingCoverageId) ?? toValidUuidOrNull(cov.replacingCoverageId)
+                  : null,
+              application_id: cov.applicationId ?? null,
+              hra_collected: cov.hraCollected ?? false,
+              notes: cov.notes ?? null,
+            }))
+          )
+        })()
       : Promise.resolve(),
   ])
 
@@ -380,11 +413,16 @@ export async function updateClient(
   }
 
   if (updates.phones !== undefined) {
-    await supabase.from("client_phones").delete().eq("client_id", clientId)
-    if (updates.phones.length)
-      await supabase.from("client_phones").insert(
-        updates.phones.map((p) => ({
-          id: p.id,
+    const { error: deleteError } = await supabase
+      .from("client_phones")
+      .delete()
+      .eq("client_id", clientId)
+    if (deleteError) throw deleteError
+    const phonesToInsert = updates.phones.filter((p) => (p.number ?? "").trim() !== "")
+    if (phonesToInsert.length) {
+      const { error: insertError } = await supabase.from("client_phones").insert(
+        phonesToInsert.map((p) => ({
+          id: toValidUuid(p.id),
           client_id: clientId,
           number: p.number,
           type: p.type,
@@ -392,37 +430,53 @@ export async function updateClient(
           note: p.note ?? null,
         }))
       )
+      if (insertError) throw insertError
+    }
   }
   if (updates.emails !== undefined) {
-    await supabase.from("client_emails").delete().eq("client_id", clientId)
-    if (updates.emails.length)
-      await supabase.from("client_emails").insert(
-        updates.emails.map((e) => ({
-          id: e.id,
+    const { error: deleteError } = await supabase
+      .from("client_emails")
+      .delete()
+      .eq("client_id", clientId)
+    if (deleteError) throw deleteError
+    const emailsToInsert = updates.emails.filter((e) => (e.value ?? "").trim() !== "")
+    if (emailsToInsert.length) {
+      const { error: insertError } = await supabase.from("client_emails").insert(
+        emailsToInsert.map((e) => ({
+          id: toValidUuid(e.id),
           client_id: clientId,
           value: e.value,
           is_preferred: e.isPreferred,
           note: e.note ?? null,
         }))
       )
+      if (insertError) throw insertError
+    }
   }
   if (updates.addresses !== undefined) {
-    await supabase.from("client_addresses").delete().eq("client_id", clientId)
-    if (updates.addresses.length)
-      await supabase.from("client_addresses").insert(
-        updates.addresses.map((a) => ({
-          id: a.id,
-          client_id: clientId,
-          type: a.type,
-          address: a.address,
-          unit: a.unit ?? null,
-          city: a.city,
-          county: normalizeCountyForStorage(a.county),
-          state: a.state,
-          zip: a.zip,
-          is_preferred: a.isPreferred,
-        }))
-      )
+    const { error: deleteError } = await supabase
+      .from("client_addresses")
+      .delete()
+      .eq("client_id", clientId)
+    if (deleteError) throw deleteError
+    if (updates.addresses.length) {
+      const rows = updates.addresses.map((a) => ({
+        id: toValidUuid(a.id),
+        client_id: clientId,
+        type: a.type,
+        address: a.address,
+        unit: a.unit ?? null,
+        city: a.city,
+        county: normalizeCountyToPlainName(a.county),
+        state: a.state,
+        zip: a.zip,
+        is_preferred: a.isPreferred,
+      }))
+      const { error: insertError } = await supabase
+        .from("client_addresses")
+        .insert(rows)
+      if (insertError) throw insertError
+    }
   }
   if (updates.doctors !== undefined) {
     await supabase.from("client_doctors").delete().eq("client_id", clientId)
@@ -493,18 +547,43 @@ export async function updateClient(
         }))
       )
   }
-  if (updates.coverage !== undefined) {
-    await supabase.from("client_coverage").delete().eq("client_id", clientId)
-    if (updates.coverage)
-      await supabase.from("client_coverage").insert({
+  if (updates.coverages !== undefined) {
+    const { error: deleteError } = await supabase
+      .from("client_coverages")
+      .delete()
+      .eq("client_id", clientId)
+    if (deleteError) throw deleteError
+    if (updates.coverages.length) {
+      const idMap = new Map<string, string>()
+      for (const cov of updates.coverages) {
+        idMap.set(cov.id, toValidUuid(cov.id))
+      }
+      const rows = updates.coverages.map((cov) => ({
+        id: idMap.get(cov.id)!,
         client_id: clientId,
-        plan_type: updates.coverage.planType,
-        carrier: updates.coverage.carrier,
-        plan_name: updates.coverage.planName,
-        effective_date: updates.coverage.effectiveDate,
-        application_id: updates.coverage.applicationId,
-        premium: updates.coverage.premium,
-        last_review_date: updates.coverage.lastReviewDate,
-      })
+        plan_type: cov.planType,
+        company_id: toValidUuidOrNull(cov.companyId),
+        carrier: cov.carrier ?? "",
+        plan_id: toValidUuidOrNull(cov.planId),
+        plan_name: cov.planName ?? "",
+        status: cov.status ?? "",
+        application_date: cov.applicationDate || null,
+        effective_date: cov.effectiveDate,
+        written_as: cov.writtenAs ?? null,
+        election_period: cov.electionPeriod ?? null,
+        member_policy_number: cov.memberPolicyNumber ?? null,
+        replacing_coverage_id:
+          cov.replacingCoverageId != null
+            ? idMap.get(cov.replacingCoverageId) ?? toValidUuidOrNull(cov.replacingCoverageId)
+            : null,
+        application_id: cov.applicationId ?? null,
+        hra_collected: cov.hraCollected ?? false,
+        notes: cov.notes ?? null,
+      }))
+      const { error: insertError } = await supabase
+        .from("client_coverages")
+        .insert(rows)
+      if (insertError) throw insertError
+    }
   }
 }

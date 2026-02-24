@@ -57,7 +57,7 @@ export function RecentLeadsWidget() {
               {recent.map((lead) => (
                 <div
                   key={lead.id}
-                  className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/50"
+                  className="flex min-h-[40px] items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 sm:px-5"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">

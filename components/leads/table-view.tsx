@@ -184,15 +184,15 @@ export function TableView({ leads, stages }: TableViewProps) {
 
   return (
     <>
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {selected.size > 0 && (
-          <div className="mb-3 flex items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
             <span className="text-sm font-medium text-foreground">
               {selected.size} selected
             </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" className="min-h-[40px]">
                   Change Stage
                 </Button>
               </DropdownMenuTrigger>
@@ -207,6 +207,7 @@ export function TableView({ leads, stages }: TableViewProps) {
             <Button
               size="sm"
               variant="ghost"
+              className="min-h-[40px]"
               onClick={() => setSelected(new Set())}
             >
               Clear
@@ -214,7 +215,7 @@ export function TableView({ leads, stages }: TableViewProps) {
           </div>
         )}
 
-        <div className="rounded-lg border">
+        <div className="min-w-0 rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -302,7 +303,7 @@ export function TableView({ leads, stages }: TableViewProps) {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button variant="ghost" size="icon" className="min-h-[40px] min-w-[40px] sm:h-7 sm:w-7 sm:min-h-0 sm:min-w-0">
                             <MoreHorizontal className="h-4 w-4" />
                             <span className="sr-only">Actions</span>
                           </Button>

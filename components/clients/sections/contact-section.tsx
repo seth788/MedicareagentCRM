@@ -63,7 +63,7 @@ import type { SectionProps } from "./types"
 
 function createEmptyAddress(): ClientAddress {
   return {
-    id: `addr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     type: "Home",
     address: "",
     city: "",
@@ -77,7 +77,7 @@ const PHONE_TYPES: ClientPhoneType[] = ["Cell", "Home", "Work", "Other"]
 
 function createEmptyPhone(): ClientPhone {
   return {
-    id: `phone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     number: "",
     type: "Cell",
     isPreferred: false,
@@ -86,7 +86,7 @@ function createEmptyPhone(): ClientPhone {
 
 function createEmptyEmail(): ClientEmail {
   return {
-    id: `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     value: "",
     isPreferred: false,
   }
@@ -377,7 +377,7 @@ export function ContactSection({
                                 if (alsoUpdateSpouse && spouse) {
                                   const spousePhones = spouse.phones ?? []
                                   const sameTypeIndex = spousePhones.findIndex((p) => p.type === updated.type)
-                                  const spouseCopy = { ...updated, id: sameTypeIndex >= 0 ? spousePhones[sameTypeIndex].id : `phone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` }
+                                  const spouseCopy = { ...updated, id: sameTypeIndex >= 0 ? spousePhones[sameTypeIndex].id : crypto.randomUUID() }
                                   const spouseNext = sameTypeIndex >= 0
                                     ? spousePhones.map((p, i) => (i === sameTypeIndex ? { ...spouseCopy, isPreferred: p.isPreferred } : { ...p, isPreferred: updated.isPreferred ? false : p.isPreferred }))
                                     : [...spousePhones.map((p) => ({ ...p, isPreferred: updated.isPreferred ? false : p.isPreferred })), spouseCopy]
@@ -465,7 +465,9 @@ export function ContactSection({
                   )()}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No phone</p>
+                <div className="flex items-center justify-center min-h-8">
+                  <p className="text-sm text-muted-foreground">No phone</p>
+                </div>
               )}
             </div>
             {/* Emails (right) */}
@@ -560,7 +562,7 @@ export function ContactSection({
                                 if (alsoUpdateSpouse && spouse) {
                                   const spouseEmails = spouse.emails ?? []
                                   const preferredIndex = spouseEmails.findIndex((e) => e.isPreferred)
-                                  const spouseCopy = { ...updated, id: preferredIndex >= 0 ? spouseEmails[preferredIndex].id : `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` }
+                                  const spouseCopy = { ...updated, id: preferredIndex >= 0 ? spouseEmails[preferredIndex].id : crypto.randomUUID() }
                                   const spouseNext = preferredIndex >= 0
                                     ? spouseEmails.map((e, i) => (i === preferredIndex ? spouseCopy : { ...e, isPreferred: updated.isPreferred ? false : e.isPreferred }))
                                     : [...spouseEmails.map((e) => ({ ...e, isPreferred: updated.isPreferred ? false : e.isPreferred })), spouseCopy]
@@ -648,7 +650,9 @@ export function ContactSection({
                   )()}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No email</p>
+                <div className="flex items-center justify-center min-h-8">
+                  <p className="text-sm text-muted-foreground">No email</p>
+                </div>
               )}
             </div>
           </div>
@@ -702,10 +706,10 @@ export function ContactSection({
             </DialogDescription>
           </DialogHeader>
           {addMode === null ? (
-            <div className="flex gap-3 py-2">
+            <div className="flex flex-wrap gap-3 py-2">
               <Button
                 variant="outline"
-                className="flex-1"
+                className="min-h-[40px] flex-1 sm:flex-initial"
                 onClick={() => {
                   setAddMode("phone")
                   const hasPhones = (client.phones?.length ?? 0) > 0
@@ -717,7 +721,7 @@ export function ContactSection({
               </Button>
               <Button
                 variant="outline"
-                className="flex-1"
+                className="min-h-[40px] flex-1 sm:flex-initial"
                 onClick={() => {
                   setAddMode("email")
                   const hasEmails = (client.emails?.length ?? 0) > 0
@@ -743,7 +747,7 @@ export function ContactSection({
                 if (next.length > 1 && !next.some((p) => p.isPreferred)) next[next.length - 1] = { ...next[next.length - 1], isPreferred: true }
                 updateClient(client.id, { phones: next })
                 if (alsoUpdateSpouse && spouse) {
-                  const spouseCopy = { ...newPhone, id: `phone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` }
+                  const spouseCopy = { ...newPhone, id: crypto.randomUUID() }
                   const spouseExisting = (spouse.phones ?? []).map((p) => ({ ...p, isPreferred: spouseCopy.isPreferred ? false : p.isPreferred }))
                   const spouseNext = [...spouseExisting, spouseCopy]
                   if (spouseNext.length > 1 && !spouseNext.some((p) => p.isPreferred)) spouseNext[spouseNext.length - 1] = { ...spouseNext[spouseNext.length - 1], isPreferred: true }
@@ -844,7 +848,7 @@ export function ContactSection({
                 if (next.length > 1 && !next.some((em) => em.isPreferred)) next[next.length - 1] = { ...next[next.length - 1], isPreferred: true }
                 updateClient(client.id, { emails: next })
                 if (alsoUpdateSpouse && spouse) {
-                  const spouseCopy = { ...newEmail, id: `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` }
+                  const spouseCopy = { ...newEmail, id: crypto.randomUUID() }
                   const spouseExisting = (spouse.emails ?? []).map((em) => ({ ...em, isPreferred: spouseCopy.isPreferred ? false : em.isPreferred }))
                   const spouseNext = [...spouseExisting, spouseCopy]
                   if (spouseNext.length > 1 && !spouseNext.some((em) => em.isPreferred)) spouseNext[spouseNext.length - 1] = { ...spouseNext[spouseNext.length - 1], isPreferred: true }
@@ -950,6 +954,7 @@ export function ContactSection({
                 const line1 = [addr.address, addr.unit].filter(Boolean).join(", ")
                 const line2 = [addr.city, addr.state, addr.zip].filter(Boolean).join(", ")
                 const fullAddress = [line1, line2].filter(Boolean).join(", ")
+                const displayAddress = addr.county ? `${fullAddress} (${addr.county})` : fullAddress
                 const showPreferred =
                   (client.addresses?.length ?? 0) > 1 && addr.isPreferred
                 return (
@@ -968,7 +973,7 @@ export function ContactSection({
                       }}
                       className="min-w-0 flex-1 text-left text-sm text-primary hover:underline"
                     >
-                      {fullAddress}
+                      {displayAddress}
                     </button>
                     {showPreferred && (
                       <Badge variant="outline" className="shrink-0 text-xs border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
@@ -1065,7 +1070,7 @@ export function ContactSection({
                 }
                 const newAddr: ClientAddress = {
                   ...draft,
-                  id: draft.id || `addr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                  id: draft.id || crypto.randomUUID(),
                   isPreferred:
                     (client.addresses?.length ?? 0) === 0 ? true : (draft.isPreferred ?? false),
                 }
@@ -1074,7 +1079,7 @@ export function ContactSection({
                 if (alsoUpdateSpouse && spouse) {
                   const spouseCopy: ClientAddress = {
                     ...newAddr,
-                    id: `addr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                    id: crypto.randomUUID(),
                   }
                   const spouseNext = [...(spouse.addresses ?? []), spouseCopy]
                   updateClient(spouse.id, { addresses: spouseNext })
@@ -1174,7 +1179,7 @@ export function ContactSection({
                   const sameTypeIndex = spouseAddrs.findIndex((a) => a.type === draft.type)
                   const spouseCopy: ClientAddress = {
                     ...draft,
-                    id: sameTypeIndex >= 0 ? spouseAddrs[sameTypeIndex].id : `addr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                    id: sameTypeIndex >= 0 ? spouseAddrs[sameTypeIndex].id : crypto.randomUUID(),
                   }
                   const spouseNext = sameTypeIndex >= 0
                     ? spouseAddrs.map((a, i) => (i === sameTypeIndex ? spouseCopy : a))

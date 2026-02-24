@@ -228,7 +228,7 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetContent side="right" className="flex w-full max-w-full flex-col sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Manage flows &amp; stages</SheetTitle>
             <SheetDescription>
@@ -366,10 +366,10 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
               </section>
               <section>
                 <h3 className="mb-2 text-sm font-medium text-foreground">Or create a blank flow</h3>
-                <div className="flex gap-2 overflow-visible">
+                <div className="flex flex-col gap-2 overflow-visible sm:flex-row">
                   <Input
                     placeholder="New flow name"
-                    className="flex-1 ring-offset-0"
+                    className="min-w-0 flex-1 ring-offset-0"
                     value={newFlowName}
                     onChange={(e) => setNewFlowName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddFlow()}
@@ -463,13 +463,13 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
               {selectedFlow && (
                 <section>
                   <h3 className="mb-2 text-sm font-medium text-foreground">Stages for &quot;{selectedFlow.name}&quot;</h3>
-                  <div className="flex gap-2 overflow-visible">
+                  <div className="flex flex-col gap-2 overflow-visible sm:flex-row">
                     <Input
                       placeholder="New stage name"
                       value={newStageName}
                       onChange={(e) => setNewStageName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleAddStage()}
-                      className="flex-1 ring-offset-0"
+                      className="min-w-0 flex-1 ring-offset-0"
                     />
                     <Button size="sm" onClick={handleAddStage}>
                       <Plus className="h-4 w-4" />

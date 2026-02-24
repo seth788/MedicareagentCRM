@@ -96,8 +96,8 @@ export default function SettingsPageInner({
   return (
     <>
       <AppHeader title="Settings" onOpenCommandPalette={openCmd} />
-      <div className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-3xl p-6">
+      <div className="flex-1 overflow-auto overflow-x-hidden">
+        <div className="mx-auto max-w-3xl p-4 sm:p-6">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground">Settings</h2>
             <p className="text-sm text-muted-foreground">
@@ -116,7 +116,7 @@ export default function SettingsPageInner({
                   <p className="text-sm text-muted-foreground">Loading profile…</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label>First Name</Label>
                         <Input
@@ -157,19 +157,19 @@ export default function SettingsPageInner({
                     </div>
                     <div className="space-y-1.5">
                       <Label>Appearance</Label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         {([
                           { value: "light", label: "Light", icon: Sun },
                           { value: "dark", label: "Dark", icon: Moon },
                           { value: "system", label: "System", icon: Monitor },
                         ] as const).map((opt) => (
-                          <Button
-                            key={opt.value}
-                            variant={form.theme === opt.value ? "secondary" : "outline"}
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => handleThemeChange(opt.value)}
-                          >
+<Button
+                      key={opt.value}
+                      variant={form.theme === opt.value ? "secondary" : "outline"}
+                      size="sm"
+                      className="min-h-[40px] gap-2"
+                      onClick={() => handleThemeChange(opt.value)}
+                    >
                             <opt.icon className="h-3.5 w-3.5" />
                             {opt.label}
                           </Button>
@@ -180,7 +180,7 @@ export default function SettingsPageInner({
                       </p>
                     </div>
                     <Button
-                      className="w-fit"
+                      className="min-h-[40px] w-full sm:w-fit"
                       onClick={handleSaveProfile}
                       disabled={!canSave}
                     >

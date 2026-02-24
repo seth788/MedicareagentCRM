@@ -77,7 +77,7 @@ export function Turning65Widget() {
                 return (
                   <div
                     key={client.id}
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/50"
+                    className="flex min-h-[40px] items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 sm:px-5"
                   >
                     <div className="min-w-0 flex-1">
                       <Link
@@ -93,10 +93,10 @@ export function Turning65Widget() {
                         </span>
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 flex-wrap items-center gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                          <Button variant="ghost" size="icon" className="min-h-[40px] min-w-[40px] sm:h-7 sm:w-7 sm:min-h-0 sm:min-w-0" asChild>
                             <a href={`tel:${getPreferredOrFirstPhone(client)?.number ?? ""}`}>
                               <Phone className="h-3.5 w-3.5" />
                               <span className="sr-only">Call {client.firstName}</span>
@@ -112,7 +112,7 @@ export function Turning65Widget() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="min-h-[40px] min-w-[40px] sm:h-7 sm:w-7 sm:min-h-0 sm:min-w-0"
                             onClick={() => setTaskDialogClient(client)}
                           >
                             <Plus className="h-3.5 w-3.5" />

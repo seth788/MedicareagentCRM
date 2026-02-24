@@ -102,88 +102,92 @@ export default function LeadsPageInner() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader title="Flows" onOpenCommandPalette={openCmd}>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setManageOpen(true)}>
-              <Settings2 className="mr-1.5 h-3.5 w-3.5" />
-              Manage flows &amp; stages
+            <Button size="sm" variant="outline" className="min-h-[40px] sm:min-h-0" onClick={() => setManageOpen(true)}>
+              <Settings2 className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Manage flows &amp; stages</span>
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="min-h-[40px] sm:min-h-0"
               onClick={() => setAddContactsOpen(true)}
               disabled={!activeFlowId || activeStages.length === 0}
             >
-              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-              Add contacts
+              <UserPlus className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Add contacts</span>
             </Button>
           </div>
         </AppHeader>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-card px-6 py-3">
-          {flows.length > 0 && (
-            <Select value={activeFlowId ?? ""} onValueChange={setActiveFlowId}>
-              <SelectTrigger className="h-8 w-[160px] text-xs">
-                <SelectValue placeholder="Select flow" />
+        <div className="shrink-0 space-y-2 border-b bg-card px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2">
+            {flows.length > 0 && (
+              <Select value={activeFlowId ?? ""} onValueChange={setActiveFlowId}>
+                <SelectTrigger className="h-8 w-[160px] text-xs">
+                  <SelectValue placeholder="Select flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  {flows.sort((a, b) => a.order - b.order).map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search leads..."
+                className="h-8 pl-8 text-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border p-0.5">
+              <Button
+                variant={view === "kanban" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-[calc(2rem-4px)] w-[calc(2rem-4px)]"
+                onClick={() => setView("kanban")}
+              >
+                <Kanban className="h-3.5 w-3.5" />
+                <span className="sr-only">Kanban view</span>
+              </Button>
+              <Button
+                variant={view === "table" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-[calc(2rem-4px)] w-[calc(2rem-4px)]"
+                onClick={() => setView("table")}
+              >
+                <TableIcon className="h-3.5 w-3.5" />
+                <span className="sr-only">Table view</span>
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+                <SelectValue placeholder="Stage" />
               </SelectTrigger>
               <SelectContent>
-                {flows.sort((a, b) => a.order - b.order).map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.name}
-                  </SelectItem>
+                <SelectItem value="all">All Stages</SelectItem>
+                {activeStages.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          )}
-          <div className="relative flex-1 md:max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search leads..."
-              className="h-8 pl-8 text-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="h-8 w-[130px] text-xs">
-              <SelectValue placeholder="Stage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stages</SelectItem>
-              {activeStages.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger className="h-8 w-[130px] text-xs">
-              <SelectValue placeholder="Source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sources</SelectItem>
-              {sourcesInFlow.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="ml-auto flex items-center gap-1 rounded-lg border p-0.5">
-            <Button
-              variant={view === "kanban" ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setView("kanban")}
-            >
-              <Kanban className="h-3.5 w-3.5" />
-              <span className="sr-only">Kanban view</span>
-            </Button>
-            <Button
-              variant={view === "table" ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setView("table")}
-            >
-              <TableIcon className="h-3.5 w-3.5" />
-              <span className="sr-only">Table view</span>
-            </Button>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                {sourcesInFlow.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -195,7 +199,7 @@ export default function LeadsPageInner() {
               <TableView leads={filtered} stages={activeStages} />
             )
           ) : flows.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center sm:p-12">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Kanban className="h-10 w-10" />
               </div>
@@ -205,13 +209,13 @@ export default function LeadsPageInner() {
                   Create your first flow to organize leads through stages—from first contact to converted client.
                 </p>
               </div>
-              <Button onClick={() => setManageOpen(true)}>
+              <Button className="min-h-[40px]" onClick={() => setManageOpen(true)}>
                 <Settings2 className="mr-2 h-4 w-4" />
                 Create your first flow
               </Button>
             </div>
           ) : !activeFlowId ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center sm:p-12">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                 <Kanban className="h-10 w-10" />
               </div>
@@ -221,13 +225,13 @@ export default function LeadsPageInner() {
                   Choose a flow from the dropdown above, or open Manage flows to create or edit flows and stages.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => setManageOpen(true)}>
+              <Button variant="outline" className="min-h-[40px]" onClick={() => setManageOpen(true)}>
                 <Settings2 className="mr-2 h-4 w-4" />
                 Manage flows &amp; stages
               </Button>
             </div>
           ) : activeStages.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center sm:p-12">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 <Settings2 className="h-10 w-10" />
               </div>
@@ -237,13 +241,13 @@ export default function LeadsPageInner() {
                   &quot;{activeFlow?.name}&quot; has no stages yet. Add stages like New, Contacted, and Converted to move leads through your pipeline.
                 </p>
               </div>
-              <Button onClick={() => setManageOpen(true)}>
+              <Button className="min-h-[40px]" onClick={() => setManageOpen(true)}>
                 <Settings2 className="mr-2 h-4 w-4" />
                 Manage flows &amp; stages
               </Button>
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center sm:p-12">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                 <UserPlus className="h-10 w-10" />
               </div>
@@ -253,7 +257,7 @@ export default function LeadsPageInner() {
                   Add contacts from your clients or create new leads to start moving them through &quot;{activeFlow?.name}&quot;.
                 </p>
               </div>
-              <Button onClick={() => setAddContactsOpen(true)}>
+              <Button className="min-h-[40px]" onClick={() => setAddContactsOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add contacts
               </Button>

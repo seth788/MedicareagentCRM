@@ -131,11 +131,11 @@ export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialo
             </>
           )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!flowId || !effectiveStageId || availableFlows.length === 0}>
+          <Button className="min-h-[40px] w-full sm:w-auto" onClick={handleConfirm} disabled={!flowId || !effectiveStageId || availableFlows.length === 0}>
             Add to flow
           </Button>
         </DialogFooter>

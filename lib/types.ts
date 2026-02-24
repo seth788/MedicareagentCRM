@@ -114,6 +114,9 @@ export interface Pharmacy {
 
 export type PlanType = "MA" | "MAPD" | "PDP" | "Supp"
 
+/** Plan type for new coverage flow (MAPD or PDP only). */
+export type CoveragePlanType = "MAPD" | "PDP"
+
 export type AddressType = "Home" | "Mailing" | "Secondary Home" | "Secondary Mailing"
 
 export interface ClientAddress {
@@ -146,13 +149,24 @@ export interface ClientEmail {
 }
 
 export interface Coverage {
-  planType: PlanType
+  id: string
+  planType: CoveragePlanType
+  companyId?: string
   carrier: string
+  planId?: string
   planName: string
+  status: string
+  applicationDate: string
   effectiveDate: string
+  writtenAs: string
+  electionPeriod: string
+  memberPolicyNumber: string
+  replacingCoverageId?: string
   applicationId: string
-  premium: number
-  lastReviewDate: string
+  hraCollected: boolean
+  notes?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface Client {
@@ -195,7 +209,8 @@ export interface Client {
   source?: string
   /** Agent-added notes (free-form) with timestamps; action-based events are in the activity timeline. */
   notes?: NoteEntry[]
-  coverage?: Coverage
+  /** Multiple plans per client (MAPD, PDP, etc.). */
+  coverages: Coverage[]
   createdAt: string
   updatedAt: string
 }

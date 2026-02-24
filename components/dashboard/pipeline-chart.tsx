@@ -72,7 +72,7 @@ export function PipelineChart() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px]">
+          <div className="min-h-[240px] h-[280px]">
             {data.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 No stages to display. Add a flow and stages in Flows.

@@ -57,3 +57,16 @@ export function getPreferredOrFirstEmail(client: Client): ClientEmail | undefine
   }
   return undefined
 }
+
+/** Strip " County" and similar suffixes for API/DB matching (e.g. medicare_plans). "Coosa County" -> "Coosa". */
+const COUNTY_SUFFIX_REGEX = /\s+county$/i
+const COUNTY_JURISDICTION_REGEX =
+  /\s+(parish|borough|census area|municipality|city and borough)$/i
+
+export function normalizeCountyToPlainName(value?: string | null): string | null {
+  const trimmed = (value ?? "").trim()
+  if (!trimmed) return null
+  const withoutCounty = trimmed.replace(COUNTY_SUFFIX_REGEX, "").trim() || trimmed
+  const withoutJurisdiction = withoutCounty.replace(COUNTY_JURISDICTION_REGEX, "").trim() || withoutCounty
+  return withoutJurisdiction || null
+}

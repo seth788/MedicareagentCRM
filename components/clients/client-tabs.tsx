@@ -103,7 +103,7 @@ export function ClientTabs({
         role="tablist"
         aria-label="Profile sections"
       >
-        <div className="flex gap-1 overflow-x-auto scrollbar-thin">
+        <div className="flex flex-wrap gap-1">
           {SECTIONS.map(({ id, label, icon: Icon }) => {
             const isActive = activeSection === id
             return (
@@ -116,8 +116,9 @@ export function ClientTabs({
                 id={`tab-${id}`}
                 onClick={() => setActiveSection(id)}
                 className={`
-                  flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium
+                  flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium
                   transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                  sm:flex-none sm:justify-start sm:px-4
                   ${isActive
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"

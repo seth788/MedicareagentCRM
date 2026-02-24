@@ -146,8 +146,8 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
       firstName: form.firstName,
       lastName: form.lastName,
       source: form.source.trim() || undefined,
-      phones: phones.length ? phones : [{ ...createEmptyPhone(), isPreferred: true }],
-      emails: emails.length ? emails : [{ ...createEmptyEmail(), isPreferred: true }],
+      phones,
+      emails,
       dob: dobStr,
       addresses,
       turning65Date: getT65FromDob(dobStr),
@@ -162,6 +162,7 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
       allergies: [],
       conditions: [],
       healthTracker: [],
+      coverages: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
@@ -183,21 +184,21 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0"
+        className="max-h-[90vh] flex flex-col gap-0 p-0 sm:max-w-lg"
         onPointerDownOutside={(e) => {
           if ((e.target as Element).closest?.("[data-address-autocomplete-listbox]")) {
             e.preventDefault()
           }
         }}
       >
-        <DialogHeader className="shrink-0 px-6 pt-6 pb-2 pr-10">
+        <DialogHeader className="shrink-0 px-4 pt-4 pb-2 pr-12 sm:px-6 sm:pt-6">
           <DialogTitle>New Client</DialogTitle>
           <DialogDescription>Add a new client to your book of business.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
           <div className="grid gap-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="c-firstName">First Name</Label>
               <Input
@@ -219,14 +220,14 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-source">Source</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Select
                 value={form.source || "__none__"}
                 onValueChange={(v) =>
                   setForm({ ...form, source: v === "__none__" ? "" : v })
                 }
               >
-                <SelectTrigger id="c-source" className="flex-1">
+                <SelectTrigger id="c-source" className="min-w-0 flex-1">
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
@@ -246,7 +247,7 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
               </Select>
               <Popover open={addSourceOpen} onOpenChange={setAddSourceOpen}>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" size="default">
+                  <Button type="button" variant="outline" size="default" className="w-full sm:w-auto min-h-[40px]">
                     Add Source
                   </Button>
                 </PopoverTrigger>
@@ -355,11 +356,11 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
           </div>
           </div>
           </div>
-          <DialogFooter className="shrink-0 px-6 py-4 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="shrink-0 gap-2 border-t px-4 py-4 pt-2 sm:px-6">
+            <Button type="button" variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Create Client</Button>
+            <Button type="submit" className="min-h-[40px] w-full sm:w-auto">Create Client</Button>
           </DialogFooter>
         </form>
       </DialogContent>

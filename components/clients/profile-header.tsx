@@ -140,15 +140,15 @@ export function ClientProfileHeader({
             <div className="flex flex-wrap gap-2 pb-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="bg-card/80 backdrop-blur-sm" aria-label="Actions">
+                  <Button size="sm" variant="outline" className="min-h-[40px] bg-card/80 backdrop-blur-sm sm:min-h-0" aria-label="Actions">
                     Actions
                     <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => onRequestEdit()}>
+                  <DropdownMenuItem onClick={() => onRequestEdit("quick")}>
                     <Pencil className="mr-2 h-3.5 w-3.5" />
-                    Edit
+                    Quick Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setCreateTaskOpen(true)}>
                     <Calendar className="mr-2 h-3.5 w-3.5" />
@@ -197,9 +197,11 @@ export function ClientProfileHeader({
                 Age {age}
               </Badge>
             ))}
-            {client.coverage && (
+            {(client.coverages?.length ?? 0) > 0 && (
               <Badge variant="secondary" className="text-xs font-medium">
-                {client.coverage.carrier} {client.coverage.planType}
+                {client.coverages!.length === 1
+                  ? `${client.coverages![0].carrier} ${client.coverages![0].planType}`
+                  : `${client.coverages!.length} plans`}
               </Badge>
             )}
             {leadsForClient.length > 0 && (
@@ -272,10 +274,11 @@ export function ClientProfileHeader({
                   if (!addr) return null
                   const location = [addr.city, addr.state, addr.zip].filter(Boolean).join(", ")
                   if (!location) return null
+                  const displayLocation = addr.county ? `${location} (${addr.county})` : location
                   return (
                     <span className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
-                      {location}
+                      {displayLocation}
                     </span>
                   )
                 })()}
@@ -313,7 +316,11 @@ export function ClientProfileHeader({
                 <div>
                   <p className="text-xs text-muted-foreground leading-none">Coverage</p>
                   <p className="mt-0.5 text-sm font-semibold text-foreground leading-none">
-                    {client.coverage ? client.coverage.planType : "None"}
+                    {(client.coverages?.length ?? 0) > 0
+                      ? client.coverages!.length === 1
+                        ? client.coverages![0].planType
+                        : `${client.coverages!.length} plans`
+                      : "None"}
                   </p>
                 </div>
               </div>

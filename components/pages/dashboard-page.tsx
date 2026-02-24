@@ -35,24 +35,24 @@ export default function DashboardPageInner() {
   return (
     <>
       <AppHeader title="Dashboard" onOpenCommandPalette={openCmd} />
-      <div className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl p-6">
-          <div className="flex items-start justify-between gap-4">
+      <div className="flex-1 overflow-auto overflow-x-hidden">
+        <div className="mx-auto max-w-7xl p-4 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="mb-1">
-              <h2 className="text-xl font-semibold text-foreground">Today at a Glance</h2>
+              <h2 className="text-lg font-semibold text-foreground sm:text-xl">Today at a Glance</h2>
               <p className="text-sm text-muted-foreground">
                 Overview of your pipeline, tasks, and upcoming milestones.
               </p>
             </div>
 
             <TooltipProvider delayDuration={300}>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5"
+                      className="min-h-[40px] gap-1.5"
                       onClick={() => setNewLeadOpen(true)}
                     >
                       <UserPlus className="h-4 w-4" />
@@ -68,7 +68,7 @@ export default function DashboardPageInner() {
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
-                      className="gap-1.5"
+                      className="min-h-[40px] gap-1.5"
                       onClick={() => setNewClientOpen(true)}
                     >
                       <Users className="h-4 w-4" />
@@ -84,7 +84,7 @@ export default function DashboardPageInner() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 sm:hidden">
+                        <Button variant="ghost" size="icon" className="min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 sm:h-8 sm:w-8">
                           <Plus className="h-4 w-4" />
                           <span className="sr-only">Quick add</span>
                         </Button>
@@ -113,7 +113,7 @@ export default function DashboardPageInner() {
             <KPICards />
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div className="mt-6 grid gap-4 sm:gap-6 lg:grid-cols-2">
             <Turning65Widget />
             <RecentLeadsWidget />
           </div>

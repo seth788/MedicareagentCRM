@@ -200,7 +200,7 @@ export function AddressForm({
       )}
 
       {onRemove && (
-        <Button type="button" variant="destructive" size="sm" onClick={onRemove}>
+        <Button type="button" variant="destructive" size="sm" className="min-h-[40px]" onClick={onRemove}>
           Remove address
         </Button>
       )}

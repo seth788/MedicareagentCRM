@@ -145,7 +145,7 @@ function DraggableLeadCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0"
+              className="flex min-h-[40px] min-w-[40px] shrink-0 items-center justify-center sm:h-6 sm:w-6 sm:min-h-0 sm:min-w-0"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
@@ -210,7 +210,7 @@ function DroppableColumn({ stage, children }: { stage: Stage; children: React.Re
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-72 shrink-0 flex-col rounded-xl ${mutedBg} transition-colors ${isOver ? "ring-2 ring-primary/50 ring-offset-2" : ""}`}
+      className={`flex min-w-[260px] w-72 shrink-0 flex-col rounded-xl ${mutedBg} transition-colors ${isOver ? "ring-2 ring-primary/50 ring-offset-2" : ""}`}
       style={isCustom ? { borderColor: colorKey, borderLeftColor: colorKey } : undefined}
     >
       {children}
@@ -343,7 +343,7 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
     <>
       <div
         ref={scrollRef}
-        className="h-full w-full overflow-x-auto overflow-y-hidden"
+        className="h-full w-full overflow-x-auto overflow-y-hidden pb-2"
         style={{ scrollBehavior: "auto" }}
       >
         <DndContext
@@ -351,7 +351,7 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 p-6 pb-4 min-w-max">
+          <div className="flex gap-4 p-4 pb-4 min-w-max sm:p-6">
             {stages.map((stage) => {
               const stageLeads = leads.filter((l) => l.stageId === stage.id)
               return (

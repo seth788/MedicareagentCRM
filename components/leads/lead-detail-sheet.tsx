@@ -229,7 +229,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-full max-w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader className="pb-4">
           <div className="flex items-center gap-2 pr-10">
             <SheetTitle className="text-lg">

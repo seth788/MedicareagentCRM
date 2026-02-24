@@ -112,15 +112,17 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="shrink-0 px-4 pr-12 pt-4 sm:px-6 sm:pt-6">
           <DialogTitle>New Lead</DialogTitle>
           <DialogDescription>
             Add a new lead to your pipeline.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
+          <div className="grid gap-4 py-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="firstName">First Name</Label>
               <Input
@@ -159,7 +161,7 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
               placeholder="john@email.com"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Flow</Label>
               <Select
@@ -189,7 +191,7 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Source</Label>
               <Select
@@ -205,11 +207,13 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
               </Select>
             </div>
           </div>
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          </div>
+          </div>
+          <DialogFooter className="shrink-0 gap-2 border-t px-4 py-4 pt-2 sm:px-6">
+            <Button type="button" variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Create Lead</Button>
+            <Button type="submit" className="min-h-[40px] w-full sm:w-auto">Create Lead</Button>
           </DialogFooter>
         </form>
       </DialogContent>

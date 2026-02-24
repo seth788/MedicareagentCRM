@@ -30,8 +30,11 @@ function parseAddressComponents(
   for (const c of components) {
     if (c.types.includes("street_number")) streetNumber = c.long_name
     if (c.types.includes("route")) route = c.long_name
+    // City: locality first, then sublocality_level_1, then administrative_area_level_3 (e.g. townships), then postal_town
     if (c.types.includes("locality")) city = c.long_name
-    if (c.types.includes("sublocality") && !city) city = c.long_name
+    if (!city && c.types.includes("sublocality_level_1")) city = c.long_name
+    if (!city && c.types.includes("administrative_area_level_3")) city = c.long_name
+    if (!city && c.types.includes("postal_town")) city = c.long_name
     if (c.types.includes("administrative_area_level_2")) county = c.long_name
     if (c.types.includes("administrative_area_level_1")) state = c.short_name
     if (c.types.includes("postal_code")) zip = c.long_name

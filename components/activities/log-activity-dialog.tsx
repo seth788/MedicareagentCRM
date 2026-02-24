@@ -133,11 +133,11 @@ export function LogActivityDialog({
               onChange={(e) => setOutcome(e.target.value)}
             />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!description.trim()}>
+            <Button type="submit" className="min-h-[40px] w-full sm:w-auto" disabled={!description.trim()}>
               Log activity
             </Button>
           </DialogFooter>

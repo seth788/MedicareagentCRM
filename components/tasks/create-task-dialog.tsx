@@ -124,11 +124,11 @@ export function CreateTaskDialog({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim()}>
+            <Button type="submit" className="min-h-[40px] w-full sm:w-auto" disabled={!title.trim()}>
               Create task
             </Button>
           </DialogFooter>
