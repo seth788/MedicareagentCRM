@@ -17,7 +17,7 @@ export interface AddressCardProps {
 
 export function AddressCard({ address, onEdit, onRemove, hidePreferredWhenOnlyOne, className }: AddressCardProps) {
   const line1 = [address.address, address.unit].filter(Boolean).join(", ")
-  const line2 = [address.city, address.state, address.zip].filter(Boolean).join(", ")
+  const line2 = [address.city, address.county, address.state, address.zip].filter(Boolean).join(", ")
   const fullAddress = [line1, line2].filter(Boolean).join(", ")
   const showPreferred = address.isPreferred && !hidePreferredWhenOnlyOne
 

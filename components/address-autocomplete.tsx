@@ -23,6 +23,7 @@ function parseAddressComponents(
   let streetNumber = ""
   let route = ""
   let city = ""
+  let county = ""
   let state = ""
   let zip = ""
 
@@ -31,6 +32,7 @@ function parseAddressComponents(
     if (c.types.includes("route")) route = c.long_name
     if (c.types.includes("locality")) city = c.long_name
     if (c.types.includes("sublocality") && !city) city = c.long_name
+    if (c.types.includes("administrative_area_level_2")) county = c.long_name
     if (c.types.includes("administrative_area_level_1")) state = c.short_name
     if (c.types.includes("postal_code")) zip = c.long_name
   }
@@ -38,7 +40,7 @@ function parseAddressComponents(
   const address =
     [streetNumber, route].filter(Boolean).join(" ") || route || streetNumber
 
-  return { address: address.trim(), city, state, zip }
+  return { address: address.trim(), city, county, state, zip }
 }
 
 function placeToAddress(place: {
@@ -52,6 +54,7 @@ function placeToAddress(place: {
     return {
       address: place.formatted_address,
       city: "",
+      county: "",
       state: "",
       zip: "",
     }
@@ -172,6 +175,7 @@ export function AddressAutocomplete({
           onPlaceSelectRef.current({
             address: description,
             city: "",
+            county: "",
             state: "",
             zip: "",
           })

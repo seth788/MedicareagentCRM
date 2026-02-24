@@ -122,6 +122,7 @@ export interface ClientAddress {
   address: string
   unit?: string
   city: string
+  county?: string
   state: string
   zip: string
   isPreferred: boolean

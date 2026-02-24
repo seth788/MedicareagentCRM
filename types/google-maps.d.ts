@@ -2,6 +2,7 @@
 export interface GooglePlaceAddress {
   address: string;
   city: string;
+  county: string;
   state: string;
   zip: string;
 }
