@@ -5,7 +5,6 @@ import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
 import { Eye, EyeOff, ShieldAlert } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -62,7 +61,7 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
   return (
     <div className="max-w-3xl">
       <Card className="overflow-hidden border-primary/20">
-        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 py-4">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
           <div className="flex items-center gap-2.5">
             <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -70,12 +69,6 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
               </div>
               Medicare Information
             </CardTitle>
-            <Badge
-              variant="outline"
-              className="border-warning/30 bg-warning/10 text-warning text-xs"
-            >
-              Sensitive Data
-            </Badge>
           </div>
           {onEditMedicare && (
             <Button variant="outline" size="sm" onClick={onEditMedicare}>

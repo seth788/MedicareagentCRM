@@ -3,7 +3,27 @@
 import { useState, useCallback, useEffect } from "react"
 import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Shield, Plus, FileText, ChevronDown, MoreVertical, Pencil, Trash2 } from "@/components/icons"
+import {
+  Shield,
+  Plus,
+  FileText,
+  ChevronDown,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  CheckmarkBadge,
+  Loading01,
+  Exchange01,
+  CancelSquare,
+  TaskRemove01,
+  Unavailable,
+  UserMinus02,
+  UserBlock02,
+  Appointment02,
+  Mailbox01,
+  Sent,
+  Signature,
+} from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,6 +84,39 @@ import { getPreferredOrFirstAddress } from "@/lib/utils"
 import { normalizeCountyToPlainName } from "@/lib/utils"
 import { fetchCarriersForLocation, fetchPlansForCarrier } from "@/app/actions/medicare-plans"
 import type { MedicarePlanOption } from "@/lib/db/medicare-plans"
+
+type StatusStyle = {
+  Icon: React.ComponentType<{ className?: string; size?: number }>
+  pillClass: string
+  cardAccentClass: string
+}
+
+const COVERAGE_STATUS_STYLES: Record<string, StatusStyle> = {
+"Active": { Icon: CheckmarkBadge, pillClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", cardAccentClass: "border border-emerald-500" },
+"Active (not agent of record)": { Icon: CheckmarkBadge, pillClass: "bg-teal-500/15 text-teal-700 dark:text-teal-400 border-teal-500/30", cardAccentClass: "border border-teal-500" },
+"Active (non-commissionable)": { Icon: CheckmarkBadge, pillClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30", cardAccentClass: "border border-cyan-500" },
+"Pending/Submitted": { Icon: Loading01, pillClass: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30", cardAccentClass: "border border-yellow-500" },
+"Pending (not agent of record)": { Icon: Loading01, pillClass: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30", cardAccentClass: "border border-yellow-500" },
+  "Kit Mailed": { Icon: Mailbox01, pillClass: "bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30", cardAccentClass: "border border-violet-500" },
+  "Kit Emailed": { Icon: Sent, pillClass: "bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30", cardAccentClass: "border border-violet-500" },
+  "eSign Sent": { Icon: Signature, pillClass: "bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30", cardAccentClass: "border border-violet-500" },
+"Replaced": { Icon: Exchange01, pillClass: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30", cardAccentClass: "border border-blue-500" },
+"Canceled": { Icon: CancelSquare, pillClass: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30", cardAccentClass: "border border-slate-400" },
+"Disenrolled": { Icon: TaskRemove01, pillClass: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30", cardAccentClass: "border border-orange-500" },
+"Declined": { Icon: Unavailable, pillClass: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30", cardAccentClass: "border border-red-500" },
+"Withdrawn": { Icon: UserMinus02, pillClass: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30", cardAccentClass: "border border-zinc-400" },
+"Terminated": { Icon: UserBlock02, pillClass: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30", cardAccentClass: "border border-rose-500" },
+}
+
+const DEFAULT_STATUS_STYLE: StatusStyle = {
+  Icon: FileText,
+  pillClass: "bg-muted text-muted-foreground border-border",
+  cardAccentClass: "border border-border",
+}
+
+function getCoverageStatusStyle(status: string): StatusStyle {
+  return (status && COVERAGE_STATUS_STYLES[status]) || DEFAULT_STATUS_STYLE
+}
 
 function emptyCoverageForm(planType: CoveragePlanType) {
   return {
@@ -199,7 +252,83 @@ export function CoverageSection({ client }: SectionProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState(emptyCoverageForm("MAPD"))
+  const [editSelectedAddressId, setEditSelectedAddressId] = useState<string | null>(null)
+  const [editCarriers, setEditCarriers] = useState<string[]>([])
+  const [editPlans, setEditPlans] = useState<MedicarePlanOption[]>([])
+  const [editLoadingCarriers, setEditLoadingCarriers] = useState(false)
+  const [editLoadingPlans, setEditLoadingPlans] = useState(false)
+  const [editChangeCarrier, setEditChangeCarrier] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
+  const addresses = client.addresses ?? []
+  const resolvedEditAddress =
+    editingId != null
+      ? editSelectedAddressId != null
+        ? addresses.find((a) => a.id === editSelectedAddressId)
+        : addresses.length === 1
+          ? addresses[0]
+          : undefined
+      : undefined
+  const normalizedEditCounty = normalizeCountyToPlainName(resolvedEditAddress?.county)
+  const canFetchEditPlans = Boolean(
+    editingId && resolvedEditAddress?.state?.trim() && (editForm.planType === "MAPD" || editForm.planType === "PDP")
+  )
+
+  useEffect(() => {
+    if (!canFetchEditPlans || !resolvedEditAddress?.state) {
+      setEditCarriers([])
+      return
+    }
+    setEditLoadingCarriers(true)
+    fetchCarriersForLocation(
+      editForm.planType as "MAPD" | "PDP",
+      resolvedEditAddress.state.trim(),
+      normalizedEditCounty ?? resolvedEditAddress.county ?? null
+    )
+      .then((r) => {
+        setEditCarriers(r.carriers ?? [])
+        if (r.error) goeyToast.error(`Could not load carriers: ${r.error}`)
+      })
+      .catch(() => {
+        setEditCarriers([])
+        goeyToast.error("Failed to load carriers")
+      })
+      .finally(() => setEditLoadingCarriers(false))
+  }, [
+    canFetchEditPlans,
+    editForm.planType,
+    resolvedEditAddress?.state,
+    resolvedEditAddress?.county,
+    normalizedEditCounty,
+  ])
+
+  const carrierForPlans = editChangeCarrier !== null ? editChangeCarrier : editForm.carrier
+  useEffect(() => {
+    if (
+      !canFetchEditPlans ||
+      !carrierForPlans.trim() ||
+      !resolvedEditAddress?.state
+    ) {
+      setEditPlans([])
+      return
+    }
+    setEditLoadingPlans(true)
+    fetchPlansForCarrier(
+      editForm.planType as "MAPD" | "PDP",
+      resolvedEditAddress.state.trim(),
+      normalizedEditCounty ?? resolvedEditAddress.county ?? null,
+      carrierForPlans.trim()
+    )
+      .then((r) => setEditPlans(r.plans ?? []))
+      .finally(() => setEditLoadingPlans(false))
+  }, [
+    canFetchEditPlans,
+    editForm.planType,
+    resolvedEditAddress?.state,
+    resolvedEditAddress?.county,
+    normalizedEditCounty,
+    carrierForPlans,
+  ])
 
   const activeCoverages = coverages.filter((c) => isActiveCoverageStatus(c.status))
 
@@ -258,7 +387,18 @@ export function CoverageSection({ client }: SectionProps) {
     setExpandedId(c.id)
     setEditingId(c.id)
     setEditForm(coverageToForm(c))
-  }, [])
+    setEditChangeCarrier(null)
+    const addrs = client.addresses ?? []
+    if (addrs.length > 1) {
+      setEditSelectedAddressId(null)
+      setEditCarriers([])
+      setEditPlans([])
+    } else if (addrs.length === 1) {
+      setEditSelectedAddressId(addrs[0].id)
+    } else {
+      setEditSelectedAddressId(null)
+    }
+  }, [client.addresses])
 
   const handleEditSave = useCallback(() => {
     if (!editingId) return
@@ -274,10 +414,18 @@ export function CoverageSection({ client }: SectionProps) {
     logActivity(`Coverage updated: ${updated.carrier} ${updated.planName}`)
     goeyToast.success("Coverage updated")
     setEditingId(null)
+    setEditSelectedAddressId(null)
+    setEditCarriers([])
+    setEditPlans([])
+    setEditChangeCarrier(null)
   }, [editingId, editForm, coverages, client.id, updateClient, logActivity])
 
   const handleEditCancel = useCallback(() => {
     setEditingId(null)
+    setEditSelectedAddressId(null)
+    setEditCarriers([])
+    setEditPlans([])
+    setEditChangeCarrier(null)
   }, [])
 
   const handleDeleteConfirm = useCallback(() => {
@@ -290,7 +438,13 @@ export function CoverageSection({ client }: SectionProps) {
     setDeleteConfirmId(null)
     setExpandedId((id) => (id === deleteConfirmId ? null : id))
     setEditingId((id) => (id === deleteConfirmId ? null : id))
-  }, [deleteConfirmId, coverages, client.id, updateClient, logActivity])
+    if (editingId === deleteConfirmId) {
+      setEditSelectedAddressId(null)
+      setEditCarriers([])
+      setEditPlans([])
+      setEditChangeCarrier(null)
+    }
+  }, [deleteConfirmId, editingId, coverages, client.id, updateClient, logActivity])
 
   const getReplacingLabel = (replacingId: string) => {
     const c = coverages.find((x) => x.id === replacingId)
@@ -299,9 +453,9 @@ export function CoverageSection({ client }: SectionProps) {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 py-4">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
         <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/10">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-chart-3/10">
             <Shield className="h-4 w-4 text-chart-3" />
           </div>
           {coverages.length > 0 ? "Coverage" : "No Coverage on File"}
@@ -310,22 +464,23 @@ export function CoverageSection({ client }: SectionProps) {
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" onClick={handleAddOpen}>
               <Plus className="mr-1.5 h-4 w-4" />
-              Add Coverage
+              Add
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-h-[90vh] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{addStep === 1 ? "Add Coverage" : "Add Coverage — Details"}</DialogTitle>
             </DialogHeader>
             {addStep === 1 ? (
               <div className="py-4">
                 <p className="mb-4 text-sm text-muted-foreground">Select plan type</p>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   {COVERAGE_PLAN_TYPE_OPTIONS.map((opt) => (
                     <Button
                       key={opt.value}
                       variant={addPlanType === opt.value ? "default" : "outline"}
                       onClick={() => handleAddPlanTypeSelect(opt.value)}
+                      className="min-h-[44px] flex-1 basis-0 touch-manipulation sm:flex-initial sm:basis-auto sm:min-h-0"
                     >
                       {opt.label}
                     </Button>
@@ -351,8 +506,8 @@ export function CoverageSection({ client }: SectionProps) {
               />
             )}
             {addStep === 2 && (
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setAddStep(1)}>
+              <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button variant="outline" onClick={() => setAddStep(1)} className="min-h-[44px] w-full touch-manipulation sm:min-h-0 sm:w-auto">
                   Back
                 </Button>
                 <Button
@@ -363,6 +518,7 @@ export function CoverageSection({ client }: SectionProps) {
                     !addForm.status ||
                     !addForm.effectiveDate
                   }
+                  className="min-h-[44px] w-full touch-manipulation sm:min-h-0 sm:w-auto"
                 >
                   Save Coverage
                 </Button>
@@ -371,7 +527,7 @@ export function CoverageSection({ client }: SectionProps) {
           </DialogContent>
         </Dialog>
       </CardHeader>
-      <CardContent className="p-6 pt-6">
+      <CardContent className="p-4 sm:p-6 sm:pt-6">
         {coverages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
@@ -390,6 +546,7 @@ export function CoverageSection({ client }: SectionProps) {
               <CoverageCard
                 key={cov.id}
                 coverage={cov}
+                client={client}
                 isExpanded={expandedId === cov.id}
                 isEditing={editingId === cov.id}
                 editForm={editForm}
@@ -401,6 +558,15 @@ export function CoverageSection({ client }: SectionProps) {
                 onDeleteClick={() => setDeleteConfirmId(cov.id)}
                 getReplacingLabel={getReplacingLabel}
                 activeCoverages={activeCoverages}
+                addresses={addresses}
+                resolvedEditAddress={resolvedEditAddress}
+                editSelectedAddressId={editSelectedAddressId}
+                onEditAddressChange={setEditSelectedAddressId}
+                editCarriers={editCarriers}
+                editPlans={editPlans}
+                editLoadingCarriers={editLoadingCarriers}
+                editLoadingPlans={editLoadingPlans}
+                onEditChangeCarrierChange={setEditChangeCarrier}
               />
             ))}
           </div>
@@ -587,13 +753,14 @@ function AddCoverageForm({
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label>Application date</Label>
           <Input
             type="date"
             value={form.applicationDate}
             onChange={(e) => setForm((f) => ({ ...f, applicationDate: e.target.value }))}
+            className="min-h-[44px] sm:min-h-0"
           />
         </div>
         <div>
@@ -602,6 +769,7 @@ function AddCoverageForm({
             type="date"
             value={form.effectiveDate}
             onChange={(e) => setForm((f) => ({ ...f, effectiveDate: e.target.value }))}
+            className="min-h-[44px] sm:min-h-0"
           />
         </div>
       </div>
@@ -611,7 +779,7 @@ function AddCoverageForm({
           value={form.writtenAs || "_"}
           onValueChange={(v) => setForm((f) => ({ ...f, writtenAs: v === "_" ? "" : v }))}
         >
-          <SelectTrigger>
+          <SelectTrigger className="min-h-[44px] sm:min-h-0">
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
@@ -704,6 +872,7 @@ function AddCoverageForm({
 
 function CoverageCard({
   coverage,
+  client,
   isExpanded,
   isEditing,
   editForm,
@@ -715,8 +884,18 @@ function CoverageCard({
   onDeleteClick,
   getReplacingLabel,
   activeCoverages,
+  addresses,
+  resolvedEditAddress,
+  editSelectedAddressId,
+  onEditAddressChange,
+  editCarriers,
+  editPlans,
+  editLoadingCarriers,
+  editLoadingPlans,
+  onEditChangeCarrierChange,
 }: {
   coverage: Coverage
+  client: Client
   isExpanded: boolean
   isEditing: boolean
   editForm: ReturnType<typeof emptyCoverageForm>
@@ -728,29 +907,60 @@ function CoverageCard({
   onDeleteClick: () => void
   getReplacingLabel: (id: string) => string
   activeCoverages: Coverage[]
+  addresses: Client["addresses"]
+  resolvedEditAddress: ReturnType<typeof getPreferredOrFirstAddress> | undefined
+  editSelectedAddressId: string | null
+  onEditAddressChange: (addressId: string | null) => void
+  editCarriers: string[]
+  editPlans: MedicarePlanOption[]
+  editLoadingCarriers: boolean
+  editLoadingPlans: boolean
+  onEditChangeCarrierChange: (carrier: string | null) => void
 }) {
   const effectiveDateDisplay = coverage.effectiveDate
     ? format(parseLocalDate(coverage.effectiveDate), "MMM d, yyyy")
-    : "—"
+    : null
+  const statusStyle = getCoverageStatusStyle(coverage.status ?? "")
+  const StatusIcon = statusStyle.Icon
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${statusStyle.cardAccentClass}`}>
       <div
-        className="flex cursor-pointer items-start justify-between gap-2 p-4 transition-colors hover:bg-muted/50"
+        className="flex cursor-pointer items-start justify-between gap-2 p-3 transition-colors hover:bg-muted/50 active:bg-muted/50 sm:p-4"
         onClick={() => !isEditing && onToggleExpand()}
       >
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{coverage.carrier || "—"}</p>
-          <p className="text-sm text-muted-foreground">{coverage.planName || "—"}</p>
-          <div className="mt-1 flex flex-wrap gap-2 text-xs">
-            <span className="text-muted-foreground">{coverage.status || "—"}</span>
-            <span className="text-muted-foreground">{effectiveDateDisplay}</span>
+          <p className="font-medium text-foreground truncate">{coverage.carrier || "—"}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2 sm:line-clamp-1">{coverage.planName || "—"}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusStyle.pillClass}`}
+            >
+              <StatusIcon className="h-3.5 w-3.5 shrink-0" />
+              {coverage.status || "—"}
+            </span>
+            {effectiveDateDisplay && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                <Appointment02 className="h-3.5 w-3.5 shrink-0" />
+                {effectiveDateDisplay}
+              </span>
+            )}
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                coverage.hraCollected
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                  : "bg-muted text-muted-foreground border-border"
+              }`}
+              title="HRA collected"
+            >
+              HRA {coverage.hraCollected ? "Yes" : "No"}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-10 w-10 min-h-[44px] min-w-[44px] touch-manipulation sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -769,7 +979,7 @@ function CoverageCard({
       </div>
       <Collapsible open={isExpanded} onOpenChange={(open) => !open && !isEditing && onToggleExpand()}>
         <CollapsibleContent>
-          <div className="border-t px-4 pb-4 pt-3">
+          <div className="border-t px-3 pb-4 pt-3 sm:px-4">
             {coverage.notes?.trim() && !isEditing && (
               <Collapsible className="mb-3">
                 <CollapsibleTrigger className="flex w-full items-center gap-2 text-left text-sm font-medium text-muted-foreground hover:text-foreground">
@@ -789,6 +999,15 @@ function CoverageCard({
                 getReplacingLabel={getReplacingLabel}
                 onSave={onEditSave}
                 onCancel={onEditCancel}
+                addresses={addresses}
+                resolvedEditAddress={resolvedEditAddress}
+                editSelectedAddressId={editSelectedAddressId}
+                onEditAddressChange={onEditAddressChange}
+                editCarriers={editCarriers}
+                editPlans={editPlans}
+                editLoadingCarriers={editLoadingCarriers}
+                editLoadingPlans={editLoadingPlans}
+                onEditChangeCarrierChange={onEditChangeCarrierChange}
               />
             ) : (
               <div className="grid gap-2 text-sm">
@@ -797,7 +1016,7 @@ function CoverageCard({
                 <Row label="Plan name" value={coverage.planName} />
                 <Row label="Status" value={coverage.status} />
                 <Row label="Application date" value={coverage.applicationDate ? format(parseLocalDate(coverage.applicationDate), "MMM d, yyyy") : "—"} />
-                <Row label="Effective date" value={effectiveDateDisplay} />
+                <Row label="Effective date" value={effectiveDateDisplay ?? "—"} />
                 <Row label="Written as" value={coverage.writtenAs || "—"} />
                 <Row label="Election period" value={coverage.electionPeriod || "—"} />
                 <Row label="Member / Policy #" value={coverage.memberPolicyNumber || "—"} />
@@ -819,9 +1038,9 @@ function CoverageCard({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value}</span>
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4 sm:items-baseline">
+      <span className="text-muted-foreground text-xs sm:text-sm shrink-0">{label}</span>
+      <span className="text-right font-medium text-foreground text-sm break-words min-w-0">{value}</span>
     </div>
   )
 }
@@ -833,6 +1052,15 @@ function InlineCoverageForm({
   getReplacingLabel,
   onSave,
   onCancel,
+  addresses,
+  resolvedEditAddress,
+  editSelectedAddressId,
+  onEditAddressChange,
+  editCarriers,
+  editPlans,
+  editLoadingCarriers,
+  editLoadingPlans,
+  onEditChangeCarrierChange,
 }: {
   form: ReturnType<typeof emptyCoverageForm>
   setForm: React.Dispatch<React.SetStateAction<ReturnType<typeof emptyCoverageForm>>>
@@ -840,51 +1068,242 @@ function InlineCoverageForm({
   getReplacingLabel: (id: string) => string
   onSave: () => void
   onCancel: () => void
+  addresses: Client["addresses"]
+  resolvedEditAddress: ReturnType<typeof getPreferredOrFirstAddress> | undefined
+  editSelectedAddressId: string | null
+  onEditAddressChange: (addressId: string | null) => void
+  editCarriers: string[]
+  editPlans: MedicarePlanOption[]
+  editLoadingCarriers: boolean
+  editLoadingPlans: boolean
+  onEditChangeCarrierChange: (carrier: string | null) => void
 }) {
+  const [showChangePlans, setShowChangePlans] = useState(false)
+  const [changeCarrier, setChangeCarrier] = useState("")
+  const [changePlanId, setChangePlanId] = useState("")
+  const [changePlanName, setChangePlanName] = useState("")
+  const hasMultipleAddresses = addresses.length > 1
+  const canShowPlanDropdowns = Boolean(resolvedEditAddress?.state?.trim())
+
+  const handleOpenChange = useCallback(() => {
+    setShowChangePlans(true)
+    setChangeCarrier(form.carrier)
+    setChangePlanId(form.planId ?? "")
+    setChangePlanName(form.planName)
+    onEditChangeCarrierChange(form.carrier)
+    if (hasMultipleAddresses) {
+      onEditAddressChange(null)
+    }
+  }, [form.carrier, form.planId, form.planName, hasMultipleAddresses, onEditAddressChange, onEditChangeCarrierChange])
+
+  const handleChangeApply = useCallback(() => {
+    setForm((f) => ({
+      ...f,
+      carrier: changeCarrier,
+      planId: changePlanId,
+      planName: changePlanName,
+    }))
+    setShowChangePlans(false)
+    onEditChangeCarrierChange(null)
+  }, [changeCarrier, changePlanId, changePlanName, setForm, onEditChangeCarrierChange])
+
+  const handleChangeCancel = useCallback(() => {
+    setShowChangePlans(false)
+    onEditChangeCarrierChange(null)
+  }, [onEditChangeCarrierChange])
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="min-w-0">
           <Label className="text-xs">Carrier</Label>
-          <Input
-            value={form.carrier}
-            onChange={(e) => setForm((f) => ({ ...f, carrier: e.target.value }))}
-            className="h-8 text-sm"
-          />
+          <div className="flex h-10 min-h-[44px] w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:h-9 sm:min-h-0 [&>*]:flex-shrink-0 [&>*:first-child]:flex-1 [&>*:first-child]:min-w-0">
+            <Input
+              value={form.carrier}
+              onChange={(e) => setForm((f) => ({ ...f, carrier: e.target.value }))}
+              className="h-full rounded-none border-0 bg-transparent px-3 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="!h-full min-h-0 shrink-0 rounded-none border-0 border-l border-primary px-3 text-xs font-medium touch-manipulation"
+              onClick={handleOpenChange}
+              disabled={addresses.length === 0}
+            >
+              Change
+            </Button>
+          </div>
         </div>
-        <div>
+        <div className="min-w-0">
           <Label className="text-xs">Plan name</Label>
-          <Input
-            value={form.planName}
-            onChange={(e) => setForm((f) => ({ ...f, planName: e.target.value }))}
-            className="h-8 text-sm"
-          />
+          <div className="flex h-10 min-h-[44px] w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:h-9 sm:min-h-0 [&>*]:flex-shrink-0 [&>*:first-child]:flex-1 [&>*:first-child]:min-w-0">
+            <Input
+              value={form.planName}
+              onChange={(e) => setForm((f) => ({ ...f, planName: e.target.value }))}
+              className="h-full rounded-none border-0 bg-transparent px-3 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="!h-full min-h-0 shrink-0 rounded-none border-0 border-l border-primary px-3 text-xs font-medium touch-manipulation"
+              onClick={handleOpenChange}
+              disabled={addresses.length === 0}
+            >
+              Change
+            </Button>
+          </div>
         </div>
       </div>
+      {showChangePlans && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Choose carrier and plan by location</p>
+          {addresses.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Add an address to this client to view plans.</p>
+          ) : (
+            <>
+              {hasMultipleAddresses && (
+                <div>
+                  <Label className="text-xs">View plans for</Label>
+                  <Select
+                    value={editSelectedAddressId ?? "_"}
+                    onValueChange={(v) => {
+                      onEditAddressChange(v === "_" ? null : v)
+                      setChangeCarrier("")
+                      setChangePlanId("")
+                      setChangePlanName("")
+                      onEditChangeCarrierChange(null)
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-sm mt-1">
+                      <SelectValue placeholder="Select address..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_">Select address...</SelectItem>
+                      {addresses.map((addr) => (
+                        <SelectItem key={addr.id} value={addr.id}>
+                          {addr.isPreferred ? "Preferred: " : ""}
+                          {addr.type} — {addr.city}, {addr.state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {canShowPlanDropdowns && (
+                <>
+                  <div>
+                    <Label className="text-xs">Carrier</Label>
+                    <Select
+                      value={changeCarrier ? changeCarrier : "_"}
+                      onValueChange={(v) => {
+                        const carrier = v === "_" ? "" : v
+                        setChangeCarrier(carrier)
+                        setChangePlanId("")
+                        setChangePlanName("")
+                        onEditChangeCarrierChange(carrier)
+                      }}
+                      disabled={editLoadingCarriers}
+                    >
+                      <SelectTrigger className="h-8 text-sm mt-1">
+                        <SelectValue placeholder={editLoadingCarriers ? "Loading..." : "Select..."} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_">Select...</SelectItem>
+                        {editCarriers.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Plan</Label>
+                    <Select
+                      value={changePlanId || "_"}
+                      onValueChange={(v) => {
+                        if (v === "_") {
+                          setChangePlanId("")
+                          setChangePlanName("")
+                          return
+                        }
+                        const plan = editPlans.find((p) => p.id === v)
+                        setChangePlanId(v)
+                        setChangePlanName(plan?.planName ?? "")
+                      }}
+                      disabled={!changeCarrier.trim() || editLoadingPlans}
+                    >
+                      <SelectTrigger className="h-8 text-sm mt-1">
+                        <SelectValue
+                          placeholder={
+                            !changeCarrier.trim()
+                              ? "Select carrier first"
+                              : editLoadingPlans
+                                ? "Loading..."
+                                : "Select..."
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_">Select...</SelectItem>
+                        {editPlans.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.planName} ({p.contractId})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
+                <Button size="sm" onClick={handleChangeApply} disabled={!changeCarrier.trim() || !changePlanName.trim()} className="min-h-[44px] touch-manipulation sm:min-h-0">
+                  Apply
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleChangeCancel} className="min-h-[44px] touch-manipulation sm:min-h-0">
+                  Cancel
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       <div>
         <Label className="text-xs">Status</Label>
         <Select value={form.status || "_"} onValueChange={(v) => setForm((f) => ({ ...f, status: v === "_" ? "" : v }))}>
-          <SelectTrigger className="h-8 text-sm">
+          <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_">Select...</SelectItem>
-            {COVERAGE_STATUS_OPTIONS.filter((o) => !o.separator).map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              {COVERAGE_STATUS_OPTIONS.filter(
+                (o) => !o.separator && !["Kit Mailed", "Kit Emailed", "eSign Sent"].includes(o.value)
+              ).map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            <SelectGroup>
+              <SelectLabel className="text-muted-foreground">— PRE SUBMISSION —</SelectLabel>
+              <SelectItem value="Kit Mailed">Kit Mailed</SelectItem>
+              <SelectItem value="Kit Emailed">Kit Emailed</SelectItem>
+              <SelectItem value="eSign Sent">eSign Sent</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label className="text-xs">Application date</Label>
           <Input
             type="date"
             value={form.applicationDate}
             onChange={(e) => setForm((f) => ({ ...f, applicationDate: e.target.value }))}
-            className="h-8 text-sm"
+            className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
           />
         </div>
         <div>
@@ -893,18 +1312,18 @@ function InlineCoverageForm({
             type="date"
             value={form.effectiveDate}
             onChange={(e) => setForm((f) => ({ ...f, effectiveDate: e.target.value }))}
-            className="h-8 text-sm"
+            className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label className="text-xs">Written as</Label>
           <Select
             value={form.writtenAs || "_"}
             onValueChange={(v) => setForm((f) => ({ ...f, writtenAs: v === "_" ? "" : v }))}
           >
-            <SelectTrigger className="h-8 text-sm">
+            <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -923,7 +1342,7 @@ function InlineCoverageForm({
             value={form.electionPeriod || "_"}
             onValueChange={(v) => setForm((f) => ({ ...f, electionPeriod: v === "_" ? "" : v }))}
           >
-            <SelectTrigger className="h-8 text-sm">
+            <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -942,7 +1361,7 @@ function InlineCoverageForm({
         <Input
           value={form.memberPolicyNumber}
           onChange={(e) => setForm((f) => ({ ...f, memberPolicyNumber: e.target.value }))}
-          className="h-8 text-sm"
+          className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
         />
       </div>
       <div>
@@ -952,7 +1371,7 @@ function InlineCoverageForm({
           onValueChange={(v) => setForm((f) => ({ ...f, replacingCoverageId: v === "_" ? "" : v }))}
           disabled={activeCoverages.length === 0}
         >
-          <SelectTrigger className="h-8 text-sm">
+          <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
             <SelectValue placeholder={activeCoverages.length === 0 ? "No active plan" : "Select..."} />
           </SelectTrigger>
           <SelectContent>
@@ -970,7 +1389,7 @@ function InlineCoverageForm({
         <Input
           value={form.applicationId}
           onChange={(e) => setForm((f) => ({ ...f, applicationId: e.target.value }))}
-          className="h-8 text-sm"
+          className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -992,11 +1411,11 @@ function InlineCoverageForm({
           className="text-sm"
         />
       </div>
-      <div className="flex gap-2 pt-2">
-        <Button size="sm" onClick={onSave}>
+      <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+        <Button size="sm" onClick={onSave} className="min-h-[44px] touch-manipulation sm:min-h-0">
           Save
         </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
+        <Button size="sm" variant="outline" onClick={onCancel} className="min-h-[44px] touch-manipulation sm:min-h-0">
           Cancel
         </Button>
       </div>

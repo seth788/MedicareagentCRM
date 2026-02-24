@@ -912,7 +912,7 @@ export function HealthSection({ client }: SectionProps) {
     <div className="grid gap-5 lg:grid-cols-2">
       {/* Doctors */}
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 py-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <Stethoscope className="h-4 w-4 text-primary" />
@@ -1397,7 +1397,7 @@ export function HealthSection({ client }: SectionProps) {
 
       {/* Medications */}
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 py-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/10">
               <Pill className="h-4 w-4 text-chart-3" />
@@ -1814,7 +1814,7 @@ export function HealthSection({ client }: SectionProps) {
 
       {/* Pharmacies */}
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 py-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-2/10">
               <Building2 className="h-4 w-4 text-chart-2" />
@@ -2200,7 +2200,7 @@ export function HealthSection({ client }: SectionProps) {
 
       {/* Allergies */}
       <Card className="overflow-hidden lg:col-span-2">
-        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 py-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
               <AlertTriangle className="h-4 w-4 text-destructive" />

@@ -12,6 +12,7 @@ import {
   AidsIcon,
   AiBrain01Icon,
   Alert01Icon,
+  Appointment02Icon,
   ArrowDown01Icon,
   ArrowLeft01Icon,
   ArrowLeftRightIcon,
@@ -29,6 +30,7 @@ import {
   Calendar01Icon,
   CalendarAdd01Icon,
   Cancel01Icon,
+  CancelSquareIcon,
   Cardiogram02Icon,
   CheckmarkBadge01Icon,
   CheckmarkCircle01Icon,
@@ -41,6 +43,7 @@ import {
   Delete01Icon,
   Doctor01Icon,
   DrinkIcon,
+  Exchange01Icon,
   GlobeIcon,
   GiveBloodIcon,
   Call02Icon,
@@ -56,9 +59,11 @@ import {
   KanbanIcon,
   KidneysIcon,
   LiverIcon,
+  Loading01Icon,
   Location03Icon,
   LungsIcon,
   Mail01Icon,
+  Mailbox01Icon,
   Medicine01Icon,
   Message01Icon,
   Moon01Icon,
@@ -70,6 +75,7 @@ import {
   Search01Icon,
   SentIcon,
   Settings01Icon,
+  SignatureIcon,
   Share05Icon,
   Shield01Icon,
   StethoscopeIcon,
@@ -77,11 +83,15 @@ import {
   Sun01Icon,
   StarIcon,
   TableIcon as TableIconSvg,
+  TaskRemove01Icon,
   Tick01Icon,
+  UnavailableIcon,
   UserAdd01Icon,
+  UserBlock02Icon,
   UserCircleIcon,
   UserGroupIcon,
   UserMinus01Icon,
+  UserMinus02Icon,
 } from "@hugeicons/core-free-icons"
 
 type IconProps = React.ComponentProps<typeof HugeiconsIcon> & {
@@ -192,3 +202,15 @@ export const Brain02 = createIcon(Brain02Icon, "Brain02")
 export const GiveBlood = createIcon(GiveBloodIcon, "GiveBlood")
 export const Liver = createIcon(LiverIcon, "Liver")
 export const AiBrain01 = createIcon(AiBrain01Icon, "AiBrain01")
+
+// Coverage status icons
+export const Loading01 = createIcon(Loading01Icon, "Loading01")
+export const Exchange01 = createIcon(Exchange01Icon, "Exchange01")
+export const CancelSquare = createIcon(CancelSquareIcon, "CancelSquare")
+export const TaskRemove01 = createIcon(TaskRemove01Icon, "TaskRemove01")
+export const Unavailable = createIcon(UnavailableIcon, "Unavailable")
+export const UserMinus02 = createIcon(UserMinus02Icon, "UserMinus02")
+export const UserBlock02 = createIcon(UserBlock02Icon, "UserBlock02")
+export const Appointment02 = createIcon(Appointment02Icon, "Appointment02")
+export const Mailbox01 = createIcon(Mailbox01Icon, "Mailbox01")
+export const Signature = createIcon(SignatureIcon, "Signature")
