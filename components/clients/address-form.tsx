@@ -38,6 +38,7 @@ const emptyAddress = (): Partial<ClientAddress> => ({
   address: "",
   unit: "",
   city: "",
+  county: "",
   state: "",
   zip: "",
   type: "Home",
@@ -61,10 +62,17 @@ export function AddressForm({
     onChange({ ...addr, ...patch })
   }
 
-  const handlePlaceSelect = (result: { address: string; city: string; state: string; zip: string }) => {
+  const handlePlaceSelect = (result: {
+    address: string
+    city: string
+    county: string
+    state: string
+    zip: string
+  }) => {
     update({
       address: result.address,
       city: result.city,
+      county: result.county,
       state: result.state,
       zip: result.zip,
     })
@@ -143,12 +151,20 @@ export function AddressForm({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <Label>City</Label>
           <Input
             value={addr.city ?? ""}
             onChange={(e) => update({ city: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>County</Label>
+          <Input
+            value={addr.county ?? ""}
+            onChange={(e) => update({ county: e.target.value })}
+            placeholder="Miami County"
           />
         </div>
         <div className="space-y-1.5">

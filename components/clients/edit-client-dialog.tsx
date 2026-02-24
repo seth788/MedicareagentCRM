@@ -48,6 +48,7 @@ function createEmptyAddress(): ClientAddress {
     type: "Home",
     address: "",
     city: "",
+    county: "",
     state: "",
     zip: "",
     isPreferred: false,

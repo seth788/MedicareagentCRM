@@ -3,6 +3,23 @@ import { createClient } from "@/lib/supabase/server"
 import { encrypt } from "@/lib/encryption"
 import { logPhiAccess } from "@/lib/db/phi-access-log"
 
+const COUNTY_SUFFIX_REGEX = /\s+county$/i
+const COUNTY_JURISDICTION_SUFFIX_REGEX =
+  /\s+(county|parish|borough|census area|municipality|city and borough)$/i
+
+function normalizeCountyForStorage(value?: string | null): string | null {
+  const trimmed = (value ?? "").trim()
+  if (!trimmed) return null
+  return trimmed.replace(COUNTY_SUFFIX_REGEX, "").trim() || null
+}
+
+function formatCountyForDisplay(value?: string | null): string | undefined {
+  const trimmed = (value ?? "").trim()
+  if (!trimmed) return undefined
+  if (COUNTY_JURISDICTION_SUFFIX_REGEX.test(trimmed)) return trimmed
+  return `${trimmed} County`
+}
+
 export async function fetchClients(agentId: string): Promise<Client[]> {
   const supabase = await createClient()
   const { data: rows, error } = await supabase
@@ -18,7 +35,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
     await Promise.all([
       supabase.from("client_phones").select("id, client_id, number, type, is_preferred, note").in("client_id", clientIds),
       supabase.from("client_emails").select("id, client_id, value, is_preferred, note").in("client_id", clientIds),
-      supabase.from("client_addresses").select("id, client_id, type, address, unit, city, state, zip, is_preferred").in("client_id", clientIds),
+      supabase.from("client_addresses").select("id, client_id, type, address, unit, city, county, state, zip, is_preferred").in("client_id", clientIds),
       supabase.from("client_doctors").select("client_id, name, specialty, phone, first_name, last_name, provider_id, facility_address, importance, note").in("client_id", clientIds),
       supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
       supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
@@ -80,6 +97,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
         address: a.address,
         unit: a.unit ?? undefined,
         city: a.city,
+        county: formatCountyForDisplay(a.county),
         state: a.state,
         zip: a.zip,
         isPreferred: a.is_preferred,
@@ -215,6 +233,7 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
             address: a.address,
             unit: a.unit ?? null,
             city: a.city,
+            county: normalizeCountyForStorage(a.county),
             state: a.state,
             zip: a.zip,
             is_preferred: a.isPreferred,
@@ -398,6 +417,7 @@ export async function updateClient(
           address: a.address,
           unit: a.unit ?? null,
           city: a.city,
+          county: normalizeCountyForStorage(a.county),
           state: a.state,
           zip: a.zip,
           is_preferred: a.isPreferred,
