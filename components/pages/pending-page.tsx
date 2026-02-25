@@ -104,28 +104,35 @@ function CommissionStatusIcon({ status }: { status: CommissionStatus | null }) {
   if (!option) return null
 
   return (
-    <span className={`relative flex h-5 w-5 items-center justify-center rounded-full ${option.bgColor}`}>
+    <span className="relative flex h-5 w-5 items-center justify-center">
       {status === "paid_full" && (
-        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        <svg className="h-5 w-5" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="10" className="fill-emerald-500" />
+          <path d="M6 10.5l2.5 2.5L14 7.5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
       {status === "partial" && (
-        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-          <path strokeLinecap="round" d="M12 5v14" />
+        <svg className="h-5 w-5" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="10" className="fill-blue-100" />
+          <path d="M10 0 A10 10 0 0 1 10 20 Z" className="fill-blue-500" />
+          <circle cx="10" cy="10" r="9" fill="none" className="stroke-blue-500" strokeWidth="2" />
         </svg>
       )}
       {status === "trued_up" && (
-        <span className="h-2 w-2 rounded-full bg-white" />
+        <svg className="h-5 w-5" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="10" className="fill-blue-500" />
+        </svg>
       )}
       {status === "not_paid" && (
-        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-          <path strokeLinecap="round" d="M6 12h12" />
+        <svg className="h-5 w-5" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="10" className="fill-red-500" />
+          <path d="M6 10h8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       )}
       {status === "chargeback" && (
-        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-          <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+        <svg className="h-5 w-5" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="10" className="fill-amber-500" />
+          <path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       )}
     </span>
@@ -610,7 +617,7 @@ export default function PendingPageInner() {
   const [issueSelectedStatus, setIssueSelectedStatus] = useState<CommissionStatus>("not_paid")
 
   // Issued state
-  const [issuedApps] = useState<IssuedApplication[]>(MOCK_ISSUED)
+  const [issuedApps, setIssuedApps] = useState<IssuedApplication[]>(MOCK_ISSUED)
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last_60")
   const [customFrom, setCustomFrom] = useState<Date | undefined>(subDays(new Date(), 60))
   const [customTo, setCustomTo] = useState<Date | undefined>(new Date())
@@ -674,16 +681,33 @@ export default function PendingPageInner() {
 
   const handleConfirmIssue = useCallback(() => {
     if (!issueTargetId) return
-    setApplications((prev) =>
-      prev.map((a) =>
-        a.id === issueTargetId
-          ? { ...a, issued: true, commissionStatus: issueSelectedStatus }
-          : a
-      )
-    )
+    const app = applications.find((a) => a.id === issueTargetId)
+    if (!app) return
+
+    // Remove from pending
+    setApplications((prev) => prev.filter((a) => a.id !== issueTargetId))
+
+    // Add to issued
+    const today = format(new Date(), "yyyy-MM-dd")
+    setIssuedApps((prev) => [
+      {
+        id: app.id,
+        clientName: app.clientName,
+        planType: app.planType,
+        company: app.company,
+        policy: app.policy,
+        effectiveDate: app.effectiveDate,
+        writtenAs: app.writtenAs,
+        issuedDate: today,
+        commissionStatus: issueSelectedStatus,
+        status: app.status === "Pending (not agent of record)" ? "Active (not agent of record)" : "Active",
+      },
+      ...prev,
+    ])
+
     setIssueDialogOpen(false)
     setIssueTargetId(null)
-  }, [issueTargetId, issueSelectedStatus])
+  }, [issueTargetId, issueSelectedStatus, applications])
 
   const handleCommissionChange = useCallback((id: string, status: CommissionStatus) => {
     setApplications((prev) =>
@@ -727,7 +751,7 @@ export default function PendingPageInner() {
                 {applications.length}
               </Badge>
               {activeTab === "pending" && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground" />
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-amber-500" />
               )}
             </button>
             <button
@@ -752,7 +776,7 @@ export default function PendingPageInner() {
                 {filteredIssued.length}
               </Badge>
               {activeTab === "issued" && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground" />
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-emerald-500" />
               )}
             </button>
           </div>
@@ -810,7 +834,7 @@ export default function PendingPageInner() {
 
         {/* ── Pending view ── */}
         {activeTab === "pending" && (
-          <>
+          <div className="bg-amber-50/30">
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
               <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 text-amber-700">
@@ -829,7 +853,8 @@ export default function PendingPageInner() {
 
             {/* Pending Table */}
             <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="min-w-0 rounded-lg border">
+              <div className="min-w-0 overflow-hidden rounded-lg border border-amber-200/60">
+                <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-300" />
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -855,8 +880,8 @@ export default function PendingPageInner() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredPending.map((app) => (
-                          <TableRow key={app.id}>
+                        filteredPending.map((app, i) => (
+                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-amber-50/40" : ""}>
                             <TableCell className="py-3">
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-medium text-foreground">
@@ -934,12 +959,12 @@ export default function PendingPageInner() {
                 </p>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* ── Issued view ── */}
         {activeTab === "issued" && (
-          <>
+          <div className="bg-emerald-50/30">
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
               <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
@@ -958,7 +983,8 @@ export default function PendingPageInner() {
 
             {/* Issued Table */}
             <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="min-w-0 rounded-lg border">
+              <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200/60">
+                <div className="h-1 bg-gradient-to-r from-emerald-400 to-emerald-300" />
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -984,8 +1010,8 @@ export default function PendingPageInner() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredIssued.map((app) => (
-                          <TableRow key={app.id}>
+                        filteredIssued.map((app, i) => (
+                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-emerald-50/40" : ""}>
                             <TableCell className="py-3">
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-medium text-foreground">
@@ -1056,7 +1082,7 @@ export default function PendingPageInner() {
                 </p>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 
