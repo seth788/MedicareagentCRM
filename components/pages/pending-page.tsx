@@ -597,8 +597,6 @@ const MOCK_ISSUED: IssuedApplication[] = [
 //  Tab types
 // ────────────────────────────────────────────────────────────
 type ViewTab = "pending" | "issued"
-type StatusFilter = "all" | "pending_submitted" | "pending_not_aor"
-
 // ────────────────────────────────────────────────────────────
 //  Main component
 // ────────────────────────────────────────────────────────────
@@ -608,7 +606,6 @@ export default function PendingPageInner() {
   const [search, setSearch] = useState("")
 
   // Pending state
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [applications, setApplications] = useState<PendingApplication[]>(MOCK_PENDING)
 
   // Issue dialog state
@@ -635,13 +632,8 @@ export default function PendingPageInner() {
           a.planType.toLowerCase().includes(q)
       )
     }
-    if (statusFilter === "pending_submitted") {
-      result = result.filter((a) => a.status === "Pending/Submitted")
-    } else if (statusFilter === "pending_not_aor") {
-      result = result.filter((a) => a.status === "Pending (not agent of record)")
-    }
     return result
-  }, [applications, search, statusFilter])
+  }, [applications, search])
 
   // Filtered issued (by date range + search)
   const filteredIssued = useMemo(() => {
@@ -744,14 +736,14 @@ export default function PendingPageInner() {
                 variant="secondary"
                 className={`ml-1 h-5 min-w-[20px] px-1.5 text-[10px] font-semibold ${
                   activeTab === "pending"
-                    ? "bg-amber-100 text-amber-700"
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
                     : ""
                 }`}
               >
                 {applications.length}
               </Badge>
               {activeTab === "pending" && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-amber-500" />
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-500" />
               )}
             </button>
             <button
@@ -769,7 +761,7 @@ export default function PendingPageInner() {
                 variant="secondary"
                 className={`ml-1 h-5 min-w-[20px] px-1.5 text-[10px] font-semibold ${
                   activeTab === "issued"
-                    ? "bg-emerald-100 text-emerald-700"
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
                     : ""
                 }`}
               >
@@ -797,28 +789,6 @@ export default function PendingPageInner() {
               />
             </div>
 
-            {activeTab === "pending" && (
-              <div className="flex gap-1">
-                {(
-                  [
-                    { label: "All", value: "all" },
-                    { label: "Pending/Submitted", value: "pending_submitted" },
-                    { label: "Not AOR", value: "pending_not_aor" },
-                  ] as const
-                ).map((f) => (
-                  <Button
-                    key={f.value}
-                    size="sm"
-                    variant={statusFilter === f.value ? "secondary" : "ghost"}
-                    className="h-7 text-xs"
-                    onClick={() => setStatusFilter(f.value)}
-                  >
-                    {f.label}
-                  </Button>
-                ))}
-              </div>
-            )}
-
             {activeTab === "issued" && (
               <DateRangePicker
                 preset={datePreset}
@@ -834,27 +804,23 @@ export default function PendingPageInner() {
 
         {/* ── Pending view ── */}
         {activeTab === "pending" && (
-          <div className="bg-amber-50/30">
+          <div className="bg-blue-50/30 dark:bg-blue-950/10">
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-              <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 text-amber-700">
+              <Badge variant="outline" className="gap-1.5 border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
                 <Clock className="h-3 w-3" />
                 {applications.filter((a) => a.status === "Pending/Submitted").length} Pending/Submitted
               </Badge>
-              <Badge variant="outline" className="gap-1.5 border-muted bg-muted text-muted-foreground">
+              <Badge variant="outline" className="gap-1.5 border-muted bg-muted/50 text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 {applications.filter((a) => a.status === "Pending (not agent of record)").length} Not AOR
-              </Badge>
-              <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
-                <CheckCircle2 className="h-3 w-3" />
-                {applications.filter((a) => a.issued).length} Issued
               </Badge>
             </div>
 
             {/* Pending Table */}
             <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="min-w-0 overflow-hidden rounded-lg border border-amber-200/60">
-                <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-300" />
+              <div className="min-w-0 overflow-hidden rounded-lg border border-blue-200/60 dark:border-blue-800/40">
+                <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -881,7 +847,7 @@ export default function PendingPageInner() {
                         </TableRow>
                       ) : (
                         filteredPending.map((app, i) => (
-                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-amber-50/40" : ""}>
+                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-blue-50/30 dark:bg-blue-950/10" : ""}>
                             <TableCell className="py-3">
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-medium text-foreground">
@@ -922,7 +888,7 @@ export default function PendingPageInner() {
                                 variant="outline"
                                 className={
                                   app.status === "Pending/Submitted"
-                                    ? "border-amber-200 bg-amber-50 text-amber-700 text-[11px]"
+                                    ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[11px]"
                                     : "border-muted text-muted-foreground text-[11px]"
                                 }
                               >
@@ -964,10 +930,10 @@ export default function PendingPageInner() {
 
         {/* ── Issued view ── */}
         {activeTab === "issued" && (
-          <div className="bg-emerald-50/30">
+          <div className="bg-emerald-50/30 dark:bg-emerald-950/10">
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-              <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
+              <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
                 <CheckCircle2 className="h-3 w-3" />
                 {filteredIssued.length} Issued
               </Badge>
@@ -983,8 +949,8 @@ export default function PendingPageInner() {
 
             {/* Issued Table */}
             <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200/60">
-                <div className="h-1 bg-gradient-to-r from-emerald-400 to-emerald-300" />
+              <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
+                <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1011,7 +977,7 @@ export default function PendingPageInner() {
                         </TableRow>
                       ) : (
                         filteredIssued.map((app, i) => (
-                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-emerald-50/40" : ""}>
+                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-emerald-50/30 dark:bg-emerald-950/10" : ""}>
                             <TableCell className="py-3">
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-medium text-foreground">
@@ -1057,7 +1023,7 @@ export default function PendingPageInner() {
                                 variant="outline"
                                 className={
                                   app.status === "Active"
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px]"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[11px]"
                                     : "border-muted text-muted-foreground text-[11px]"
                                 }
                               >
