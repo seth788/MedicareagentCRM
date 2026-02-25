@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   FileText,
   StickyNote,
+  ChevronDown,
 } from "@/components/icons"
 import {
   ContactSection,
@@ -97,41 +98,68 @@ export function ClientTabs({
 
   return (
     <div className="w-full">
-      {/* Pill-style section nav */}
+      {/* Mobile: dropdown section selector */}
+      <div className="sm:hidden">
+        <div className="relative rounded-xl border bg-card">
+          {(() => {
+            const active = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0]
+            const ActiveIcon = active.icon
+            return (
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center gap-2 pl-4">
+                <ActiveIcon className="h-4 w-4 text-primary" />
+              </div>
+            )
+          })()}
+          <select
+            value={activeSection}
+            onChange={(e) => setActiveSection(e.target.value as SectionId)}
+            aria-label="Select profile section"
+            className="w-full min-h-[48px] appearance-none rounded-xl bg-transparent py-3 pl-10 pr-10 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {SECTIONS.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: pill-style section nav */}
       <nav
-        className="rounded-xl border bg-card p-1.5"
+        className="hidden sm:block rounded-xl border bg-card p-1.5"
         role="tablist"
         aria-label="Profile sections"
       >
-        <div className="-mx-1.5 overflow-x-auto px-1.5 sm:mx-0 sm:px-0 scrollbar-none">
-          <div className="flex gap-1 sm:flex-wrap">
-            {SECTIONS.map(({ id, label, icon: Icon }) => {
-              const isActive = activeSection === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-controls={`section-${id}`}
-                  id={`tab-${id}`}
-                  onClick={() => setActiveSection(id)}
-                  className={`
-                    flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium
-                    transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                    sm:flex-none sm:justify-start sm:px-4
-                    ${isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }
-                  `}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="whitespace-nowrap">{label}</span>
-                </button>
-              )
-            })}
-          </div>
+        <div className="flex flex-wrap gap-1">
+          {SECTIONS.map(({ id, label, icon: Icon }) => {
+            const isActive = activeSection === id
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`section-${id}`}
+                id={`tab-${id}`}
+                onClick={() => setActiveSection(id)}
+                className={`
+                  flex min-h-[40px] items-center justify-start gap-2 rounded-lg px-4 py-2.5 text-sm font-medium
+                  transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                  ${isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }
+                `}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{label}</span>
+              </button>
+            )
+          })}
         </div>
       </nav>
 
