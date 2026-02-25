@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
+import Link from "next/link"
 import {
   format,
   subDays,
@@ -14,7 +15,7 @@ import {
   isWithinInterval,
 } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Search, Clock, CheckCircle2, ChevronDown, Calendar as CalendarIcon } from "@/components/icons"
+import { Search, Clock, CheckCircle2, ChevronDown, ChevronUp, Calendar as CalendarIcon } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -42,6 +43,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  fetchPendingIssuedData,
+  persistUpdateCommissionStatus,
+  persistMarkCoverageIssued,
+} from "@/app/actions/crm-mutations"
+import type { PendingIssuedRow } from "@/lib/db/coverages"
 
 // ────────────────────────────────────────────────────────────
 //  Commission status
@@ -91,6 +98,8 @@ const COMMISSION_STATUS_OPTIONS: {
     borderColor: "border-amber-200 bg-amber-50",
   },
 ]
+
+const PENDING_STATUSES = ["Pending/Submitted", "Pending (not agent of record)"]
 
 function CommissionStatusIcon({ status }: { status: CommissionStatus | null }) {
   if (!status) {
@@ -307,9 +316,6 @@ function DateRangePicker({
   const activeLabel =
     DATE_PRESET_OPTIONS.find((o) => o.value === preset)?.label ?? "Last 60 Days"
 
-  const range = getDateRange(preset, customFrom, customTo)
-  const rangeLabel = `${format(range.from, "MMM d, yyyy")} - ${format(range.to, "MMM d, yyyy")}`
-
   const groups = ["current", "previous", "to_date", "days", "custom"]
 
   const handleSelect = (value: DateRangePreset) => {
@@ -427,173 +433,6 @@ function DateRangePicker({
 }
 
 // ────────────────────────────────────────────────────────────
-//  Mock data
-// ────────────────────────────────────────────────────────────
-interface PendingApplication {
-  id: string
-  clientName: string
-  planType: string
-  company: string
-  policy: string
-  effectiveDate: string
-  writtenAs: string
-  issued: boolean
-  commissionStatus: CommissionStatus | null
-  status: "Pending/Submitted" | "Pending (not agent of record)"
-}
-
-interface IssuedApplication {
-  id: string
-  clientName: string
-  planType: string
-  company: string
-  policy: string
-  effectiveDate: string
-  writtenAs: string
-  issuedDate: string
-  commissionStatus: CommissionStatus | null
-  status: "Active" | "Active (not agent of record)"
-}
-
-const MOCK_PENDING: PendingApplication[] = [
-  {
-    id: "1",
-    clientName: "Johnson, Mary",
-    planType: "MAPD",
-    company: "Anthem",
-    policy: "Anthem Medicare Advantage 4 (PPO)",
-    effectiveDate: "2026-05-01",
-    writtenAs: "Like Plan Change",
-    issued: false,
-    commissionStatus: "not_paid",
-    status: "Pending/Submitted",
-  },
-  {
-    id: "2",
-    clientName: "Williams, Robert",
-    planType: "PDP",
-    company: "Humana",
-    policy: "Humana Walmart Value Rx Plan",
-    effectiveDate: "2026-04-01",
-    writtenAs: "New to Medicare",
-    issued: false,
-    commissionStatus: "not_paid",
-    status: "Pending/Submitted",
-  },
-  {
-    id: "3",
-    clientName: "Davis, Patricia",
-    planType: "MAPD",
-    company: "UnitedHealthcare",
-    policy: "AARP Medicare Advantage (HMO-POS)",
-    effectiveDate: "2026-03-01",
-    writtenAs: "Unlike Plan Change",
-    issued: false,
-    commissionStatus: "not_paid",
-    status: "Pending (not agent of record)",
-  },
-  {
-    id: "4",
-    clientName: "Garcia, James",
-    planType: "MAPD",
-    company: "Aetna",
-    policy: "Aetna Medicare Eagle (PPO)",
-    effectiveDate: "2026-06-01",
-    writtenAs: "AOR Change",
-    issued: false,
-    commissionStatus: "not_paid",
-    status: "Pending/Submitted",
-  },
-  {
-    id: "5",
-    clientName: "Brown, Linda",
-    planType: "PDP",
-    company: "SilverScript",
-    policy: "SilverScript Choice (PDP)",
-    effectiveDate: "2026-04-15",
-    writtenAs: "Like Plan Change (same company)",
-    issued: false,
-    commissionStatus: "not_paid",
-    status: "Pending (not agent of record)",
-  },
-]
-
-const MOCK_ISSUED: IssuedApplication[] = [
-  {
-    id: "i1",
-    clientName: "Adams, Sarah",
-    planType: "MAPD",
-    company: "Anthem",
-    policy: "Anthem Medicare Advantage 4 (PPO)",
-    effectiveDate: "2026-02-01",
-    writtenAs: "New to Medicare",
-    issuedDate: "2026-02-03",
-    commissionStatus: "paid_full",
-    status: "Active",
-  },
-  {
-    id: "i2",
-    clientName: "Clark, Thomas",
-    planType: "PDP",
-    company: "Humana",
-    policy: "Humana Walmart Value Rx Plan",
-    effectiveDate: "2026-01-15",
-    writtenAs: "Like Plan Change",
-    issuedDate: "2026-01-18",
-    commissionStatus: "paid_full",
-    status: "Active",
-  },
-  {
-    id: "i3",
-    clientName: "Lewis, Jennifer",
-    planType: "MAPD",
-    company: "UnitedHealthcare",
-    policy: "AARP Medicare Advantage Choice (PPO)",
-    effectiveDate: "2026-01-01",
-    writtenAs: "Unlike Plan Change",
-    issuedDate: "2026-01-05",
-    commissionStatus: "partial",
-    status: "Active (not agent of record)",
-  },
-  {
-    id: "i4",
-    clientName: "Walker, Richard",
-    planType: "MAPD",
-    company: "Aetna",
-    policy: "Aetna Medicare Eagle (PPO)",
-    effectiveDate: "2026-02-15",
-    writtenAs: "AOR Change",
-    issuedDate: "2026-02-18",
-    commissionStatus: "trued_up",
-    status: "Active",
-  },
-  {
-    id: "i5",
-    clientName: "Young, Margaret",
-    planType: "PDP",
-    company: "SilverScript",
-    policy: "SilverScript Choice (PDP)",
-    effectiveDate: "2025-12-01",
-    writtenAs: "New to Medicare",
-    issuedDate: "2025-12-05",
-    commissionStatus: "paid_full",
-    status: "Active",
-  },
-  {
-    id: "i6",
-    clientName: "Hall, David",
-    planType: "MAPD",
-    company: "Cigna",
-    policy: "Cigna True Choice Medicare (PPO)",
-    effectiveDate: "2025-12-15",
-    writtenAs: "Like Plan Change (same company)",
-    issuedDate: "2025-12-18",
-    commissionStatus: "chargeback",
-    status: "Active",
-  },
-]
-
-// ────────────────────────────────────────────────────────────
 //  Tab types
 // ────────────────────────────────────────────────────────────
 type ViewTab = "pending" | "issued"
@@ -601,54 +440,78 @@ type ViewTab = "pending" | "issued"
 //  Main component
 // ────────────────────────────────────────────────────────────
 export default function PendingPageInner() {
-  // Shared
   const [activeTab, setActiveTab] = useState<ViewTab>("pending")
   const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
 
-  // Pending state
-  const [applications, setApplications] = useState<PendingApplication[]>(MOCK_PENDING)
+  const [allRows, setAllRows] = useState<PendingIssuedRow[]>([])
 
   // Issue dialog state
   const [issueDialogOpen, setIssueDialogOpen] = useState(false)
   const [issueTargetId, setIssueTargetId] = useState<string | null>(null)
   const [issueSelectedStatus, setIssueSelectedStatus] = useState<CommissionStatus>("not_paid")
 
-  // Issued state
-  const [issuedApps, setIssuedApps] = useState<IssuedApplication[]>(MOCK_ISSUED)
+  // Pending sort
+  const [pendingSortAsc, setPendingSortAsc] = useState(true)
+
+  // Date range (issued tab)
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last_60")
   const [customFrom, setCustomFrom] = useState<Date | undefined>(subDays(new Date(), 60))
   const [customTo, setCustomTo] = useState<Date | undefined>(new Date())
 
-  // Filtered pending
+  useEffect(() => {
+    let cancelled = false
+    fetchPendingIssuedData().then((res) => {
+      if (cancelled) return
+      if (res.data) setAllRows(res.data)
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  const pendingApps = useMemo(
+    () => allRows.filter((r) => PENDING_STATUSES.includes(r.status)),
+    [allRows]
+  )
+  const issuedApps = useMemo(
+    () => allRows.filter((r) => !PENDING_STATUSES.includes(r.status)),
+    [allRows]
+  )
+
+  // Filtered pending (with sort by effective date)
   const filteredPending = useMemo(() => {
-    let result = [...applications]
+    let result = pendingApps
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(
         (a) =>
           a.clientName.toLowerCase().includes(q) ||
-          a.company.toLowerCase().includes(q) ||
-          a.policy.toLowerCase().includes(q) ||
+          a.carrier.toLowerCase().includes(q) ||
+          a.planName.toLowerCase().includes(q) ||
           a.planType.toLowerCase().includes(q)
       )
     }
-    return result
-  }, [applications, search])
+    return [...result].sort((a, b) => {
+      const da = new Date(a.effectiveDate).getTime()
+      const db = new Date(b.effectiveDate).getTime()
+      return pendingSortAsc ? da - db : db - da
+    })
+  }, [pendingApps, search, pendingSortAsc])
 
   // Filtered issued (by date range + search)
   const filteredIssued = useMemo(() => {
     const range = getDateRange(datePreset, customFrom, customTo)
     let result = issuedApps.filter((a) => {
-      const issued = parseLocalDate(a.issuedDate)
-      return isWithinInterval(issued, { start: range.from, end: range.to })
+      const eff = parseLocalDate(a.effectiveDate)
+      return isWithinInterval(eff, { start: range.from, end: range.to })
     })
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(
         (a) =>
           a.clientName.toLowerCase().includes(q) ||
-          a.company.toLowerCase().includes(q) ||
-          a.policy.toLowerCase().includes(q) ||
+          a.carrier.toLowerCase().includes(q) ||
+          a.planName.toLowerCase().includes(q) ||
           a.planType.toLowerCase().includes(q)
       )
     }
@@ -656,56 +519,62 @@ export default function PendingPageInner() {
   }, [issuedApps, datePreset, customFrom, customTo, search])
 
   const handleRequestIssue = useCallback((id: string) => {
-    const app = applications.find((a) => a.id === id)
+    const app = pendingApps.find((a) => a.coverageId === id)
     if (!app) return
-    // If already issued, allow un-issuing directly
-    if (app.issued) {
-      setApplications((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, issued: false } : a))
-      )
-      return
-    }
-    // Open the dialog to prompt for commission status
     setIssueTargetId(id)
-    setIssueSelectedStatus(app.commissionStatus ?? "not_paid")
+    setIssueSelectedStatus((app.commissionStatus as CommissionStatus) ?? "not_paid")
     setIssueDialogOpen(true)
-  }, [applications])
+  }, [pendingApps])
 
-  const handleConfirmIssue = useCallback(() => {
+  const handleConfirmIssue = useCallback(async () => {
     if (!issueTargetId) return
-    const app = applications.find((a) => a.id === issueTargetId)
+    const app = allRows.find((a) => a.coverageId === issueTargetId)
     if (!app) return
 
-    // Remove from pending
-    setApplications((prev) => prev.filter((a) => a.id !== issueTargetId))
+    const newStatus =
+      app.status === "Pending (not agent of record)"
+        ? "Active (not agent of record)"
+        : "Active"
 
-    // Add to issued
-    const today = format(new Date(), "yyyy-MM-dd")
-    setIssuedApps((prev) => [
-      {
-        id: app.id,
-        clientName: app.clientName,
-        planType: app.planType,
-        company: app.company,
-        policy: app.policy,
-        effectiveDate: app.effectiveDate,
-        writtenAs: app.writtenAs,
-        issuedDate: today,
-        commissionStatus: issueSelectedStatus,
-        status: app.status === "Pending (not agent of record)" ? "Active (not agent of record)" : "Active",
-      },
-      ...prev,
-    ])
-
+    // Optimistic update
+    setAllRows((prev) =>
+      prev.map((r) =>
+        r.coverageId === issueTargetId
+          ? { ...r, status: newStatus, commissionStatus: issueSelectedStatus }
+          : r
+      )
+    )
     setIssueDialogOpen(false)
     setIssueTargetId(null)
-  }, [issueTargetId, issueSelectedStatus, applications])
 
-  const handleCommissionChange = useCallback((id: string, status: CommissionStatus) => {
-    setApplications((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, commissionStatus: status } : a))
+    const res = await persistMarkCoverageIssued(issueTargetId, issueSelectedStatus, app.status)
+    if (res.error) {
+      // Revert on failure
+      setAllRows((prev) =>
+        prev.map((r) =>
+          r.coverageId === issueTargetId
+            ? { ...r, status: app.status, commissionStatus: app.commissionStatus }
+            : r
+        )
+      )
+    }
+  }, [issueTargetId, issueSelectedStatus, allRows])
+
+  const handleCommissionChange = useCallback(async (id: string, status: CommissionStatus) => {
+    const prev = allRows.find((r) => r.coverageId === id)?.commissionStatus ?? null
+
+    // Optimistic update
+    setAllRows((rows) =>
+      rows.map((r) => (r.coverageId === id ? { ...r, commissionStatus: status } : r))
     )
-  }, [])
+
+    const res = await persistUpdateCommissionStatus(id, status)
+    if (res.error) {
+      setAllRows((rows) =>
+        rows.map((r) => (r.coverageId === id ? { ...r, commissionStatus: prev } : r))
+      )
+    }
+  }, [allRows])
 
   const openCmd = () => {
     const fn = (window as unknown as Record<string, unknown>).__openCommandPalette
@@ -740,7 +609,7 @@ export default function PendingPageInner() {
                     : ""
                 }`}
               >
-                {applications.length}
+                {pendingApps.length}
               </Badge>
               {activeTab === "pending" && (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-500" />
@@ -802,18 +671,28 @@ export default function PendingPageInner() {
           </div>
         </div>
 
+        {/* Loading state */}
+        {loading && (
+          <div className="flex items-center justify-center py-24">
+            <svg className="h-6 w-6 animate-spin text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        )}
+
         {/* ── Pending view ── */}
-        {activeTab === "pending" && (
+        {!loading && activeTab === "pending" && (
           <div className="bg-blue-50/30 dark:bg-blue-950/10">
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
               <Badge variant="outline" className="gap-1.5 border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
                 <Clock className="h-3 w-3" />
-                {applications.filter((a) => a.status === "Pending/Submitted").length} Pending/Submitted
+                {pendingApps.filter((a) => a.status === "Pending/Submitted").length} Pending/Submitted
               </Badge>
               <Badge variant="outline" className="gap-1.5 border-muted bg-muted/50 text-muted-foreground">
                 <Clock className="h-3 w-3" />
-                {applications.filter((a) => a.status === "Pending (not agent of record)").length} Not AOR
+                {pendingApps.filter((a) => a.status === "Pending (not agent of record)").length} Not AOR
               </Badge>
             </div>
 
@@ -829,7 +708,20 @@ export default function PendingPageInner() {
                         <TableHead className="hidden md:table-cell">Type</TableHead>
                         <TableHead className="hidden md:table-cell">Company</TableHead>
                         <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
-                        <TableHead className="hidden lg:table-cell">Effective</TableHead>
+                        <TableHead className="hidden lg:table-cell">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 outline-none hover:text-foreground"
+                            onClick={() => setPendingSortAsc((v) => !v)}
+                          >
+                            Effective
+                            {pendingSortAsc ? (
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </TableHead>
                         <TableHead className="hidden xl:table-cell">Written As</TableHead>
                         <TableHead className="hidden md:table-cell">Status</TableHead>
                         <TableHead className="text-center">Paid</TableHead>
@@ -847,17 +739,20 @@ export default function PendingPageInner() {
                         </TableRow>
                       ) : (
                         filteredPending.map((app, i) => (
-                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-blue-50/30 dark:bg-blue-950/10" : ""}>
+                          <TableRow key={app.coverageId} className={i % 2 === 1 ? "bg-blue-50/30 dark:bg-blue-950/10" : ""}>
                             <TableCell className="py-3">
                               <div className="flex flex-col gap-0.5">
-                                <span className="font-medium text-foreground">
+                                <Link
+                                  href={`/clients/${app.clientId}?section=coverage`}
+                                  className="font-medium text-foreground hover:text-primary hover:underline"
+                                >
                                   {app.clientName}
-                                </span>
+                                </Link>
                                 <div className="flex flex-wrap items-center gap-1.5 md:hidden">
                                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                                     {app.planType}
                                   </Badge>
-                                  <span className="text-xs text-muted-foreground">{app.company}</span>
+                                  <span className="text-xs text-muted-foreground">{app.carrier}</span>
                                 </div>
                                 <span className="text-xs text-muted-foreground md:hidden">
                                   {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
@@ -870,10 +765,10 @@ export default function PendingPageInner() {
                               </Badge>
                             </TableCell>
                             <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                              {app.company}
+                              {app.carrier}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                              {app.policy}
+                              {app.planName}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell">
                               <span className="text-sm text-foreground">
@@ -898,16 +793,16 @@ export default function PendingPageInner() {
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center">
                                 <CommissionStatusPicker
-                                  value={app.commissionStatus}
-                                  onChange={(v) => handleCommissionChange(app.id, v)}
+                                  value={app.commissionStatus as CommissionStatus | null}
+                                  onChange={(v) => handleCommissionChange(app.coverageId, v)}
                                 />
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center">
                                 <Checkbox
-                                  checked={app.issued}
-                                  onCheckedChange={() => handleRequestIssue(app.id)}
+                                  checked={false}
+                                  onCheckedChange={() => handleRequestIssue(app.coverageId)}
                                   aria-label={`Mark ${app.clientName} as issued`}
                                 />
                               </div>
@@ -921,7 +816,7 @@ export default function PendingPageInner() {
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  Showing {filteredPending.length} of {applications.length} pending applications
+                  Showing {filteredPending.length} of {pendingApps.length} pending applications
                 </p>
               </div>
             </div>
@@ -929,7 +824,7 @@ export default function PendingPageInner() {
         )}
 
         {/* ── Issued view ── */}
-        {activeTab === "issued" && (
+        {!loading && activeTab === "issued" && (
           <div className="bg-emerald-50/30 dark:bg-emerald-950/10">
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
@@ -961,7 +856,6 @@ export default function PendingPageInner() {
                         <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
                         <TableHead className="hidden lg:table-cell">Effective</TableHead>
                         <TableHead className="hidden xl:table-cell">Written As</TableHead>
-                        <TableHead className="hidden lg:table-cell">Issued Date</TableHead>
                         <TableHead className="hidden md:table-cell">Status</TableHead>
                         <TableHead className="text-center">Paid</TableHead>
                       </TableRow>
@@ -969,7 +863,7 @@ export default function PendingPageInner() {
                     <TableBody>
                       {filteredIssued.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="h-32 text-center">
+                          <TableCell colSpan={8} className="h-32 text-center">
                             <p className="text-sm text-muted-foreground">
                               No issued policies found for this date range
                             </p>
@@ -977,17 +871,20 @@ export default function PendingPageInner() {
                         </TableRow>
                       ) : (
                         filteredIssued.map((app, i) => (
-                          <TableRow key={app.id} className={i % 2 === 1 ? "bg-emerald-50/30 dark:bg-emerald-950/10" : ""}>
+                          <TableRow key={app.coverageId} className={i % 2 === 1 ? "bg-emerald-50/30 dark:bg-emerald-950/10" : ""}>
                             <TableCell className="py-3">
                               <div className="flex flex-col gap-0.5">
-                                <span className="font-medium text-foreground">
+                                <Link
+                                  href={`/clients/${app.clientId}?section=coverage`}
+                                  className="font-medium text-foreground hover:text-primary hover:underline"
+                                >
                                   {app.clientName}
-                                </span>
+                                </Link>
                                 <div className="flex flex-wrap items-center gap-1.5 md:hidden">
                                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                                     {app.planType}
                                   </Badge>
-                                  <span className="text-xs text-muted-foreground">{app.company}</span>
+                                  <span className="text-xs text-muted-foreground">{app.carrier}</span>
                                 </div>
                                 <span className="text-xs text-muted-foreground md:hidden">
                                   {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
@@ -1000,10 +897,10 @@ export default function PendingPageInner() {
                               </Badge>
                             </TableCell>
                             <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                              {app.company}
+                              {app.carrier}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                              {app.policy}
+                              {app.planName}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell">
                               <span className="text-sm text-foreground">
@@ -1012,11 +909,6 @@ export default function PendingPageInner() {
                             </TableCell>
                             <TableCell className="hidden xl:table-cell">
                               <span className="text-xs text-muted-foreground">{app.writtenAs}</span>
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell">
-                              <span className="text-sm text-foreground">
-                                {format(parseLocalDate(app.issuedDate), "MMM d, yyyy")}
-                              </span>
                             </TableCell>
                             <TableCell className="hidden md:table-cell">
                               <Badge
@@ -1032,7 +924,10 @@ export default function PendingPageInner() {
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center">
-                                <CommissionStatusIcon status={app.commissionStatus} />
+                                <CommissionStatusPicker
+                                  value={app.commissionStatus as CommissionStatus | null}
+                                  onChange={(v) => handleCommissionChange(app.coverageId, v)}
+                                />
                               </div>
                             </TableCell>
                           </TableRow>

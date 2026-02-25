@@ -20,6 +20,7 @@ const defaultForm: SettingsProfileType = {
   email: "",
   npn: "",
   theme: "light",
+  autoIssueApplications: true,
 }
 
 export default function SettingsPageInner({
@@ -59,6 +60,7 @@ export default function SettingsPageInner({
         lastName: form.lastName,
         npn: form.npn,
         theme: form.theme,
+        autoIssueApplications: form.autoIssueApplications,
       })
       setProfile({ ...form })
       toast.success("Profile updated")
@@ -78,6 +80,7 @@ export default function SettingsPageInner({
         lastName: form.lastName,
         npn: form.npn,
         theme: value,
+        autoIssueApplications: form.autoIssueApplications,
       })
       setProfile((p) => (p ? { ...p, theme: value } : p))
     } catch {
@@ -90,7 +93,8 @@ export default function SettingsPageInner({
     form.firstName !== savedProfile.firstName ||
     form.lastName !== savedProfile.lastName ||
     form.npn !== savedProfile.npn ||
-    form.theme !== savedProfile.theme
+    form.theme !== savedProfile.theme ||
+    form.autoIssueApplications !== savedProfile.autoIssueApplications
   const canSave = hasProfileChanges && !saving
 
   return (
@@ -188,6 +192,50 @@ export default function SettingsPageInner({
                     </Button>
                   </>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Applications</CardTitle>
+                <CardDescription>
+                  How pending applications are marked as issued.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="space-y-1.5">
+                  <Label>Pending applications</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically mark pending applications as issued when their
+                    effective date is reached, or mark them manually.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      variant={
+                        form.autoIssueApplications ? "secondary" : "outline"
+                      }
+                      size="sm"
+                      className="min-h-[40px] gap-2"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, autoIssueApplications: true }))
+                      }
+                    >
+                      Automatic
+                    </Button>
+                    <Button
+                      variant={
+                        !form.autoIssueApplications ? "secondary" : "outline"
+                      }
+                      size="sm"
+                      className="min-h-[40px] gap-2"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, autoIssueApplications: false }))
+                      }
+                    >
+                      Manual
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

@@ -8,6 +8,8 @@ import * as leadsDb from "@/lib/db/leads"
 import * as activitiesDb from "@/lib/db/activities"
 import * as tasksDb from "@/lib/db/tasks"
 import * as agentSourcesDb from "@/lib/db/agent-custom-sources"
+import * as coveragesDb from "@/lib/db/coverages"
+import type { PendingIssuedRow } from "@/lib/db/coverages"
 import type { Lead, Client, Activity, Task, Flow, Stage } from "@/lib/types"
 
 async function getAgentId() {
@@ -219,5 +221,42 @@ export async function createFlowFromTemplate(templateId: string): Promise<{ erro
     return { flowId }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to create flow from template" }
+  }
+}
+
+export async function fetchPendingIssuedData(): Promise<{ data?: PendingIssuedRow[]; error?: string }> {
+  try {
+    const agentId = await getAgentId()
+    const data = await coveragesDb.fetchCoveragesForPendingPage(agentId)
+    return { data }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to fetch pending/issued data" }
+  }
+}
+
+export async function persistUpdateCommissionStatus(
+  coverageId: string,
+  commissionStatus: string
+): Promise<{ error?: string }> {
+  try {
+    await getAgentId()
+    await coveragesDb.updateCoverageCommissionStatus(coverageId, commissionStatus)
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to update commission status" }
+  }
+}
+
+export async function persistMarkCoverageIssued(
+  coverageId: string,
+  commissionStatus: string,
+  currentStatus: string
+): Promise<{ error?: string }> {
+  try {
+    await getAgentId()
+    await coveragesDb.markCoverageIssued(coverageId, commissionStatus, currentStatus)
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to mark coverage as issued" }
   }
 }

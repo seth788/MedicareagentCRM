@@ -164,6 +164,7 @@ export interface Coverage {
   replacingCoverageId?: string
   applicationId: string
   hraCollected: boolean
+  commissionStatus?: string
   notes?: string
   createdAt?: string
   updatedAt?: string
@@ -211,6 +212,8 @@ export interface Client {
   notes?: NoteEntry[]
   /** Multiple plans per client (MAPD, PDP, etc.). */
   coverages: Coverage[]
+  /** Public URL for client profile/avatar image. */
+  imageUrl?: string
   createdAt: string
   updatedAt: string
 }

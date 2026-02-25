@@ -9,13 +9,14 @@ export type ProfileForSettings = {
   email: string
   npn: string
   theme: ThemeValue
+  autoIssueApplications: boolean
 }
 
 export async function getProfile(agentId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, first_name, last_name, npn, theme")
+    .select("id, display_name, first_name, last_name, npn, theme, auto_issue_applications")
     .eq("id", agentId)
     .single()
   if (error && error.code !== "PGRST116") throw error
@@ -33,12 +34,15 @@ export async function getProfileForSettings(
   const themeRaw = (row?.theme as string | null)?.trim()
   const theme: ThemeValue =
     themeRaw === "dark" || themeRaw === "system" ? themeRaw : "light"
+  const autoIssue =
+    (row?.auto_issue_applications as boolean | null) ?? true
   return {
     firstName: first || (display ? display.split(/\s+/)[0] ?? "" : ""),
     lastName: last || (display ? display.split(/\s+/).slice(1).join(" ") ?? "" : ""),
     email: email ?? "",
     npn: (row?.npn as string | null)?.trim() ?? "",
     theme,
+    autoIssueApplications: autoIssue,
   }
 }
 
@@ -69,7 +73,13 @@ export async function updateDisplayName(agentId: string, displayName: string) {
 
 export async function updateProfileSettings(
   agentId: string,
-  updates: { firstName: string; lastName: string; npn: string; theme?: ThemeValue }
+  updates: {
+    firstName: string
+    lastName: string
+    npn: string
+    theme?: ThemeValue
+    autoIssueApplications?: boolean
+  }
 ) {
   const supabase = await createClient()
   const displayName = [updates.firstName, updates.lastName].filter(Boolean).join(" ").trim() || null
@@ -81,6 +91,8 @@ export async function updateProfileSettings(
     updated_at: new Date().toISOString(),
   }
   if (updates.theme !== undefined) row.theme = updates.theme
+  if (updates.autoIssueApplications !== undefined)
+    row.auto_issue_applications = updates.autoIssueApplications
   const { error } = await supabase.from("profiles").update(row).eq("id", agentId)
   if (error) throw error
 }

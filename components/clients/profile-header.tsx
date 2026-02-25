@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { format, differenceInDays, formatDistanceToNow } from "date-fns"
 import { parseLocalDate, getT65FromDob, getAgeFromDob } from "@/lib/date-utils"
 import {
@@ -25,7 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useCRMStore } from "@/lib/store"
+import { useCRMStore, getRefetchCRM } from "@/lib/store"
 import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
 import { toast } from "sonner"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown } from "@/components/icons"
 import type { Client, Lead } from "@/lib/types"
+import { uploadClientAvatar } from "@/app/actions/client-avatar"
 
 interface ClientProfileHeaderProps {
   client: Client
@@ -72,8 +73,39 @@ export function ClientProfileHeader({
   const [markAsLeadOpen, setMarkAsLeadOpen] = useState(false)
   const [removeLeadOpen, setRemoveLeadOpen] = useState(false)
   const [removeLeadTarget, setRemoveLeadTarget] = useState<Lead | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [avatarTooltipOpen, setAvatarTooltipOpen] = useState(false)
+  const avatarButtonRef = useRef<HTMLButtonElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const avatarTooltipSuppressRef = useRef(false)
 
   const leadsForClient = leads.filter((l) => l.clientId === client.id)
+
+  const handleAvatarClick = () => {
+    setAvatarTooltipOpen(false)
+    avatarTooltipSuppressRef.current = true
+    fileInputRef.current?.click()
+    setTimeout(() => {
+      avatarTooltipSuppressRef.current = false
+    }, 800)
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const formData = new FormData()
+    formData.set("file", file)
+    const result = await uploadClientAvatar(client.id, formData)
+    setUploading(false)
+    e.target.value = ""
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.imageUrl) {
+      toast.success("Photo updated")
+      getRefetchCRM()?.()
+    }
+  }
   const canAddToFlow = flows.some((f) => !leadsForClient.some((l) => l.flowId === f.id))
 
   useEffect(() => {
@@ -123,20 +155,64 @@ export function ClientProfileHeader({
   return (
     <>
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        {/* Colored banner */}
-        <div className="relative h-28 bg-primary sm:h-32">
+        {/* Colored banner - shorter gradient */}
+        <div className="relative h-16 bg-primary sm:h-20">
           <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_25%,rgba(255,255,255,0.08)_50%,transparent_75%)]" />
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
         </div>
 
         {/* Profile content overlapping the banner */}
         <div className="relative px-5 pb-6 sm:px-7">
           {/* Avatar - positioned to overlap the banner */}
-          <div className="-mt-14 mb-4 flex items-end justify-between sm:-mt-16">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-card bg-primary text-2xl font-bold tracking-wide text-primary-foreground shadow-md sm:h-28 sm:w-28 sm:text-3xl">
-              {client.firstName[0]}
-              {client.lastName[0]}
-            </div>
+          <div className="-mt-10 mb-4 flex items-end justify-between sm:-mt-12">
+            <TooltipProvider delayDuration={300}>
+              <Tooltip
+                open={avatarTooltipOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    const isHoveringAvatar = avatarButtonRef.current?.matches(":hover") ?? false
+                    if (avatarTooltipSuppressRef.current || !isHoveringAvatar) {
+                      // Ignore auto-open events when returning from native file picker.
+                      avatarTooltipSuppressRef.current = false
+                      return
+                    }
+                  }
+                  setAvatarTooltipOpen(open)
+                }}
+              >
+                <TooltipTrigger asChild>
+                  <button
+                    ref={avatarButtonRef}
+                    type="button"
+                    onClick={handleAvatarClick}
+                    disabled={uploading}
+                    className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-primary text-lg font-bold tracking-wide text-primary-foreground shadow-md transition-opacity hover:opacity-90 disabled:opacity-70 sm:h-20 sm:w-20 sm:text-xl"
+                    aria-label="Upload client photo"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      onChange={handleAvatarChange}
+                    />
+                    {client.imageUrl ? (
+                      <img
+                        src={client.imageUrl}
+                        alt={`${client.firstName} ${client.lastName}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <>
+                        {client.firstName[0]}
+                        {client.lastName[0]}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Click to {client.imageUrl ? "change" : "upload"} photo</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="flex flex-wrap gap-2 pb-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -27,7 +27,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
   const supabase = await createClient()
   const { data: rows, error } = await supabase
     .from("clients")
-    .select("id, first_name, last_name, title, middle_name, suffix, nickname, gender, fun_facts, dob, turning65_date, preferred_contact_method, language, spouse_id, medicare_number, part_a_effective_date, part_b_effective_date, allergies, conditions, health_tracker, source, created_at, updated_at")
+    .select("id, first_name, last_name, title, middle_name, suffix, nickname, gender, fun_facts, dob, turning65_date, preferred_contact_method, language, spouse_id, medicare_number, part_a_effective_date, part_b_effective_date, allergies, conditions, health_tracker, source, image_url, created_at, updated_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
   if (error) throw error
@@ -43,7 +43,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
       supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
       supabase.from("client_notes").select("client_id, text, created_at, updated_at").in("client_id", clientIds),
-      supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, notes, created_at, updated_at").in("client_id", clientIds),
+      supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, commission_status, notes, created_at, updated_at").in("client_id", clientIds),
     ])
 
   const byClient = (arr: { client_id: string }[]) => {
@@ -80,6 +80,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       replacingCoverageId: r.replacing_coverage_id ?? undefined,
       applicationId: r.application_id ?? "",
       hraCollected: r.hra_collected ?? false,
+      commissionStatus: r.commission_status ?? undefined,
       notes: r.notes ?? undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -172,6 +173,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
         updatedAt: n.updated_at ?? undefined,
       })),
       coverages: (coveragesBy[c.id] ?? []).map(mapCoverageRow),
+      imageUrl: c.image_url ?? undefined,
       createdAt: c.created_at,
       updatedAt: c.updated_at,
     } as Client
@@ -342,6 +344,7 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
               application_id: cov.applicationId ?? null,
               hra_collected: cov.hraCollected ?? false,
               notes: cov.notes ?? null,
+              commission_status: cov.commissionStatus ?? "not_paid",
             }))
           )
         })()
@@ -394,6 +397,7 @@ export async function updateClient(
   if (updates.allergies !== undefined) clientRow.allergies = updates.allergies
   if (updates.conditions !== undefined) clientRow.conditions = updates.conditions
   if (updates.healthTracker !== undefined) clientRow.health_tracker = updates.healthTracker
+  if (updates.imageUrl !== undefined) clientRow.image_url = updates.imageUrl ?? null
 
   if (Object.keys(clientRow).length > 1) {
     const { error } = await supabase
@@ -579,6 +583,7 @@ export async function updateClient(
         application_id: cov.applicationId ?? null,
         hra_collected: cov.hraCollected ?? false,
         notes: cov.notes ?? null,
+        commission_status: cov.commissionStatus ?? "not_paid",
       }))
       const { error: insertError } = await supabase
         .from("client_coverages")

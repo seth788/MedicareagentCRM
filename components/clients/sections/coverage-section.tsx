@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { format } from "date-fns"
+import { format, isBefore, addDays, startOfDay } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
 import {
   Shield,
@@ -90,6 +90,29 @@ type StatusStyle = {
   Icon: React.ComponentType<{ className?: string; size?: number }>
   pillClass: string
   cardAccentClass: string
+}
+
+const PENDING_STATUSES = ["Pending/Submitted", "Pending (not agent of record)"]
+
+function isEffectiveDateReached(effectiveDateStr: string): boolean {
+  if (!effectiveDateStr) return false
+  try {
+    const effDate = parseLocalDate(effectiveDateStr)
+    const tomorrow = addDays(startOfDay(new Date()), 1)
+    return isBefore(effDate, tomorrow)
+  } catch {
+    return false
+  }
+}
+
+function maybeAutoIssueCoverage(cov: Coverage): Coverage {
+  if (!PENDING_STATUSES.includes(cov.status)) return cov
+  if (!isEffectiveDateReached(cov.effectiveDate)) return cov
+  const newStatus =
+    cov.status === "Pending (not agent of record)"
+      ? "Active (not agent of record)"
+      : "Active"
+  return { ...cov, status: newStatus, commissionStatus: "paid_full" }
 }
 
 const COVERAGE_STATUS_STYLES: Record<string, StatusStyle> = {
@@ -376,7 +399,8 @@ export function CoverageSection({ client }: SectionProps) {
       toast.error("Please fill required fields: Company/Carrier, Plan, Status, Effective date")
       return
     }
-    const newCoverage = formToCoverage(addForm, crypto.randomUUID())
+    let newCoverage = formToCoverage(addForm, crypto.randomUUID())
+    newCoverage = maybeAutoIssueCoverage(newCoverage)
     const nextCoverages = [...coverages, newCoverage]
     updateClient(client.id, { coverages: nextCoverages })
     logActivity(`Coverage added: ${newCoverage.carrier} ${newCoverage.planName}`)
@@ -409,7 +433,8 @@ export function CoverageSection({ client }: SectionProps) {
       toast.error("Please fill required fields")
       return
     }
-    const updated = formToCoverage(editForm, cov.id, cov)
+    let updated = formToCoverage(editForm, cov.id, cov)
+    updated = maybeAutoIssueCoverage(updated)
     const nextCoverages = coverages.map((x) => (x.id === editingId ? updated : x))
     updateClient(client.id, { coverages: nextCoverages })
     logActivity(`Coverage updated: ${updated.carrier} ${updated.planName}`)

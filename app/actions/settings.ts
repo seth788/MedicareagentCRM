@@ -11,6 +11,7 @@ export type SettingsProfile = {
   email: string
   npn: string
   theme: ThemeValue
+  autoIssueApplications: boolean
 }
 
 export async function getSettingsProfile(): Promise<SettingsProfile | null> {
@@ -28,6 +29,7 @@ export async function updateProfileSettings(formData: {
   lastName: string
   npn: string
   theme?: "light" | "dark" | "system"
+  autoIssueApplications?: boolean
 }) {
   const supabase = await createClient()
   const {
@@ -39,5 +41,6 @@ export async function updateProfileSettings(formData: {
     lastName: formData.lastName.trim(),
     npn: formData.npn.trim(),
     theme: formData.theme,
+    autoIssueApplications: formData.autoIssueApplications,
   })
 }

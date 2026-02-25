@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 
 export async function createClient() {
@@ -22,5 +23,15 @@ export async function createClient() {
         },
       },
     }
+  )
+}
+
+/** Service role client - bypasses RLS. Use only for trusted server-side operations. */
+export function createServiceRoleClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required")
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    key
   )
 }
