@@ -121,18 +121,89 @@ export default function ClientsPageInner() {
         </div>
 
         <div className="p-4 sm:p-6">
-          <div className="min-w-0 rounded-lg border">
+          {/* ── Mobile list (< sm) ── */}
+          <div className="flex flex-col sm:hidden">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-16">
+                <p className="text-sm text-muted-foreground">No clients found</p>
+                <Button size="sm" variant="outline" className="min-h-[40px]" onClick={() => setNewOpen(true)}>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Add Client
+                </Button>
+              </div>
+            ) : (
+              filtered.map((client) => {
+                const t65 = getT65FromDob(client.dob)
+                const age = getAgeFromDob(client.dob)
+                const days = differenceInCalendarDays(parseLocalDate(t65), today)
+                const isSoon = days >= 0 && days <= 60
+                const phone = getPreferredOrFirstPhone(client)?.number
+                const email = getPreferredOrFirstEmail(client)?.value
+                const addr = getPreferredOrFirstAddress(client)
+                const location = addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
+                return (
+                  <Link
+                    key={client.id}
+                    href={`/clients/${client.id}`}
+                    className="flex items-start gap-3 border-b px-4 py-3 transition-colors hover:bg-muted/50 active:bg-muted"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {client.firstName[0]}{client.lastName[0]}
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate font-medium text-foreground">
+                        {client.firstName} {client.lastName}
+                      </span>
+                      {phone && (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{phone}</span>
+                        </span>
+                      )}
+                      {email && (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{email}</span>
+                        </span>
+                      )}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {location && (
+                          <span className="text-xs text-muted-foreground">{location}</span>
+                        )}
+                        {location && <span className="text-muted-foreground/40">{"·"}</span>}
+                        <span className="text-xs text-foreground">
+                          {age >= 65 ? `Age ${age}` : format(parseLocalDate(t65), "MMM d, yyyy")}
+                        </span>
+                        {isSoon && (
+                          <Badge className="bg-primary/15 text-primary border-primary/20 text-[10px] px-1 py-0" variant="outline">
+                            {days}d
+                          </Badge>
+                        )}
+                        {(client.coverages?.length ?? 0) > 0 && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {client.coverages!.length === 1
+                              ? client.coverages![0].planType
+                              : `${client.coverages!.length} plans`}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })
+            )}
+          </div>
+
+          {/* ── Table (sm and up) ── */}
+          <div className="hidden sm:block min-w-0 rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>
-                    <span className="lg:hidden">Client</span>
-                    <span className="hidden lg:inline">Name</span>
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                  <TableHead className="hidden lg:table-cell">Email</TableHead>
-                  <TableHead className="hidden lg:table-cell">Location</TableHead>
-                  <TableHead className="hidden lg:table-cell">Turning 65</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="hidden xl:table-cell">Email</TableHead>
+                  <TableHead className="hidden md:table-cell">Location</TableHead>
+                  <TableHead>Turning 65</TableHead>
                   <TableHead className="hidden lg:table-cell">Coverage</TableHead>
                 </TableRow>
               </TableHeader>
@@ -155,121 +226,66 @@ export default function ClientsPageInner() {
                     const age = getAgeFromDob(client.dob)
                     const days = differenceInCalendarDays(parseLocalDate(t65), today)
                     const isSoon = days >= 0 && days <= 60
+                    const phone = getPreferredOrFirstPhone(client)?.number
+                    const email = getPreferredOrFirstEmail(client)?.value
+                    const addr = getPreferredOrFirstAddress(client)
+                    const location = addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
                     return (
                       <TableRow
                         key={client.id}
                         className="cursor-pointer"
                         onClick={() => router.push(`/clients/${client.id}`)}
                       >
-                        {/* Stacked profile for small/medium: one cell with all data */}
-                        <TableCell className="py-3 lg:hidden" colSpan={6}>
-                          <div className="flex flex-col gap-0.5">
-                            <Link
-                              href={`/clients/${client.id}`}
-                              className="font-medium text-foreground hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {client.firstName} {client.lastName}
-                            </Link>
-                            {(() => {
-                              const phone = getPreferredOrFirstPhone(client)?.number
-                              if (phone) {
-                                return (
-                                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <Phone className="h-3.5 w-3.5 shrink-0" />
-                                    {phone}
-                                  </span>
-                                )
-                              }
-                              return null
-                            })()}
-                            {(() => {
-                              const email = getPreferredOrFirstEmail(client)?.value
-                              if (email) {
-                                return (
-                                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <Mail className="h-3.5 w-3.5 shrink-0" />
-                                    {email}
-                                  </span>
-                                )
-                              }
-                              return null
-                            })()}
-                            {(() => {
-                              const addr = getPreferredOrFirstAddress(client)
-                              const location = addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
-                              if (location) {
-                                return <span className="text-sm text-muted-foreground">{location}</span>
-                              }
-                              return null
-                            })()}
-                            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                              <span className="text-sm text-foreground">
-                                {age >= 65 ? `Age ${age}` : format(parseLocalDate(t65), "MMM d, yyyy")}
-                              </span>
-                              {isSoon && days >= 0 && (
-                                <Badge className="bg-primary/15 text-primary border-primary/20 text-[10px]" variant="outline">
-                                  {days}d
-                                </Badge>
-                              )}
-                              {(client.coverages?.length ?? 0) > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {client.coverages!.length === 1
-                                    ? `${client.coverages![0].carrier} - ${client.coverages![0].planType}`
-                                    : `${client.coverages!.length} plans`}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        {/* Desktop columns */}
-                        <TableCell className="hidden lg:table-cell">
+                        <TableCell>
                           <Link
                             href={`/clients/${client.id}`}
-                            className="block py-1 font-medium text-foreground hover:underline"
+                            className="block font-medium text-foreground hover:underline whitespace-nowrap"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {client.firstName} {client.lastName}
                           </Link>
+                          {/* Show coverage inline on md when Coverage column is hidden */}
+                          {(client.coverages?.length ?? 0) > 0 && (
+                            <span className="mt-0.5 block lg:hidden">
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                {client.coverages!.length === 1
+                                  ? `${client.coverages![0].carrier} - ${client.coverages![0].planType}`
+                                  : `${client.coverages!.length} plans`}
+                              </Badge>
+                            </span>
+                          )}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell text-muted-foreground">
-                          {(() => {
-                            const phone = getPreferredOrFirstPhone(client)?.number
-                            if (!phone) return "—"
-                            return (
-                              <span className="flex items-center gap-1.5">
-                                <Phone className="h-3 w-3 shrink-0" />
-                                {phone}
-                              </span>
-                            )
-                          })()}
+                        <TableCell className="text-muted-foreground">
+                          {phone ? (
+                            <span className="flex items-center gap-1.5 whitespace-nowrap">
+                              <Phone className="h-3 w-3 shrink-0" />
+                              {phone}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/50">{"--"}</span>
+                          )}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell text-muted-foreground">
-                          {(() => {
-                            const email = getPreferredOrFirstEmail(client)?.value
-                            if (!email) return "—"
-                            return (
-                              <span className="flex items-center gap-1.5">
-                                <Mail className="h-3 w-3 shrink-0" />
-                                {email}
-                              </span>
-                            )
-                          })()}
+                        <TableCell className="hidden xl:table-cell text-muted-foreground">
+                          {email ? (
+                            <span className="flex items-center gap-1.5">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate max-w-[200px]">{email}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/50">{"--"}</span>
+                          )}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell text-muted-foreground">
-                          {(() => {
-                            const addr = getPreferredOrFirstAddress(client)
-                            return addr ? [addr.city, addr.state].filter(Boolean).join(", ") : ""
-                          })()}
+                        <TableCell className="hidden md:table-cell text-muted-foreground whitespace-nowrap">
+                          {location || <span className="text-muted-foreground/50">{"--"}</span>}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="flex items-center gap-2">
+                        <TableCell>
+                          <div className="flex items-center gap-2 whitespace-nowrap">
                             <span className="text-sm text-foreground">
                               {age >= 65
                                 ? `Age ${age}`
                                 : format(parseLocalDate(t65), "MMM d, yyyy")}
                             </span>
-                            {isSoon && days >= 0 && (
+                            {isSoon && (
                               <Badge className="bg-primary/15 text-primary border-primary/20 text-[10px]" variant="outline">
                                 {days}d
                               </Badge>
@@ -278,7 +294,7 @@ export default function ClientsPageInner() {
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {(client.coverages?.length ?? 0) > 0 ? (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs whitespace-nowrap">
                               {client.coverages!.length === 1
                                 ? `${client.coverages![0].carrier} - ${client.coverages![0].planType}`
                                 : `${client.coverages!.length} plans`}
