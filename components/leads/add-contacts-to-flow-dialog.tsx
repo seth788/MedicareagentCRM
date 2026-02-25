@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select"
 import { useCRMStore } from "@/lib/store"
 import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Stage } from "@/lib/types"
 import { Search } from "@/components/icons"
 
@@ -113,7 +113,7 @@ export function AddContactsToFlowDialog({
     const toAdd = [...selectedIds].filter((id) => !alreadyInFlowIds.has(id))
     const skipped = selectedIds.size - toAdd.length
     if (toAdd.length === 0) {
-      goeyToast.error("No contacts added", {
+      toast.error("No contacts added", {
         description: skipped > 0 ? "Selected contacts are already in this flow." : undefined,
       })
       return
@@ -138,14 +138,14 @@ export function AddContactsToFlowDialog({
       }
     }
     if (skipped > 0) {
-      goeyToast.success(
+      toast.success(
         added === 1 ? "Contact added to flow" : `Added ${added} contacts to ${flowName}`,
         {
           description: `${skipped} already in this flow and were skipped.`,
         }
       )
     } else {
-      goeyToast.success(
+      toast.success(
         added === 1 ? "Contact added to flow" : `Added ${added} contacts to ${flowName}`,
         {
           description:

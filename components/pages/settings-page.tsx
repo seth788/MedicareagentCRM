@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useTheme } from "next-themes"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import { Moon, Sun, Monitor } from "@/components/icons"
 import { getSettingsProfile, updateProfileSettings } from "@/app/actions/settings"
 import type { SettingsProfile as SettingsProfileType } from "@/app/actions/settings"
@@ -61,9 +61,9 @@ export default function SettingsPageInner({
         theme: form.theme,
       })
       setProfile({ ...form })
-      goeyToast.success("Profile updated")
+      toast.success("Profile updated")
     } catch (e) {
-      goeyToast.error(e instanceof Error ? e.message : "Failed to update profile")
+      toast.error(e instanceof Error ? e.message : "Failed to update profile")
     } finally {
       setSaving(false)
     }
@@ -81,7 +81,7 @@ export default function SettingsPageInner({
       })
       setProfile((p) => (p ? { ...p, theme: value } : p))
     } catch {
-      goeyToast.error("Could not save theme")
+      toast.error("Could not save theme")
     }
   }
 

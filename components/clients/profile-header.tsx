@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useCRMStore } from "@/lib/store"
 import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail } from "@/lib/utils"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 import { MarkAsLeadDialog } from "@/components/clients/mark-as-lead-dialog"
 import { EditClientDialog, type EditClientSection } from "./edit-client-dialog"
@@ -108,7 +108,7 @@ export function ClientProfileHeader({
       createdBy: currentAgent,
     })
     deleteLead(leadToRemove.id)
-    goeyToast.success("Removed from flow", {
+    toast.success("Removed from flow", {
       description: `${client.firstName} ${client.lastName} is no longer in ${flowName}`,
     })
     setRemoveLeadOpen(false)

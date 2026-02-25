@@ -5,7 +5,7 @@ import { AuthSync } from "@/components/auth-sync"
 import { CrmDataLoader } from "@/components/crm-data-loader"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandPalette } from "@/components/command-palette"
-import { GoeyToaster } from "goey-toast"
+import { Toaster } from "@/components/ui/sonner"
 import type { HydratePayload } from "@/app/actions/crm-data"
 
 export function CrmLayoutClient({
@@ -24,9 +24,8 @@ export function CrmLayoutClient({
         <CrmDataLoader initialData={initialData}>{children}</CrmDataLoader>
       </SidebarInset>
       <CommandPalette />
-      <GoeyToaster
+      <Toaster
         position="bottom-right"
-        spring={false}
         expand={false}
         gap={6}
         visibleToasts={5}

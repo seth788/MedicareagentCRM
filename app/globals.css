@@ -1,16 +1,4 @@
-@import "goey-toast/styles.css";
-
-/* Fix goey-toast description clipping when expanded */
-[data-goey-toast-css] .goey-description {
-  overflow: visible;
-}
-[data-goey-toast-css] .goey-contentExpanded {
-  padding-bottom: 18px;
-  min-height: fit-content;
-}
-[data-goey-toast-css] .goey-wrapper {
-  min-height: fit-content;
-}
+@import "sonner/dist/styles.css";
 
 @tailwind base;
 @tailwind components;

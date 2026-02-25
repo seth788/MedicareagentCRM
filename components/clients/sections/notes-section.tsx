@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import { LogActivityDialog } from "@/components/activities/log-activity-dialog"
 import type { ActivityType } from "@/lib/types"
 import type { SectionProps } from "./types"
@@ -74,7 +74,7 @@ export function NotesSection({ client, activities }: SectionProps) {
     })
     setNoteText("")
     setAddNoteOpen(false)
-    goeyToast.success("Note added")
+    toast.success("Note added")
   }
 
   const handleSaveEdit = (createdAt: string) => {
@@ -88,7 +88,7 @@ export function NotesSection({ client, activities }: SectionProps) {
     })
     setEditingNoteCreatedAt(null)
     setEditingDraft("")
-    goeyToast.success("Note updated")
+    toast.success("Note updated")
   }
 
   return (

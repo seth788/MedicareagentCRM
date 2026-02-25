@@ -29,7 +29,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { useCRMStore, getRefetchCRM } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Flow, Stage } from "@/lib/types"
 import type { FlowTemplate } from "@/lib/db/flow-templates"
 import { fetchFlowTemplates } from "@/app/actions/crm-data"
@@ -130,14 +130,14 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
       createdAt: new Date().toISOString(),
     })
     setNewFlowName("")
-    goeyToast.success(name)
+    toast.success(name)
   }
 
   const handleUpdateFlowName = (id: string) => {
     const name = editingFlowName.trim()
     if (name) {
       updateFlow(id, { name })
-      goeyToast.success(name)
+      toast.success(name)
     }
     setEditingFlowId(null)
     setEditingFlowName("")
@@ -147,9 +147,9 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     const ok = deleteFlow(id)
     if (ok) {
       if (selectedFlowId === id) setSelectedFlowId(flows[0]?.id ?? null)
-      goeyToast.success("Flow deleted")
+      toast.success("Flow deleted")
     } else {
-      goeyToast.error("Cannot delete flow", { description: "Move or remove all leads in this flow first." })
+      toast.error("Cannot delete flow", { description: "Move or remove all leads in this flow first." })
     }
   }
 
@@ -158,14 +158,14 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     const name = newStageName.trim() || "New stage"
     addStage(selectedFlowId, { name, colorKey: STAGE_COLOR_PRESETS[0] })
     setNewStageName("")
-    goeyToast.success(name)
+    toast.success(name)
   }
 
   const handleUpdateStageName = (id: string) => {
     const name = editingStageName.trim()
     if (name) {
       updateStage(id, { name })
-      goeyToast.success(name)
+      toast.success(name)
     }
     setEditingStageId(null)
     setEditingStageName("")
@@ -186,7 +186,7 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     if (leadCount > 0) {
       const otherStages = flowStages.filter((s) => s.id !== stage.id)
       if (otherStages.length === 0) {
-        goeyToast.error("Cannot delete stage", { description: "Add another stage first, then move leads to it." })
+        toast.error("Cannot delete stage", { description: "Add another stage first, then move leads to it." })
         return
       }
       setDeleteStageState({
@@ -197,7 +197,7 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
       })
     } else {
       deleteStage(stage.id)
-      goeyToast.success("Stage deleted")
+      toast.success("Stage deleted")
     }
   }
 
@@ -205,7 +205,7 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     if (!deleteStageState) return
     deleteStage(deleteStageState.stageId, moveToStageId)
     setDeleteStageState(null)
-    goeyToast.success("Stage deleted", { description: "Leads were moved to the selected stage." })
+    toast.success("Stage deleted", { description: "Leads were moved to the selected stage." })
   }
 
   const leadCountByFlow = (flowId: string) => leads.filter((l) => l.flowId === flowId).length
@@ -215,13 +215,13 @@ export function FlowStageManager({ open, onOpenChange }: FlowStageManagerProps) 
     const result = await createFlowFromTemplate(templateId)
     setCreatingFromTemplateId(null)
     if (result.error) {
-      goeyToast.error(result.error)
+      toast.error(result.error)
       return
     }
     if (result.flowId) {
       await getRefetchCRM()?.()
       setSelectedFlowId(result.flowId)
-      goeyToast.success("Flow created", { description: "You can rename it or edit stages below." })
+      toast.success("Flow created", { description: "You can rename it or edit stages below." })
     }
   }
 

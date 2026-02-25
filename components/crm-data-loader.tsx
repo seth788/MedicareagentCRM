@@ -23,7 +23,7 @@ import {
   persistDeleteStage,
   persistAddAgentCustomSource,
 } from "@/app/actions/crm-mutations"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 
 function doFetchAndHydrate(setTheme: (theme: string) => void) {
   return fetchCRMData().then((payload) => {
@@ -69,7 +69,7 @@ export function CrmDataLoader({
     setPersistHandlers({
       addLead: (lead) => {
         persistAddLead(lead).then((r) => {
-          if (r.error) goeyToast.error(r.error)
+          if (r.error) toast.error(r.error)
           if (refetchTimeoutRef.current) clearTimeout(refetchTimeoutRef.current)
           refetchTimeoutRef.current = setTimeout(() => {
             refetchTimeoutRef.current = null
@@ -78,49 +78,49 @@ export function CrmDataLoader({
         })
       },
       updateLead: (id, u) => {
-        persistUpdateLead(id, u).then((r) => r.error && goeyToast.error(r.error))
+        persistUpdateLead(id, u).then((r) => r.error && toast.error(r.error))
       },
       updateLeadStage: (leadId, stageId) => {
-        persistUpdateLeadStage(leadId, stageId).then((r) => r.error && goeyToast.error(r.error))
+        persistUpdateLeadStage(leadId, stageId).then((r) => r.error && toast.error(r.error))
       },
       deleteLead: (id) => {
-        persistDeleteLead(id).then((r) => r.error && goeyToast.error(r.error))
+        persistDeleteLead(id).then((r) => r.error && toast.error(r.error))
       },
       addClient: (client) => {
-        persistAddClient(client).then((r) => r.error && goeyToast.error(r.error))
+        persistAddClient(client).then((r) => r.error && toast.error(r.error))
       },
       updateClient: (clientId, u) => {
-        persistUpdateClient(clientId, u).then((r) => r.error && goeyToast.error(r.error))
+        persistUpdateClient(clientId, u).then((r) => r.error && toast.error(r.error))
       },
       addActivity: (activity) => {
-        persistAddActivity(activity).then((r) => r.error && goeyToast.error(r.error))
+        persistAddActivity(activity).then((r) => r.error && toast.error(r.error))
       },
       addTask: (task) => {
-        persistAddTask(task).then((r) => r.error && goeyToast.error(r.error))
+        persistAddTask(task).then((r) => r.error && toast.error(r.error))
       },
       completeTask: (taskId) => {
-        persistCompleteTask(taskId).then((r) => r.error && goeyToast.error(r.error))
+        persistCompleteTask(taskId).then((r) => r.error && toast.error(r.error))
       },
       addFlow: (flow) => {
-        persistAddFlow(flow).then((r) => r.error && goeyToast.error(r.error))
+        persistAddFlow(flow).then((r) => r.error && toast.error(r.error))
       },
       updateFlow: (id, u) => {
-        persistUpdateFlow(id, u).then((r) => r.error && goeyToast.error(r.error))
+        persistUpdateFlow(id, u).then((r) => r.error && toast.error(r.error))
       },
       deleteFlow: (id) => {
-        persistDeleteFlow(id).then((r) => r.error && goeyToast.error(r.error))
+        persistDeleteFlow(id).then((r) => r.error && toast.error(r.error))
       },
       addStage: (flowId, stage) => {
-        persistAddStage(flowId, stage).then((r) => r.error && goeyToast.error(r.error))
+        persistAddStage(flowId, stage).then((r) => r.error && toast.error(r.error))
       },
       updateStage: (id, u) => {
-        persistUpdateStage(id, u).then((r) => r.error && goeyToast.error(r.error))
+        persistUpdateStage(id, u).then((r) => r.error && toast.error(r.error))
       },
       deleteStage: (stageId, moveToStageId) => {
-        persistDeleteStage(stageId, moveToStageId).then((r) => r.error && goeyToast.error(r.error))
+        persistDeleteStage(stageId, moveToStageId).then((r) => r.error && toast.error(r.error))
       },
       addAgentCustomSource: (key, source) => {
-        persistAddAgentCustomSource(key, source).then((r) => r.error && goeyToast.error(r.error))
+        persistAddAgentCustomSource(key, source).then((r) => r.error && toast.error(r.error))
       },
     })
   }, [])

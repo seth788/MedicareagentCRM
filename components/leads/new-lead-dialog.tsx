@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { useCRMStore, generateLeadId } from "@/lib/store"
 import type { LeadSource } from "@/lib/types"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 
 const sources: LeadSource[] = [
   "Facebook", "Referral", "Website", "Call-in", "Direct Mail", "Event",
@@ -57,11 +57,11 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.firstName || !form.lastName) {
-      goeyToast.error("First and last name are required")
+      toast.error("First and last name are required")
       return
     }
     if (!effectiveFlowId || !effectiveStageId) {
-      goeyToast.error("Select a flow and stage")
+      toast.error("Select a flow and stage")
       return
     }
     const leadId = generateLeadId()
@@ -95,7 +95,7 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
       createdAt: now,
       createdBy: currentAgent,
     })
-    goeyToast.success("Lead created", {
+    toast.success("Lead created", {
       description: `${form.firstName} ${form.lastName} added as a new lead`,
     })
     setForm({

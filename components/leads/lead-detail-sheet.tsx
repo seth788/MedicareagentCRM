@@ -29,7 +29,7 @@ import { LogActivityDialog } from "@/components/activities/log-activity-dialog"
 import { getLeadLastTouchedAt } from "@/lib/lead-utils"
 import type { Lead, ActivityType } from "@/lib/types"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 
 const REMOVE_PREFIX = "__remove__"
 const RECENT_ACTIVITIES_LIMIT = 4
@@ -139,7 +139,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
         createdBy: currentAgent,
       })
     }
-    goeyToast.success(`Moved to ${stage?.name ?? newStageId}`)
+    toast.success(`Moved to ${stage?.name ?? newStageId}`)
   }
 
   const handleRemoveFromFlow = (leadToRemove: Lead) => {
@@ -157,7 +157,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
       })
     }
     deleteLead(leadToRemove.id)
-    goeyToast.success("Removed from flow", {
+    toast.success("Removed from flow", {
       description: `${leadToRemove.firstName} ${leadToRemove.lastName} is no longer in ${flowName}`,
     })
     if (leadToRemove.id === lead.id) {
@@ -185,7 +185,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
       createdAt: new Date().toISOString(),
       createdBy: currentAgent,
     })
-    goeyToast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} logged`)
+    toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} logged`)
   }
 
   const handleSaveNote = () => {
@@ -202,7 +202,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
     }
     setNoteDraft("")
     setSavingNote(false)
-    goeyToast.success("Note saved")
+    toast.success("Note saved")
   }
 
   const handleSaveNoteEdit = (createdAt: string) => {
@@ -224,7 +224,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
     updateLead(lead.id, { notes: updatedLeadNotes })
     setEditingNoteCreatedAt(null)
     setEditingDraft("")
-    goeyToast.success("Note updated")
+    toast.success("Note updated")
   }
 
   return (

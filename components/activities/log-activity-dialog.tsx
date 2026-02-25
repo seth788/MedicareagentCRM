@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { ActivityType } from "@/lib/types"
 
 
@@ -64,7 +64,7 @@ export function LogActivityDialog({
     e.preventDefault()
     const trimmedDesc = description.trim()
     if (!trimmedDesc) {
-      goeyToast.error("Please enter a description")
+      toast.error("Please enter a description")
       return
     }
     const now = new Date().toISOString()
@@ -88,7 +88,7 @@ export function LogActivityDialog({
         createdBy: currentAgent,
       })
     }
-    goeyToast.success("Activity logged")
+    toast.success("Activity logged")
     onOpenChange(false)
   }
 

@@ -39,7 +39,7 @@ import { LeadDetailSheet } from "./lead-detail-sheet"
 import { getLeadLastTouchedAt, lastTouchedColorClass } from "@/lib/lead-utils"
 import type { Lead, Stage } from "@/lib/types"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 
 type SortField = "name" | "source" | "stage" | "createdAt" | "lastTouchedAt"
 type SortDir = "asc" | "desc"
@@ -145,7 +145,7 @@ export function TableView({ leads, stages }: TableViewProps) {
         }
       }
     })
-    goeyToast.success(`Moved ${selected.size} leads to ${stage?.name ?? stageId}`)
+    toast.success(`Moved ${selected.size} leads to ${stage?.name ?? stageId}`)
     setSelected(new Set())
   }
 
@@ -165,7 +165,7 @@ export function TableView({ leads, stages }: TableViewProps) {
         })
       }
       deleteLead(deleteTarget.id)
-      goeyToast.success("Lead deleted")
+      toast.success("Lead deleted")
       setDeleteTarget(null)
     }
   }
@@ -347,7 +347,7 @@ export function TableView({ leads, stages }: TableViewProps) {
                                         createdBy: currentAgent,
                                       })
                                     }
-                                    goeyToast.success(`Moved to ${s.name}`)
+                                    toast.success(`Moved to ${s.name}`)
                                   }}
                                 >
                                   <StageBadge name={s.name} colorKey={s.colorKey ?? "muted"} className="pointer-events-none" />

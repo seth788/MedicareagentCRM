@@ -56,7 +56,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { useCRMStore } from "@/lib/store"
 import { formatPhoneNumber } from "@/lib/utils"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import { AddressForm } from "@/components/clients/address-form"
 import type { ActivityType, ClientPhone, ClientEmail, ClientPhoneType, ClientAddress } from "@/lib/types"
 import type { SectionProps } from "./types"
@@ -333,7 +333,7 @@ export function ContactSection({
                                       const next = (client.phones ?? []).filter((p) => p.id !== phone.id)
                                       if (phone.isPreferred && next.length) next[0] = { ...next[0], isPreferred: true }
                                       updateClient(client.id, { phones: next })
-                                      goeyToast.success("Phone removed")
+                                      toast.success("Phone removed")
                                     }}
                                     className="text-destructive focus:text-destructive"
                                   >
@@ -395,7 +395,7 @@ export function ContactSection({
                                 }
                                 setEditingPhoneId(null)
                                 setEditPhoneDraft(null)
-                                goeyToast.success(alsoUpdateSpouse && spouse ? "Phone updated on both profiles" : "Phone updated")
+                                toast.success(alsoUpdateSpouse && spouse ? "Phone updated on both profiles" : "Phone updated")
                               }}>
                                 Save
                               </Button>
@@ -532,7 +532,7 @@ export function ContactSection({
                                       const next = (client.emails ?? []).filter((e) => e.id !== email.id)
                                       if (email.isPreferred && next.length) next[0] = { ...next[0], isPreferred: true }
                                       updateClient(client.id, { emails: next })
-                                      goeyToast.success("Email removed")
+                                      toast.success("Email removed")
                                     }}
                                     className="text-destructive focus:text-destructive"
                                   >
@@ -580,7 +580,7 @@ export function ContactSection({
                                 }
                                 setEditingEmailId(null)
                                 setEditEmailDraft(null)
-                                goeyToast.success(alsoUpdateSpouse && spouse ? "Email updated on both profiles" : "Email updated")
+                                toast.success(alsoUpdateSpouse && spouse ? "Email updated on both profiles" : "Email updated")
                               }}>
                                 Save
                               </Button>
@@ -665,7 +665,7 @@ export function ContactSection({
               value={client.preferredContactMethod}
               onValueChange={(v) => {
                 updateClient(client.id, { preferredContactMethod: v as "phone" | "email" | "text" })
-                goeyToast.success("Preferred contact method updated")
+                toast.success("Preferred contact method updated")
               }}
             >
               <SelectTrigger className="w-[120px] h-8 capitalize">
@@ -738,7 +738,7 @@ export function ContactSection({
               onSubmit={(e) => {
                 e.preventDefault()
                 if (!addPhone.number?.trim()) {
-                  goeyToast.error("Enter a phone number")
+                  toast.error("Enter a phone number")
                   return
                 }
                 const newPhone = { ...addPhone, number: formatPhoneNumber(addPhone.number.trim()) }
@@ -762,7 +762,7 @@ export function ContactSection({
                     createdBy: currentAgent,
                   })
                 }
-                goeyToast.success(alsoUpdateSpouse && spouse ? "Phone added to both profiles" : "Phone added")
+                toast.success(alsoUpdateSpouse && spouse ? "Phone added to both profiles" : "Phone added")
                 setAddDialogOpen(false)
                 setAddMode(null)
                 setAddPhone({ ...createEmptyPhone(), isPreferred: true })
@@ -839,7 +839,7 @@ export function ContactSection({
               onSubmit={(e) => {
                 e.preventDefault()
                 if (!addEmail.value?.trim()) {
-                  goeyToast.error("Enter an email address")
+                  toast.error("Enter an email address")
                   return
                 }
                 const newEmail = { ...addEmail, value: addEmail.value.trim() }
@@ -863,7 +863,7 @@ export function ContactSection({
                     createdBy: currentAgent,
                   })
                 }
-                goeyToast.success(alsoUpdateSpouse && spouse ? "Email added to both profiles" : "Email added")
+                toast.success(alsoUpdateSpouse && spouse ? "Email added to both profiles" : "Email added")
                 setAddDialogOpen(false)
                 setAddMode(null)
                 setAddEmail({ ...createEmptyEmail(), isPreferred: true })
@@ -1010,7 +1010,7 @@ export function ContactSection({
                               next[0] = { ...next[0], isPreferred: true }
                             }
                             updateClient(client.id, { addresses: next })
-                            goeyToast.success("Address removed")
+                            toast.success("Address removed")
                           }}
                           className="text-destructive focus:text-destructive"
                         >
@@ -1065,7 +1065,7 @@ export function ContactSection({
                 e.preventDefault()
                 const draft = addAddressDraft
                 if (!draft.address?.trim() && !draft.city?.trim()) {
-                  goeyToast.error("Please enter at least street or city")
+                  toast.error("Please enter at least street or city")
                   return
                 }
                 const newAddr: ClientAddress = {
@@ -1093,7 +1093,7 @@ export function ContactSection({
                     createdBy: currentAgent,
                   })
                 }
-                goeyToast.success(alsoUpdateSpouse && spouse ? "Address added to both profiles" : "Address added")
+                toast.success(alsoUpdateSpouse && spouse ? "Address added to both profiles" : "Address added")
                 setAddAddressDialogOpen(false)
                 setAddAddressDraft(null)
               }}
@@ -1159,7 +1159,7 @@ export function ContactSection({
                 e.preventDefault()
                 const draft = editingAddressDraft
                 if (!draft.address?.trim() && !draft.city?.trim()) {
-                  goeyToast.error("Please enter at least street or city")
+                  toast.error("Please enter at least street or city")
                   return
                 }
                 const next = (client.addresses ?? []).map((a) =>
@@ -1195,7 +1195,7 @@ export function ContactSection({
                     createdBy: currentAgent,
                   })
                 }
-                goeyToast.success(alsoUpdateSpouse && spouse ? "Address updated on both profiles" : "Address updated")
+                toast.success(alsoUpdateSpouse && spouse ? "Address updated on both profiles" : "Address updated")
                 setEditingAddressId(null)
                 setEditingAddressDraft(null)
               }}

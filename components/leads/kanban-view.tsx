@@ -29,7 +29,7 @@ import { LeadDetailSheet } from "./lead-detail-sheet"
 import { getLeadLastTouchedAt, lastTouchedColorClass } from "@/lib/lead-utils"
 import type { Lead, Stage } from "@/lib/types"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 
 const stageColumnMutedClass: Record<string, string> = {
   primary: "bg-muted/30 border border-primary border-l-4 border-l-primary",
@@ -262,7 +262,7 @@ export function KanbanView({ leads, stages }: KanbanViewProps) {
           })
         }
       }
-      goeyToast.success(`Moved to ${getStageName(stageId)}`)
+      toast.success(`Moved to ${getStageName(stageId)}`)
     },
     [leads, updateLeadStage, addActivity, flows, getStageName, currentAgent]
   )

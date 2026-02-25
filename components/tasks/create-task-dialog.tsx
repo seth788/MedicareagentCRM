@@ -9,11 +9,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Task } from "@/lib/types"
 
 function toLocalDateString(d: Date): string {
@@ -59,7 +60,7 @@ export function CreateTaskDialog({
     e.preventDefault()
     const trimmedTitle = title.trim()
     if (!trimmedTitle) {
-      goeyToast.error("Please enter a task title")
+      toast.error("Please enter a task title")
       return
     }
     const dueIso = dueDate
@@ -85,7 +86,7 @@ export function CreateTaskDialog({
       createdAt: new Date().toISOString(),
       createdBy: currentAgent,
     })
-    goeyToast.success("Task created")
+    toast.success("Task created")
     onOpenChange(false)
   }
 
@@ -107,11 +108,11 @@ export function CreateTaskDialog({
           </div>
           <div>
             <Label htmlFor="task-due">Due date</Label>
-            <Input
+            <DatePicker
               id="task-due"
-              type="date"
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              onChange={setDueDate}
+              placeholder="Pick a date"
             />
           </div>
           <div>

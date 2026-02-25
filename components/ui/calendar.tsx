@@ -23,7 +23,13 @@ function Calendar({
         months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
         month: 'space-y-4',
         caption: 'flex justify-center pt-1 relative items-center',
-        caption_label: 'text-sm font-medium',
+        caption_label: 'relative z-[1] inline-flex items-center gap-1 text-sm font-medium px-1',
+        caption_dropdowns: 'relative inline-flex items-center gap-1',
+        vhidden: 'sr-only',
+        dropdown_month: 'relative inline-flex items-center',
+        dropdown_year: 'relative inline-flex items-center',
+        dropdown: 'absolute inset-0 z-[2] w-full cursor-pointer appearance-none opacity-0',
+        dropdown_icon: 'ml-0.5 h-2 w-2 opacity-40',
         nav: 'space-x-1 flex items-center',
         nav_button: cn(
           buttonVariants({ variant: 'outline' }),
@@ -54,8 +60,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" strokeWidth={2} />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" strokeWidth={2} />,
       }}
       {...props}
     />

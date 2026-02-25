@@ -5,6 +5,7 @@ import { Stethoscope, Pill, Building2, AlertTriangle, Plus, Trash2, Pencil, More
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -49,7 +50,7 @@ import {
 } from "@/components/ui/command"
 import { useCRMStore } from "@/lib/store"
 import { cn, getPreferredOrFirstAddress } from "@/lib/utils"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Doctor, DoctorImportance, Medication, Pharmacy } from "@/lib/types"
 import type { SectionProps } from "./types"
 import {
@@ -453,11 +454,11 @@ export function HealthSection({ client }: SectionProps) {
       updated[editDoctorIndex] = toSave
       updateClient(client.id, { doctors: updated })
       logActivity(`Doctor updated: ${name}`)
-      goeyToast.success("Doctor updated")
+      toast.success("Doctor updated")
     } else {
       updateClient(client.id, { doctors: [...client.doctors, toSave] })
       logActivity(`Doctor added: ${name}`)
-      goeyToast.success("Doctor added")
+      toast.success("Doctor added")
     }
     setDoctorForm(defaultDoctorForm())
     setEditDoctorIndex(null)
@@ -469,14 +470,14 @@ export function HealthSection({ client }: SectionProps) {
     const updated = client.doctors.filter((_, i) => i !== index)
     updateClient(client.id, { doctors: updated })
     logActivity(`Doctor removed: ${removed?.name ?? "Unknown"}`)
-    goeyToast.success("Doctor removed")
+    toast.success("Doctor removed")
   }
 
   const handleNpiSearch = async () => {
     const city = doctorSearchCity.trim()
     const state = doctorSearchState.trim()
     if (!city || !state) {
-      goeyToast.error("City and State are required")
+      toast.error("City and State are required")
       return
     }
     setNpiSearchLoading(true)
@@ -525,7 +526,7 @@ export function HealthSection({ client }: SectionProps) {
     }
     updateClient(client.id, { doctors: [...client.doctors, newDoctor] })
     logActivity(`Doctor added: ${newDoctor.name}`)
-    goeyToast.success("Doctor added")
+    toast.success("Doctor added")
     setAddDoctorOpen(false)
     setAddDoctorMode("search")
     setNpiSearchResults(null)
@@ -732,11 +733,11 @@ export function HealthSection({ client }: SectionProps) {
       updated[editMedIndex] = toSave
       updateClient(client.id, { medications: updated })
       logActivity(`Medication updated: ${toSave.name}`)
-      goeyToast.success("Medication updated")
+      toast.success("Medication updated")
     } else {
       updateClient(client.id, { medications: [...client.medications, toSave] })
       logActivity(`Medication added: ${toSave.name}`)
-      goeyToast.success("Medication added")
+      toast.success("Medication added")
     }
     setMedForm(defaultMedForm())
     setEditMedIndex(null)
@@ -760,7 +761,7 @@ export function HealthSection({ client }: SectionProps) {
     }
     updateClient(client.id, { medications: [...client.medications, toSave] })
     logActivity(`Medication added: ${toSave.name}`)
-    goeyToast.success("Medication added")
+    toast.success("Medication added")
     setMedForm(defaultMedForm())
     setDrugSearchQuery("")
     setDrugSearchProducts([])
@@ -787,7 +788,7 @@ export function HealthSection({ client }: SectionProps) {
     }
     updateClient(client.id, { medications: [...client.medications, toSave] })
     logActivity(`Medication added: ${toSave.name}`)
-    goeyToast.success("Medication added")
+    toast.success("Medication added")
     setMedForm(defaultMedForm())
     setEditMedIndex(null)
     setAddMedOpen(false)
@@ -804,7 +805,7 @@ export function HealthSection({ client }: SectionProps) {
     const updated = client.medications.filter((_, i) => i !== index)
     updateClient(client.id, { medications: updated })
     logActivity(`Medication removed: ${removed?.name ?? "Unknown"}`)
-    goeyToast.success("Medication removed")
+    toast.success("Medication removed")
   }
 
   const handleSavePharmacy = () => {
@@ -815,11 +816,11 @@ export function HealthSection({ client }: SectionProps) {
       updated[editPharmIndex] = { ...pharmForm }
       updateClient(client.id, { pharmacies: updated })
       logActivity(`Pharmacy updated: ${pharmForm.name}`)
-      goeyToast.success("Pharmacy updated")
+      toast.success("Pharmacy updated")
     } else {
       updateClient(client.id, { pharmacies: [...pharmacies, { ...pharmForm }] })
       logActivity(`Pharmacy added: ${pharmForm.name}`)
-      goeyToast.success("Pharmacy added")
+      toast.success("Pharmacy added")
     }
     setPharmForm({ name: "", phone: "", address: "" })
     setEditPharmIndex(null)
@@ -831,13 +832,13 @@ export function HealthSection({ client }: SectionProps) {
     const removed = client.pharmacies?.[index]
     updateClient(client.id, { pharmacies })
     logActivity(`Pharmacy removed: ${removed?.name ?? "Unknown"}`)
-    goeyToast.success("Pharmacy removed")
+    toast.success("Pharmacy removed")
   }
 
   const handlePharmacySearch = async () => {
     const zip = pharmSearchZip.trim().replace(/\D/g, "").slice(0, 5)
     if (zip.length !== 5) {
-      goeyToast.error("Enter a valid 5-digit zip code")
+      toast.error("Enter a valid 5-digit zip code")
       return
     }
     setPharmNpiLoading(true)
@@ -873,7 +874,7 @@ export function HealthSection({ client }: SectionProps) {
     }
     updateClient(client.id, { pharmacies: [...(client.pharmacies ?? []), pharmacy] })
     logActivity(`Pharmacy added: ${pharmacy.name}`)
-    goeyToast.success("Pharmacy added")
+    toast.success("Pharmacy added")
     setPharmDialogOpen(false)
     setAddPharmMode("search")
     setPharmNpiResults(null)
@@ -885,13 +886,13 @@ export function HealthSection({ client }: SectionProps) {
     logActivity(`Allergy added: ${newAllergy.trim()}`)
     setNewAllergy("")
     setAddAllergyOpen(false)
-    goeyToast.success("Allergy added")
+    toast.success("Allergy added")
   }
 
   const handleRemoveAllergy = (allergy: string) => {
     updateClient(client.id, { allergies: client.allergies.filter((a) => a !== allergy) })
     logActivity(`Allergy removed: ${allergy}`)
-    goeyToast.success("Allergy removed")
+    toast.success("Allergy removed")
   }
 
   const handleEditAllergy = () => {
@@ -904,7 +905,7 @@ export function HealthSection({ client }: SectionProps) {
     )
     updateClient(client.id, { allergies: updated })
     logActivity(`Allergy updated: ${editingAllergy.original} → ${editingAllergy.value.trim()}`)
-    goeyToast.success("Allergy updated")
+    toast.success("Allergy updated")
     setEditAllergyOpen(false)
   }
 
@@ -1700,17 +1701,13 @@ export function HealthSection({ client }: SectionProps) {
                   </div>
                   <div>
                     <Label htmlFor="med-first-prescribed">First Prescribed</Label>
-                    <Input
+                    <DatePicker
                       id="med-first-prescribed"
-                      type="date"
-                      value={
-                        medForm.firstPrescribed
-                          ? medForm.firstPrescribed.slice(0, 10)
-                          : ""
+                      value={medForm.firstPrescribed?.slice(0, 10) ?? ""}
+                      onChange={(v) =>
+                        setMedForm({ ...medForm, firstPrescribed: v || undefined })
                       }
-                      onChange={(e) =>
-                        setMedForm({ ...medForm, firstPrescribed: e.target.value || undefined })
-                      }
+                      placeholder="Pick a date"
                     />
                   </div>
                 </div>
@@ -2176,9 +2173,9 @@ export function HealthSection({ client }: SectionProps) {
                                       : current.filter((c) => c !== option)
                                     updateClient(client.id, { healthTracker: next })
                                     if (checked) {
-                                      goeyToast.success("Tracker has been added")
+                                      toast.success("Tracker has been added")
                                     } else {
-                                      goeyToast.success("Tracker removed")
+                                      toast.success("Tracker removed")
                                     }
                                   }}
                                 />

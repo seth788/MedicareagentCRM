@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Client } from "@/lib/types"
 
 interface MarkAsLeadDialogProps {
@@ -81,7 +81,7 @@ export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialo
         createdAt: now,
         createdBy: currentAgent,
       })
-      goeyToast.success(`Added to ${flowName}`, {
+      toast.success(`Added to ${flowName}`, {
         description: `${lead.firstName} ${lead.lastName} is now in this flow`,
       })
       onOpenChange(false)

@@ -4,7 +4,7 @@ import { use, useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { notFound, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft } from "@/components/icons"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import { AppHeader } from "@/components/app-header"
 import { ClientProfileHeader } from "@/components/clients/profile-header"
 import { ClientTabs } from "@/components/clients/client-tabs"
@@ -28,7 +28,7 @@ export default function ClientProfilePageInner({
   useEffect(() => {
     if (searchParams.get("new") !== "1" || !client || hasShownNewToast.current) return
     hasShownNewToast.current = true
-    goeyToast.info("You can complete setting up the profile")
+    toast.info("You can complete setting up the profile")
     const params = new URLSearchParams(searchParams.toString())
     params.delete("new")
     const qs = params.toString()

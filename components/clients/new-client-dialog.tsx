@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -29,7 +30,7 @@ import { AddressForm } from "@/components/clients/address-form"
 import { useCRMStore } from "@/lib/store"
 import { formatPhoneNumber } from "@/lib/utils"
 import { getT65FromDob } from "@/lib/date-utils"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { ClientAddress, ClientPhone, ClientEmail } from "@/lib/types"
 
 const DEFAULT_SOURCE_OPTIONS = [
@@ -102,16 +103,16 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.firstName?.trim()) {
-      goeyToast.error("First name is required")
+      toast.error("First name is required")
       return
     }
     if (!form.lastName?.trim()) {
-      goeyToast.error("Last name is required")
+      toast.error("Last name is required")
       return
     }
     const addr = form.addresses[0]
     if (!addr?.address?.trim() || !addr?.city?.trim()) {
-      goeyToast.error("Address is required (street and city)")
+      toast.error("Address is required (street and city)")
       return
     }
     const addresses = form.addresses.map((a) => ({
@@ -331,11 +332,11 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-dob">Date of Birth</Label>
-            <Input
+            <DatePicker
               id="c-dob"
-              type="date"
               value={form.dob}
-              onChange={(e) => setForm({ ...form, dob: e.target.value })}
+              onChange={(v) => setForm({ ...form, dob: v })}
+              placeholder="Pick a date"
             />
           </div>
           <div className="space-y-1.5">

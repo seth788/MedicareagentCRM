@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -31,7 +32,7 @@ import { AddressCard } from "@/components/clients/address-card"
 import { useCRMStore } from "@/lib/store"
 import { getT65FromDob, effectiveDateToMonthValue, monthValueToEffectiveDate } from "@/lib/date-utils"
 import { getPreferredOrFirstAddress, getPreferredOrFirstPhone, getPreferredOrFirstEmail, formatPhoneNumber } from "@/lib/utils"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Client, ClientAddress } from "@/lib/types"
 
 /** Clients that can be chosen as spouse. Today: all except current; later filter by current user's clients (auth). */
@@ -212,7 +213,7 @@ export function EditClientDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (showPersonal && (!form.firstName.trim() || !form.lastName.trim())) {
-      goeyToast.error("First and last name are required")
+      toast.error("First and last name are required")
       return
     }
 
@@ -373,7 +374,7 @@ export function EditClientDialog({
       createdBy: currentAgent,
     })
 
-    goeyToast.success(
+    toast.success(
       section === "personal"
         ? "Personal details updated"
         : section === "contact"
@@ -539,11 +540,11 @@ export function EditClientDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-dob">Date of birth</Label>
-                  <Input
+                  <DatePicker
                     id="edit-dob"
-                    type="date"
                     value={form.dob}
-                    onChange={(e) => setForm({ ...form, dob: e.target.value })}
+                    onChange={(v) => setForm({ ...form, dob: v })}
+                    placeholder="Pick a date"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -909,20 +910,22 @@ export function EditClientDialog({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="edit-partA">Part A effective date</Label>
-                    <Input
+                    <DatePicker
                       id="edit-partA"
-                      type="month"
                       value={form.partAEffectiveDate}
-                      onChange={(e) => setForm({ ...form, partAEffectiveDate: e.target.value })}
+                      onChange={(v) => setForm({ ...form, partAEffectiveDate: v })}
+                      placeholder="Pick a month"
+                      monthOnly
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="edit-partB">Part B effective date</Label>
-                    <Input
+                    <DatePicker
                       id="edit-partB"
-                      type="month"
                       value={form.partBEffectiveDate}
-                      onChange={(e) => setForm({ ...form, partBEffectiveDate: e.target.value })}
+                      onChange={(v) => setForm({ ...form, partBEffectiveDate: v })}
+                      placeholder="Pick a month"
+                      monthOnly
                     />
                   </div>
                 </div>

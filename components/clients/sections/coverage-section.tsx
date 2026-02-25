@@ -26,6 +26,7 @@ import {
 } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -69,7 +70,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useCRMStore } from "@/lib/store"
-import { goeyToast } from "goey-toast"
+import { toast } from "sonner"
 import type { Client, Coverage } from "@/lib/types"
 import type { CoveragePlanType } from "@/lib/types"
 import {
@@ -217,11 +218,11 @@ export function CoverageSection({ client }: SectionProps) {
     )
       .then((r) => {
         setCarriers(r.carriers ?? [])
-        if (r.error) goeyToast.error(`Could not load carriers: ${r.error}`)
+        if (r.error) toast.error(`Could not load carriers: ${r.error}`)
       })
       .catch(() => {
         setCarriers([])
-        goeyToast.error("Failed to load carriers")
+        toast.error("Failed to load carriers")
       })
       .finally(() => setLoadingCarriers(false))
   }, [canFetchPlans, addPlanType, resolvedAddress?.state, resolvedAddress?.county, normalizedCounty])
@@ -287,11 +288,11 @@ export function CoverageSection({ client }: SectionProps) {
     )
       .then((r) => {
         setEditCarriers(r.carriers ?? [])
-        if (r.error) goeyToast.error(`Could not load carriers: ${r.error}`)
+        if (r.error) toast.error(`Could not load carriers: ${r.error}`)
       })
       .catch(() => {
         setEditCarriers([])
-        goeyToast.error("Failed to load carriers")
+        toast.error("Failed to load carriers")
       })
       .finally(() => setEditLoadingCarriers(false))
   }, [
@@ -372,14 +373,14 @@ export function CoverageSection({ client }: SectionProps) {
 
   const handleAddSubmit = useCallback(() => {
     if (!addForm.carrier.trim() || !addForm.planName.trim() || !addForm.status || !addForm.effectiveDate) {
-      goeyToast.error("Please fill required fields: Company/Carrier, Plan, Status, Effective date")
+      toast.error("Please fill required fields: Company/Carrier, Plan, Status, Effective date")
       return
     }
     const newCoverage = formToCoverage(addForm, crypto.randomUUID())
     const nextCoverages = [...coverages, newCoverage]
     updateClient(client.id, { coverages: nextCoverages })
     logActivity(`Coverage added: ${newCoverage.carrier} ${newCoverage.planName}`)
-    goeyToast.success("Coverage added")
+    toast.success("Coverage added")
     setAddDialogOpen(false)
   }, [addForm, coverages, client.id, updateClient, logActivity])
 
@@ -405,14 +406,14 @@ export function CoverageSection({ client }: SectionProps) {
     const cov = coverages.find((x) => x.id === editingId)
     if (!cov) return
     if (!editForm.carrier.trim() || !editForm.planName.trim() || !editForm.status || !editForm.effectiveDate) {
-      goeyToast.error("Please fill required fields")
+      toast.error("Please fill required fields")
       return
     }
     const updated = formToCoverage(editForm, cov.id, cov)
     const nextCoverages = coverages.map((x) => (x.id === editingId ? updated : x))
     updateClient(client.id, { coverages: nextCoverages })
     logActivity(`Coverage updated: ${updated.carrier} ${updated.planName}`)
-    goeyToast.success("Coverage updated")
+    toast.success("Coverage updated")
     setEditingId(null)
     setEditSelectedAddressId(null)
     setEditCarriers([])
@@ -434,7 +435,7 @@ export function CoverageSection({ client }: SectionProps) {
     const nextCoverages = coverages.filter((c) => c.id !== deleteConfirmId)
     updateClient(client.id, { coverages: nextCoverages })
     if (toRemove) logActivity(`Coverage removed: ${toRemove.carrier} ${toRemove.planName}`)
-    goeyToast.success("Coverage removed")
+    toast.success("Coverage removed")
     setDeleteConfirmId(null)
     setExpandedId((id) => (id === deleteConfirmId ? null : id))
     setEditingId((id) => (id === deleteConfirmId ? null : id))
@@ -756,19 +757,19 @@ function AddCoverageForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label>Application date</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={form.applicationDate}
-            onChange={(e) => setForm((f) => ({ ...f, applicationDate: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, applicationDate: v }))}
+            placeholder="Pick a date"
             className="min-h-[44px] sm:min-h-0"
           />
         </div>
         <div>
           <Label>Effective date *</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={form.effectiveDate}
-            onChange={(e) => setForm((f) => ({ ...f, effectiveDate: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, effectiveDate: v }))}
+            placeholder="Pick a date"
             className="min-h-[44px] sm:min-h-0"
           />
         </div>
@@ -1299,19 +1300,19 @@ function InlineCoverageForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label className="text-xs">Application date</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={form.applicationDate}
-            onChange={(e) => setForm((f) => ({ ...f, applicationDate: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, applicationDate: v }))}
+            placeholder="Pick a date"
             className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
           />
         </div>
         <div>
           <Label className="text-xs">Effective date</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={form.effectiveDate}
-            onChange={(e) => setForm((f) => ({ ...f, effectiveDate: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, effectiveDate: v }))}
+            placeholder="Pick a date"
             className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
           />
         </div>
