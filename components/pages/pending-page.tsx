@@ -34,6 +34,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 // ────────────────────────────────────────────────────────────
 //  Commission status
@@ -103,9 +111,8 @@ function CommissionStatusIcon({ status }: { status: CommissionStatus | null }) {
         </svg>
       )}
       {status === "partial" && (
-        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none">
-          <circle cx="10" cy="10" r="10" className="fill-blue-500" />
-          <path d="M10 0 A10 10 0 0 1 10 20 Z" className="fill-white" />
+        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+          <path strokeLinecap="round" d="M12 5v14" />
         </svg>
       )}
       {status === "trued_up" && (
@@ -463,7 +470,7 @@ const MOCK_PENDING: PendingApplication[] = [
     effectiveDate: "2026-04-01",
     writtenAs: "New to Medicare",
     issued: false,
-    commissionStatus: null,
+    commissionStatus: "not_paid",
     status: "Pending/Submitted",
   },
   {
@@ -475,7 +482,7 @@ const MOCK_PENDING: PendingApplication[] = [
     effectiveDate: "2026-03-01",
     writtenAs: "Unlike Plan Change",
     issued: false,
-    commissionStatus: "partial",
+    commissionStatus: "not_paid",
     status: "Pending (not agent of record)",
   },
   {
@@ -487,7 +494,7 @@ const MOCK_PENDING: PendingApplication[] = [
     effectiveDate: "2026-06-01",
     writtenAs: "AOR Change",
     issued: false,
-    commissionStatus: "paid_full",
+    commissionStatus: "not_paid",
     status: "Pending/Submitted",
   },
   {
@@ -499,7 +506,7 @@ const MOCK_PENDING: PendingApplication[] = [
     effectiveDate: "2026-04-15",
     writtenAs: "Like Plan Change (same company)",
     issued: false,
-    commissionStatus: null,
+    commissionStatus: "not_paid",
     status: "Pending (not agent of record)",
   },
 ]
@@ -597,6 +604,11 @@ export default function PendingPageInner() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [applications, setApplications] = useState<PendingApplication[]>(MOCK_PENDING)
 
+  // Issue dialog state
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false)
+  const [issueTargetId, setIssueTargetId] = useState<string | null>(null)
+  const [issueSelectedStatus, setIssueSelectedStatus] = useState<CommissionStatus>("not_paid")
+
   // Issued state
   const [issuedApps] = useState<IssuedApplication[]>(MOCK_ISSUED)
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last_60")
@@ -644,11 +656,34 @@ export default function PendingPageInner() {
     return result
   }, [issuedApps, datePreset, customFrom, customTo, search])
 
-  const handleToggleIssued = useCallback((id: string) => {
+  const handleRequestIssue = useCallback((id: string) => {
+    const app = applications.find((a) => a.id === id)
+    if (!app) return
+    // If already issued, allow un-issuing directly
+    if (app.issued) {
+      setApplications((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, issued: false } : a))
+      )
+      return
+    }
+    // Open the dialog to prompt for commission status
+    setIssueTargetId(id)
+    setIssueSelectedStatus(app.commissionStatus ?? "not_paid")
+    setIssueDialogOpen(true)
+  }, [applications])
+
+  const handleConfirmIssue = useCallback(() => {
+    if (!issueTargetId) return
     setApplications((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, issued: !a.issued } : a))
+      prev.map((a) =>
+        a.id === issueTargetId
+          ? { ...a, issued: true, commissionStatus: issueSelectedStatus }
+          : a
+      )
     )
-  }, [])
+    setIssueDialogOpen(false)
+    setIssueTargetId(null)
+  }, [issueTargetId, issueSelectedStatus])
 
   const handleCommissionChange = useCallback((id: string, status: CommissionStatus) => {
     setApplications((prev) =>
@@ -881,7 +916,7 @@ export default function PendingPageInner() {
                               <div className="flex items-center justify-center">
                                 <Checkbox
                                   checked={app.issued}
-                                  onCheckedChange={() => handleToggleIssued(app.id)}
+                                  onCheckedChange={() => handleRequestIssue(app.id)}
                                   aria-label={`Mark ${app.clientName} as issued`}
                                 />
                               </div>
@@ -1024,6 +1059,51 @@ export default function PendingPageInner() {
           </>
         )}
       </div>
+
+      {/* Issue confirmation dialog */}
+      <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark as Issued</DialogTitle>
+            <DialogDescription>
+              Select how the commission was paid before marking this application as issued.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="mb-3 text-sm font-medium text-foreground">Commission Status</p>
+            <div className="flex flex-col gap-1 rounded-lg border p-1">
+              {COMMISSION_STATUS_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm outline-none transition-colors ${
+                    issueSelectedStatus === option.value
+                      ? "bg-accent font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                  }`}
+                  onClick={() => setIssueSelectedStatus(option.value)}
+                >
+                  <CommissionStatusIcon status={option.value} />
+                  <span>{option.label}</span>
+                  {issueSelectedStatus === option.value && (
+                    <svg className="ml-auto h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmIssue}>
+              Confirm Issue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
