@@ -1,14 +1,26 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { format } from "date-fns"
+import { useState, useMemo, useCallback } from "react"
+import {
+  format,
+  subDays,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  endOfQuarter,
+  startOfYear,
+  endOfYear,
+  isWithinInterval,
+} from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Search, Clock, CheckCircle2 } from "@/components/icons"
+import { Search, Clock, CheckCircle2, ChevronDown, Calendar as CalendarIcon } from "@/components/icons"
 import { AppHeader } from "@/components/app-header"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Table,
   TableBody,
@@ -23,7 +35,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-// -- Commission payment status options --
+// ────────────────────────────────────────────────────────────
+//  Commission status
+// ────────────────────────────────────────────────────────────
 type CommissionStatus = "paid_full" | "partial" | "trued_up" | "not_paid" | "chargeback"
 
 const COMMISSION_STATUS_OPTIONS: {
@@ -153,7 +167,254 @@ function CommissionStatusPicker({
   )
 }
 
-// -- Mock data for demonstration --
+// ────────────────────────────────────────────────────────────
+//  Date range presets
+// ────────────────────────────────────────────────────────────
+type DateRangePreset =
+  | "this_month"
+  | "this_quarter"
+  | "this_year"
+  | "last_month"
+  | "last_quarter"
+  | "last_year"
+  | "month_to_date"
+  | "quarter_to_date"
+  | "year_to_date"
+  | "last_7"
+  | "last_14"
+  | "last_30"
+  | "last_60"
+  | "last_90"
+  | "last_6_months"
+  | "last_12_months"
+  | "custom"
+
+interface PresetOption {
+  value: DateRangePreset
+  label: string
+  group: string
+}
+
+const DATE_PRESET_OPTIONS: PresetOption[] = [
+  { value: "this_month", label: "This Month", group: "current" },
+  { value: "this_quarter", label: "This Quarter", group: "current" },
+  { value: "this_year", label: "This Year", group: "current" },
+  { value: "last_month", label: "Last Month", group: "previous" },
+  { value: "last_quarter", label: "Last Quarter", group: "previous" },
+  { value: "last_year", label: "Last Year", group: "previous" },
+  { value: "month_to_date", label: "Month to Date", group: "to_date" },
+  { value: "quarter_to_date", label: "Quarter to Date", group: "to_date" },
+  { value: "year_to_date", label: "Year to Date", group: "to_date" },
+  { value: "last_7", label: "Last 7 Days", group: "days" },
+  { value: "last_14", label: "Last 14 Days", group: "days" },
+  { value: "last_30", label: "Last 30 Days", group: "days" },
+  { value: "last_60", label: "Last 60 Days", group: "days" },
+  { value: "last_90", label: "Last 90 Days", group: "days" },
+  { value: "last_6_months", label: "Last 6 Months", group: "days" },
+  { value: "last_12_months", label: "Last 12 Months", group: "days" },
+  { value: "custom", label: "Custom Dates...", group: "custom" },
+]
+
+function getDateRange(
+  preset: DateRangePreset,
+  customFrom?: Date,
+  customTo?: Date
+): { from: Date; to: Date } {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+
+  switch (preset) {
+    case "this_month":
+      return { from: startOfMonth(now), to: endOfMonth(now) }
+    case "this_quarter":
+      return { from: startOfQuarter(now), to: endOfQuarter(now) }
+    case "this_year":
+      return { from: startOfYear(now), to: endOfYear(now) }
+    case "last_month": {
+      const prev = subMonths(now, 1)
+      return { from: startOfMonth(prev), to: endOfMonth(prev) }
+    }
+    case "last_quarter": {
+      const prev = subMonths(now, 3)
+      return { from: startOfQuarter(prev), to: endOfQuarter(prev) }
+    }
+    case "last_year": {
+      const prev = new Date(now.getFullYear() - 1, 0, 1)
+      return { from: startOfYear(prev), to: endOfYear(prev) }
+    }
+    case "month_to_date":
+      return { from: startOfMonth(now), to: today }
+    case "quarter_to_date":
+      return { from: startOfQuarter(now), to: today }
+    case "year_to_date":
+      return { from: startOfYear(now), to: today }
+    case "last_7":
+      return { from: subDays(today, 7), to: today }
+    case "last_14":
+      return { from: subDays(today, 14), to: today }
+    case "last_30":
+      return { from: subDays(today, 30), to: today }
+    case "last_60":
+      return { from: subDays(today, 60), to: today }
+    case "last_90":
+      return { from: subDays(today, 90), to: today }
+    case "last_6_months":
+      return { from: subMonths(today, 6), to: today }
+    case "last_12_months":
+      return { from: subMonths(today, 12), to: today }
+    case "custom":
+      return {
+        from: customFrom ?? subDays(today, 60),
+        to: customTo ?? today,
+      }
+    default:
+      return { from: subDays(today, 60), to: today }
+  }
+}
+
+function DateRangePicker({
+  preset,
+  onPresetChange,
+  customFrom,
+  customTo,
+  onCustomFromChange,
+  onCustomToChange,
+}: {
+  preset: DateRangePreset
+  onPresetChange: (p: DateRangePreset) => void
+  customFrom: Date | undefined
+  customTo: Date | undefined
+  onCustomFromChange: (d: Date | undefined) => void
+  onCustomToChange: (d: Date | undefined) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [showCustom, setShowCustom] = useState(preset === "custom")
+
+  const activeLabel =
+    DATE_PRESET_OPTIONS.find((o) => o.value === preset)?.label ?? "Last 60 Days"
+
+  const range = getDateRange(preset, customFrom, customTo)
+  const rangeLabel = `${format(range.from, "MMM d, yyyy")} - ${format(range.to, "MMM d, yyyy")}`
+
+  const groups = ["current", "previous", "to_date", "days", "custom"]
+
+  const handleSelect = (value: DateRangePreset) => {
+    if (value === "custom") {
+      setShowCustom(true)
+      onPresetChange(value)
+    } else {
+      setShowCustom(false)
+      onPresetChange(value)
+      setOpen(false)
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs font-medium"
+        >
+          <CalendarIcon className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{activeLabel}</span>
+          <span className="sm:hidden">Range</span>
+          <ChevronDown className="ml-0.5 h-3 w-3 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        side="bottom"
+      >
+        {!showCustom ? (
+          <div className="max-h-[400px] overflow-y-auto py-1">
+            {groups.map((group, gi) => (
+              <div key={group}>
+                {gi > 0 && (
+                  <div className="mx-2 my-1 border-t" />
+                )}
+                {DATE_PRESET_OPTIONS.filter((o) => o.group === group).map(
+                  (option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm outline-none hover:bg-accent ${
+                        preset === option.value
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                          : "text-foreground"
+                      }`}
+                      onClick={() => handleSelect(option.value)}
+                    >
+                      {preset === option.value && (
+                        <svg
+                          className="h-3.5 w-3.5 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                      {preset !== option.value && (
+                        <span className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                      {option.label}
+                    </button>
+                  )
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => setShowCustom(false)}
+              >
+                Back to presets
+              </button>
+            </div>
+            <p className="mb-2 text-xs font-medium text-foreground">From</p>
+            <Calendar
+              mode="single"
+              selected={customFrom}
+              onSelect={(d) => onCustomFromChange(d ?? undefined)}
+              defaultMonth={customFrom}
+              initialFocus
+            />
+            <p className="mb-2 mt-3 text-xs font-medium text-foreground">To</p>
+            <Calendar
+              mode="single"
+              selected={customTo}
+              onSelect={(d) => onCustomToChange(d ?? undefined)}
+              defaultMonth={customTo}
+            />
+            <Button
+              size="sm"
+              className="mt-3 w-full text-xs"
+              onClick={() => setOpen(false)}
+            >
+              Apply
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+//  Mock data
+// ────────────────────────────────────────────────────────────
 interface PendingApplication {
   id: string
   clientName: string
@@ -165,6 +426,19 @@ interface PendingApplication {
   issued: boolean
   commissionStatus: CommissionStatus | null
   status: "Pending/Submitted" | "Pending (not agent of record)"
+}
+
+interface IssuedApplication {
+  id: string
+  clientName: string
+  planType: string
+  company: string
+  policy: string
+  effectiveDate: string
+  writtenAs: string
+  issuedDate: string
+  commissionStatus: CommissionStatus | null
+  status: "Active" | "Active (not agent of record)"
 }
 
 const MOCK_PENDING: PendingApplication[] = [
@@ -230,14 +504,107 @@ const MOCK_PENDING: PendingApplication[] = [
   },
 ]
 
+const MOCK_ISSUED: IssuedApplication[] = [
+  {
+    id: "i1",
+    clientName: "Adams, Sarah",
+    planType: "MAPD",
+    company: "Anthem",
+    policy: "Anthem Medicare Advantage 4 (PPO)",
+    effectiveDate: "2026-02-01",
+    writtenAs: "New to Medicare",
+    issuedDate: "2026-02-03",
+    commissionStatus: "paid_full",
+    status: "Active",
+  },
+  {
+    id: "i2",
+    clientName: "Clark, Thomas",
+    planType: "PDP",
+    company: "Humana",
+    policy: "Humana Walmart Value Rx Plan",
+    effectiveDate: "2026-01-15",
+    writtenAs: "Like Plan Change",
+    issuedDate: "2026-01-18",
+    commissionStatus: "paid_full",
+    status: "Active",
+  },
+  {
+    id: "i3",
+    clientName: "Lewis, Jennifer",
+    planType: "MAPD",
+    company: "UnitedHealthcare",
+    policy: "AARP Medicare Advantage Choice (PPO)",
+    effectiveDate: "2026-01-01",
+    writtenAs: "Unlike Plan Change",
+    issuedDate: "2026-01-05",
+    commissionStatus: "partial",
+    status: "Active (not agent of record)",
+  },
+  {
+    id: "i4",
+    clientName: "Walker, Richard",
+    planType: "MAPD",
+    company: "Aetna",
+    policy: "Aetna Medicare Eagle (PPO)",
+    effectiveDate: "2026-02-15",
+    writtenAs: "AOR Change",
+    issuedDate: "2026-02-18",
+    commissionStatus: "trued_up",
+    status: "Active",
+  },
+  {
+    id: "i5",
+    clientName: "Young, Margaret",
+    planType: "PDP",
+    company: "SilverScript",
+    policy: "SilverScript Choice (PDP)",
+    effectiveDate: "2025-12-01",
+    writtenAs: "New to Medicare",
+    issuedDate: "2025-12-05",
+    commissionStatus: "paid_full",
+    status: "Active",
+  },
+  {
+    id: "i6",
+    clientName: "Hall, David",
+    planType: "MAPD",
+    company: "Cigna",
+    policy: "Cigna True Choice Medicare (PPO)",
+    effectiveDate: "2025-12-15",
+    writtenAs: "Like Plan Change (same company)",
+    issuedDate: "2025-12-18",
+    commissionStatus: "chargeback",
+    status: "Active",
+  },
+]
+
+// ────────────────────────────────────────────────────────────
+//  Tab types
+// ────────────────────────────────────────────────────────────
+type ViewTab = "pending" | "issued"
 type StatusFilter = "all" | "pending_submitted" | "pending_not_aor"
 
+// ────────────────────────────────────────────────────────────
+//  Main component
+// ────────────────────────────────────────────────────────────
 export default function PendingPageInner() {
+  // Shared
+  const [activeTab, setActiveTab] = useState<ViewTab>("pending")
   const [search, setSearch] = useState("")
+
+  // Pending state
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [applications, setApplications] = useState<PendingApplication[]>(MOCK_PENDING)
 
-  const filtered = useMemo(() => {
+  // Issued state
+  const [issuedApps] = useState<IssuedApplication[]>(MOCK_ISSUED)
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("last_60")
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(subDays(new Date(), 60))
+  const [customTo, setCustomTo] = useState<Date | undefined>(new Date())
+
+  // Filtered pending
+  const filteredPending = useMemo(() => {
     let result = [...applications]
     if (search) {
       const q = search.toLowerCase()
@@ -257,17 +624,37 @@ export default function PendingPageInner() {
     return result
   }, [applications, search, statusFilter])
 
-  const handleToggleIssued = (id: string) => {
+  // Filtered issued (by date range + search)
+  const filteredIssued = useMemo(() => {
+    const range = getDateRange(datePreset, customFrom, customTo)
+    let result = issuedApps.filter((a) => {
+      const issued = parseLocalDate(a.issuedDate)
+      return isWithinInterval(issued, { start: range.from, end: range.to })
+    })
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (a) =>
+          a.clientName.toLowerCase().includes(q) ||
+          a.company.toLowerCase().includes(q) ||
+          a.policy.toLowerCase().includes(q) ||
+          a.planType.toLowerCase().includes(q)
+      )
+    }
+    return result
+  }, [issuedApps, datePreset, customFrom, customTo, search])
+
+  const handleToggleIssued = useCallback((id: string) => {
     setApplications((prev) =>
       prev.map((a) => (a.id === id ? { ...a, issued: !a.issued } : a))
     )
-  }
+  }, [])
 
-  const handleCommissionChange = (id: string, status: CommissionStatus) => {
+  const handleCommissionChange = useCallback((id: string, status: CommissionStatus) => {
     setApplications((prev) =>
       prev.map((a) => (a.id === id ? { ...a, commissionStatus: status } : a))
     )
-  }
+  }, [])
 
   const openCmd = () => {
     const fn = (window as unknown as Record<string, unknown>).__openCommandPalette
@@ -279,175 +666,363 @@ export default function PendingPageInner() {
       <AppHeader title="Pending Applications" onOpenCommandPalette={openCmd} />
 
       <div className="flex-1 overflow-auto overflow-x-hidden">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:px-6">
-          <div className="relative min-w-0 flex-1 md:max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search pending applications..."
-              className="h-8 pl-8 text-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-1">
-            {(
-              [
-                { label: "All", value: "all" },
-                { label: "Pending/Submitted", value: "pending_submitted" },
-                { label: "Not AOR", value: "pending_not_aor" },
-              ] as const
-            ).map((f) => (
-              <Button
-                key={f.value}
-                size="sm"
-                variant={statusFilter === f.value ? "secondary" : "ghost"}
-                className="h-7 text-xs"
-                onClick={() => setStatusFilter(f.value)}
+        {/* Tabs + Toolbar */}
+        <div className="flex flex-col gap-0 border-b">
+          {/* Tab bar */}
+          <div className="flex items-center gap-0 px-4 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors outline-none ${
+                activeTab === "pending"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Pending
+              <Badge
+                variant="secondary"
+                className={`ml-1 h-5 min-w-[20px] px-1.5 text-[10px] font-semibold ${
+                  activeTab === "pending"
+                    ? "bg-amber-100 text-amber-700"
+                    : ""
+                }`}
               >
-                {f.label}
-              </Button>
-            ))}
+                {applications.length}
+              </Badge>
+              {activeTab === "pending" && (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("issued")}
+              className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors outline-none ${
+                activeTab === "issued"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Issued
+              <Badge
+                variant="secondary"
+                className={`ml-1 h-5 min-w-[20px] px-1.5 text-[10px] font-semibold ${
+                  activeTab === "issued"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : ""
+                }`}
+              >
+                {filteredIssued.length}
+              </Badge>
+              {activeTab === "issued" && (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground" />
+              )}
+            </button>
+          </div>
+
+          {/* Filter bar */}
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6 border-t bg-muted/30">
+            <div className="relative min-w-0 flex-1 md:max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={
+                  activeTab === "pending"
+                    ? "Search pending applications..."
+                    : "Search issued policies..."
+                }
+                className="h-8 pl-8 text-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            {activeTab === "pending" && (
+              <div className="flex gap-1">
+                {(
+                  [
+                    { label: "All", value: "all" },
+                    { label: "Pending/Submitted", value: "pending_submitted" },
+                    { label: "Not AOR", value: "pending_not_aor" },
+                  ] as const
+                ).map((f) => (
+                  <Button
+                    key={f.value}
+                    size="sm"
+                    variant={statusFilter === f.value ? "secondary" : "ghost"}
+                    className="h-7 text-xs"
+                    onClick={() => setStatusFilter(f.value)}
+                  >
+                    {f.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === "issued" && (
+              <DateRangePicker
+                preset={datePreset}
+                onPresetChange={setDatePreset}
+                customFrom={customFrom}
+                customTo={customTo}
+                onCustomFromChange={setCustomFrom}
+                onCustomToChange={setCustomTo}
+              />
+            )}
           </div>
         </div>
 
-        {/* Summary badges */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 text-amber-700">
-            <Clock className="h-3 w-3" />
-            {applications.filter((a) => a.status === "Pending/Submitted").length} Pending/Submitted
-          </Badge>
-          <Badge variant="outline" className="gap-1.5 border-muted bg-muted text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            {applications.filter((a) => a.status === "Pending (not agent of record)").length} Not AOR
-          </Badge>
-          <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
-            <CheckCircle2 className="h-3 w-3" />
-            {applications.filter((a) => a.issued).length} Issued
-          </Badge>
-        </div>
+        {/* ── Pending view ── */}
+        {activeTab === "pending" && (
+          <>
+            {/* Summary badges */}
+            <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+              <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 text-amber-700">
+                <Clock className="h-3 w-3" />
+                {applications.filter((a) => a.status === "Pending/Submitted").length} Pending/Submitted
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 border-muted bg-muted text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {applications.filter((a) => a.status === "Pending (not agent of record)").length} Not AOR
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" />
+                {applications.filter((a) => a.issued).length} Issued
+              </Badge>
+            </div>
 
-        {/* Table */}
-        <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-          <div className="min-w-0 rounded-lg border">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="min-w-[140px]">Name</TableHead>
-                    <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">Company</TableHead>
-                    <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
-                    <TableHead className="hidden lg:table-cell">Effective</TableHead>
-                    <TableHead className="hidden xl:table-cell">Written As</TableHead>
-                    <TableHead className="hidden md:table-cell">Status</TableHead>
-                    <TableHead className="text-center">Paid</TableHead>
-                    <TableHead className="text-center">Issued</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="h-32 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <p className="text-sm text-muted-foreground">
-                            No pending applications found
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filtered.map((app) => (
-                      <TableRow key={app.id}>
-                        {/* Name - always visible, stacked on mobile */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-foreground">
-                              {app.clientName}
-                            </span>
-                            {/* Mobile-only stacked info */}
-                            <div className="flex flex-wrap items-center gap-1.5 md:hidden">
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {/* Pending Table */}
+            <div className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="min-w-0 rounded-lg border">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="min-w-[140px]">Name</TableHead>
+                        <TableHead className="hidden md:table-cell">Type</TableHead>
+                        <TableHead className="hidden md:table-cell">Company</TableHead>
+                        <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
+                        <TableHead className="hidden lg:table-cell">Effective</TableHead>
+                        <TableHead className="hidden xl:table-cell">Written As</TableHead>
+                        <TableHead className="hidden md:table-cell">Status</TableHead>
+                        <TableHead className="text-center">Paid</TableHead>
+                        <TableHead className="text-center">Issued</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPending.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="h-32 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No pending applications found
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPending.map((app) => (
+                          <TableRow key={app.id}>
+                            <TableCell className="py-3">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium text-foreground">
+                                  {app.clientName}
+                                </span>
+                                <div className="flex flex-wrap items-center gap-1.5 md:hidden">
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {app.planType}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">{app.company}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground md:hidden">
+                                  {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Badge variant="secondary" className="text-xs font-medium">
                                 {app.planType}
                               </Badge>
-                              <span className="text-xs text-muted-foreground">{app.company}</span>
-                            </div>
-                            <span className="text-xs text-muted-foreground md:hidden">
-                              {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
-                            </span>
-                          </div>
-                        </TableCell>
-                        {/* Type */}
-                        <TableCell className="hidden md:table-cell">
-                          <Badge variant="secondary" className="text-xs font-medium">
-                            {app.planType}
-                          </Badge>
-                        </TableCell>
-                        {/* Company */}
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                          {app.company}
-                        </TableCell>
-                        {/* Policy */}
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                          {app.policy}
-                        </TableCell>
-                        {/* Effective Date */}
-                        <TableCell className="hidden lg:table-cell">
-                          <span className="text-sm text-foreground">
-                            {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
-                          </span>
-                        </TableCell>
-                        {/* Written As */}
-                        <TableCell className="hidden xl:table-cell">
-                          <span className="text-xs text-muted-foreground">{app.writtenAs}</span>
-                        </TableCell>
-                        {/* Status */}
-                        <TableCell className="hidden md:table-cell">
-                          <Badge
-                            variant="outline"
-                            className={
-                              app.status === "Pending/Submitted"
-                                ? "border-amber-200 bg-amber-50 text-amber-700 text-[11px]"
-                                : "border-muted text-muted-foreground text-[11px]"
-                            }
-                          >
-                            {app.status === "Pending/Submitted" ? "Pending" : "Not AOR"}
-                          </Badge>
-                        </TableCell>
-                        {/* Commission Paid */}
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center">
-                            <CommissionStatusPicker
-                              value={app.commissionStatus}
-                              onChange={(v) => handleCommissionChange(app.id, v)}
-                            />
-                          </div>
-                        </TableCell>
-                        {/* Issued checkbox */}
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center">
-                            <Checkbox
-                              checked={app.issued}
-                              onCheckedChange={() => handleToggleIssued(app.id)}
-                              aria-label={`Mark ${app.clientName} as issued`}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                              {app.company}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                              {app.policy}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              <span className="text-sm text-foreground">
+                                {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell">
+                              <span className="text-xs text-muted-foreground">{app.writtenAs}</span>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  app.status === "Pending/Submitted"
+                                    ? "border-amber-200 bg-amber-50 text-amber-700 text-[11px]"
+                                    : "border-muted text-muted-foreground text-[11px]"
+                                }
+                              >
+                                {app.status === "Pending/Submitted" ? "Pending" : "Not AOR"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center">
+                                <CommissionStatusPicker
+                                  value={app.commissionStatus}
+                                  onChange={(v) => handleCommissionChange(app.id, v)}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={app.issued}
+                                  onCheckedChange={() => handleToggleIssued(app.id)}
+                                  aria-label={`Mark ${app.clientName} as issued`}
+                                />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Showing {filteredPending.length} of {applications.length} pending applications
+                </p>
+              </div>
             </div>
-          </div>
+          </>
+        )}
 
-          {/* Count */}
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Showing {filtered.length} of {applications.length} pending applications
-            </p>
-          </div>
-        </div>
+        {/* ── Issued view ── */}
+        {activeTab === "issued" && (
+          <>
+            {/* Summary badges */}
+            <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+              <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" />
+                {filteredIssued.length} Issued
+              </Badge>
+              {(() => {
+                const range = getDateRange(datePreset, customFrom, customTo)
+                return (
+                  <span className="text-xs text-muted-foreground">
+                    {format(range.from, "MMM d, yyyy")} &ndash; {format(range.to, "MMM d, yyyy")}
+                  </span>
+                )
+              })()}
+            </div>
+
+            {/* Issued Table */}
+            <div className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="min-w-0 rounded-lg border">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="min-w-[140px]">Name</TableHead>
+                        <TableHead className="hidden md:table-cell">Type</TableHead>
+                        <TableHead className="hidden md:table-cell">Company</TableHead>
+                        <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
+                        <TableHead className="hidden lg:table-cell">Effective</TableHead>
+                        <TableHead className="hidden xl:table-cell">Written As</TableHead>
+                        <TableHead className="hidden lg:table-cell">Issued Date</TableHead>
+                        <TableHead className="hidden md:table-cell">Status</TableHead>
+                        <TableHead className="text-center">Paid</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredIssued.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="h-32 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No issued policies found for this date range
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredIssued.map((app) => (
+                          <TableRow key={app.id}>
+                            <TableCell className="py-3">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium text-foreground">
+                                  {app.clientName}
+                                </span>
+                                <div className="flex flex-wrap items-center gap-1.5 md:hidden">
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {app.planType}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">{app.company}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground md:hidden">
+                                  {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Badge variant="secondary" className="text-xs font-medium">
+                                {app.planType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                              {app.company}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                              {app.policy}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              <span className="text-sm text-foreground">
+                                {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell">
+                              <span className="text-xs text-muted-foreground">{app.writtenAs}</span>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              <span className="text-sm text-foreground">
+                                {format(parseLocalDate(app.issuedDate), "MMM d, yyyy")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  app.status === "Active"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px]"
+                                    : "border-muted text-muted-foreground text-[11px]"
+                                }
+                              >
+                                {app.status === "Active" ? "Active" : "Not AOR"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center">
+                                <CommissionStatusIcon status={app.commissionStatus} />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Showing {filteredIssued.length} issued policies
+                </p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>
   )
