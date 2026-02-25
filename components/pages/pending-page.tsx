@@ -683,7 +683,7 @@ export default function PendingPageInner() {
 
         {/* ── Pending view ── */}
         {!loading && activeTab === "pending" && (
-          <div className="bg-blue-50/30 dark:bg-blue-950/10">
+          <div>
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
               <Badge variant="outline" className="gap-1.5 border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
@@ -825,7 +825,7 @@ export default function PendingPageInner() {
 
         {/* ── Issued view ── */}
         {!loading && activeTab === "issued" && (
-          <div className="bg-emerald-50/30 dark:bg-emerald-950/10">
+          <div>
             {/* Summary badges */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
               <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">

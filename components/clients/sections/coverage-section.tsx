@@ -37,7 +37,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -185,6 +184,12 @@ function formToCoverage(
   id: string,
   existing?: Coverage
 ): Coverage {
+  // When adding/editing a policy with an issued (Active) status, default commission to paid_full
+  const commissionStatus =
+    isActiveCoverageStatus(form.status)
+      ? (existing?.commissionStatus ?? "paid_full")
+      : existing?.commissionStatus
+
   return {
     id,
     planType: form.planType as CoveragePlanType,
@@ -201,6 +206,7 @@ function formToCoverage(
     applicationId: form.applicationId,
     hraCollected: form.hraCollected,
     notes: form.notes.trim() || undefined,
+    commissionStatus,
     createdAt: existing?.createdAt,
     updatedAt: existing?.updatedAt,
   }
@@ -283,8 +289,10 @@ export function CoverageSection({ client }: SectionProps) {
   const [editLoadingPlans, setEditLoadingPlans] = useState(false)
   const [editChangeCarrier, setEditChangeCarrier] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [addressRequiredOpen, setAddressRequiredOpen] = useState(false)
 
   const addresses = client.addresses ?? []
+  const hasAddress = addresses.length > 0
   const resolvedEditAddress =
     editingId != null
       ? editSelectedAddressId != null
@@ -380,6 +388,14 @@ export function CoverageSection({ client }: SectionProps) {
     setPlans([])
     setAddDialogOpen(true)
   }, [])
+
+  const handleAddClick = useCallback(() => {
+    if (!hasAddress) {
+      setAddressRequiredOpen(true)
+      return
+    }
+    handleAddOpen()
+  }, [hasAddress, handleAddOpen])
 
   const handleAddPlanTypeSelect = useCallback((value: CoveragePlanType) => {
     setAddPlanType(value)
@@ -487,12 +503,10 @@ export function CoverageSection({ client }: SectionProps) {
           {coverages.length > 0 ? "Coverage" : "No Coverage on File"}
         </CardTitle>
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" onClick={handleAddOpen}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Add
-            </Button>
-          </DialogTrigger>
+          <Button variant="outline" size="sm" onClick={handleAddClick}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add
+          </Button>
           <DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-h-[90vh] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{addStep === 1 ? "Add Coverage" : "Add Coverage — Details"}</DialogTitle>
@@ -611,6 +625,19 @@ export function CoverageSection({ client }: SectionProps) {
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Remove
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={addressRequiredOpen} onOpenChange={setAddressRequiredOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Address required</AlertDialogTitle>
+            <AlertDialogDescription>
+              You need to add an address before you can add coverage in order to view plans in the correct area.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAddressRequiredOpen(false)}>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
