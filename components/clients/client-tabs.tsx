@@ -103,33 +103,35 @@ export function ClientTabs({
         role="tablist"
         aria-label="Profile sections"
       >
-        <div className="flex flex-wrap gap-1">
-          {SECTIONS.map(({ id, label, icon: Icon }) => {
-            const isActive = activeSection === id
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`section-${id}`}
-                id={`tab-${id}`}
-                onClick={() => setActiveSection(id)}
-                className={`
-                  flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium
-                  transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                  sm:flex-none sm:justify-start sm:px-4
-                  ${isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }
-                `}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            )
-          })}
+        <div className="-mx-1.5 overflow-x-auto px-1.5 sm:mx-0 sm:px-0 scrollbar-none">
+          <div className="flex gap-1 sm:flex-wrap">
+            {SECTIONS.map(({ id, label, icon: Icon }) => {
+              const isActive = activeSection === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`section-${id}`}
+                  id={`tab-${id}`}
+                  onClick={() => setActiveSection(id)}
+                  className={`
+                    flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium
+                    transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                    sm:flex-none sm:justify-start sm:px-4
+                    ${isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }
+                  `}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="whitespace-nowrap">{label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </nav>
 
