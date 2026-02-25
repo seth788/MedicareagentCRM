@@ -13,7 +13,13 @@ export default function PendingLoading() {
         </div>
       </header>
       <div className="flex-1 overflow-auto">
-        <div className="flex flex-wrap items-center gap-2 border-b px-6 py-3">
+        {/* Tab bar skeleton */}
+        <div className="flex items-center gap-0 border-b px-6">
+          <Skeleton className="h-5 w-24 my-3" />
+          <Skeleton className="h-5 w-20 my-3 ml-4" />
+        </div>
+        {/* Filter bar skeleton */}
+        <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-6 py-3">
           <div className="relative flex-1 md:max-w-xs">
             <Skeleton className="h-8 w-full rounded-md" />
           </div>
