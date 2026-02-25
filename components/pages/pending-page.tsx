@@ -13,6 +13,8 @@ import {
   startOfYear,
   endOfYear,
   isWithinInterval,
+  isBefore,
+  startOfDay,
 } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
 import { Search, Clock, CheckCircle2, ChevronDown, ChevronUp, Calendar as CalendarIcon } from "@/components/icons"
@@ -49,6 +51,7 @@ import {
   persistMarkCoverageIssued,
 } from "@/app/actions/crm-mutations"
 import type { PendingIssuedRow } from "@/lib/db/coverages"
+import { useCRMStore } from "@/lib/store"
 
 // ────────────────────────────────────────────────────────────
 //  Commission status
@@ -100,6 +103,12 @@ const COMMISSION_STATUS_OPTIONS: {
 ]
 
 const PENDING_STATUSES = ["Pending/Submitted", "Pending (not agent of record)"]
+
+function isPastEffectiveDate(effectiveDateStr: string): boolean {
+  const eff = parseLocalDate(effectiveDateStr)
+  const today = startOfDay(new Date())
+  return isBefore(eff, today)
+}
 
 function CommissionStatusIcon({ status }: { status: CommissionStatus | null }) {
   if (!status) {
@@ -160,7 +169,7 @@ function CommissionStatusPicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex min-h-[40px] items-center justify-center rounded-md p-1 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-h-[32px] items-center justify-center rounded-md p-1 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Set commission status"
         >
           <CommissionStatusIcon status={value} />
@@ -440,6 +449,7 @@ type ViewTab = "pending" | "issued"
 //  Main component
 // ────────────────────────────────────────────────────────────
 export default function PendingPageInner() {
+  const { updateClient, clients } = useCRMStore()
   const [activeTab, setActiveTab] = useState<ViewTab>("pending")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
@@ -450,6 +460,10 @@ export default function PendingPageInner() {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false)
   const [issueTargetId, setIssueTargetId] = useState<string | null>(null)
   const [issueSelectedStatus, setIssueSelectedStatus] = useState<CommissionStatus>("not_paid")
+
+  // Bulk issue overdue dialog
+  const [bulkIssueDialogOpen, setBulkIssueDialogOpen] = useState(false)
+  const [bulkIssuing, setBulkIssuing] = useState(false)
 
   // Pending sort
   const [pendingSortAsc, setPendingSortAsc] = useState(true)
@@ -497,6 +511,12 @@ export default function PendingPageInner() {
       return pendingSortAsc ? da - db : db - da
     })
   }, [pendingApps, search, pendingSortAsc])
+
+  // Count pending policies past their effective date
+  const overduePendingCount = useMemo(
+    () => filteredPending.filter((a) => isPastEffectiveDate(a.effectiveDate)).length,
+    [filteredPending]
+  )
 
   // Filtered issued (by date range + search)
   const filteredIssued = useMemo(() => {
@@ -557,11 +577,69 @@ export default function PendingPageInner() {
             : r
         )
       )
+    } else {
+      // Sync to store so client profile shows updated status without refresh
+      const client = clients.find((c) => c.id === app.clientId)
+      if (client?.coverages) {
+        const nextCoverages = client.coverages.map((cov) =>
+          cov.id === issueTargetId
+            ? { ...cov, status: newStatus, commissionStatus: issueSelectedStatus }
+            : cov
+        )
+        updateClient(app.clientId, { coverages: nextCoverages })
+      }
     }
-  }, [issueTargetId, issueSelectedStatus, allRows])
+  }, [issueTargetId, issueSelectedStatus, allRows, clients, updateClient])
+
+  const overduePendingIds = useMemo(
+    () =>
+      filteredPending
+        .filter((a) => isPastEffectiveDate(a.effectiveDate))
+        .map((a) => a.coverageId),
+    [filteredPending]
+  )
+
+  const handleConfirmBulkIssue = useCallback(async () => {
+    if (overduePendingIds.length === 0) return
+    setBulkIssuing(true)
+    const status = "not_paid"
+    for (const id of overduePendingIds) {
+      const app = allRows.find((a) => a.coverageId === id)
+      if (!app) continue
+      const newStatus =
+        app.status === "Pending (not agent of record)"
+          ? "Active (not agent of record)"
+          : "Active"
+      setAllRows((prev) =>
+        prev.map((r) =>
+          r.coverageId === id ? { ...r, status: newStatus, commissionStatus: status } : r
+        )
+      )
+      const res = await persistMarkCoverageIssued(id, status, app.status)
+      if (res.error) {
+        setAllRows((prev) =>
+          prev.map((r) =>
+            r.coverageId === id ? { ...r, status: app.status, commissionStatus: app.commissionStatus } : r
+          )
+        )
+      } else {
+        // Sync to store so client profile shows updated status without refresh
+        const client = clients.find((c) => c.id === app.clientId)
+        if (client?.coverages) {
+          const nextCoverages = client.coverages.map((cov) =>
+            cov.id === id ? { ...cov, status: newStatus, commissionStatus: status } : cov
+          )
+          updateClient(app.clientId, { coverages: nextCoverages })
+        }
+      }
+    }
+    setBulkIssuing(false)
+    setBulkIssueDialogOpen(false)
+  }, [overduePendingIds, allRows, clients, updateClient])
 
   const handleCommissionChange = useCallback(async (id: string, status: CommissionStatus) => {
-    const prev = allRows.find((r) => r.coverageId === id)?.commissionStatus ?? null
+    const row = allRows.find((r) => r.coverageId === id)
+    const prev = row?.commissionStatus ?? null
 
     // Optimistic update
     setAllRows((rows) =>
@@ -573,8 +651,17 @@ export default function PendingPageInner() {
       setAllRows((rows) =>
         rows.map((r) => (r.coverageId === id ? { ...r, commissionStatus: prev } : r))
       )
+    } else if (row) {
+      // Sync to store so client profile shows updated commission status
+      const client = clients.find((c) => c.id === row.clientId)
+      if (client?.coverages) {
+        const nextCoverages = client.coverages.map((cov) =>
+          cov.id === id ? { ...cov, commissionStatus: status } : cov
+        )
+        updateClient(row.clientId, { coverages: nextCoverages })
+      }
     }
-  }, [allRows])
+  }, [allRows, clients, updateClient])
 
   const openCmd = () => {
     const fn = (window as unknown as Record<string, unknown>).__openCommandPalette
@@ -643,16 +730,16 @@ export default function PendingPageInner() {
           </div>
 
           {/* Filter bar */}
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6 border-t bg-muted/30">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6 border-t bg-muted/30">
             <div className="relative min-w-0 flex-1 md:max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={
                   activeTab === "pending"
                     ? "Search pending applications..."
                     : "Search issued policies..."
                 }
-                className="h-8 pl-8 text-sm"
+                className="h-7 pl-7 text-xs"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -684,136 +771,229 @@ export default function PendingPageInner() {
         {/* ── Pending view ── */}
         {!loading && activeTab === "pending" && (
           <div>
+            {/* Overdue pending alert */}
+            {overduePendingCount > 0 && (
+              <div className="mx-4 mb-2 mt-2 sm:mx-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/50">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    {overduePendingCount} {overduePendingCount === 1 ? "policy is" : "policies are"} past{" "}
+                    {overduePendingCount === 1 ? "its" : "their"} effective date and still marked as Pending. You can
+                    issue {overduePendingCount === 1 ? "it" : "them"} individually using the checkbox, bulk-issue all
+                    overdue policies with the green Issue button, or enable auto-issue to have the system update
+                    policies automatically on their effective date.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => setBulkIssueDialogOpen(true)}
+                  >
+                    Issue overdue
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Summary badges */}
-            <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-              <Badge variant="outline" className="gap-1.5 border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
-                <Clock className="h-3 w-3" />
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
+              <Badge variant="outline" className="gap-1 text-xs border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+                <Clock className="h-2.5 w-2.5" />
                 {pendingApps.filter((a) => a.status === "Pending/Submitted").length} Pending/Submitted
               </Badge>
-              <Badge variant="outline" className="gap-1.5 border-muted bg-muted/50 text-muted-foreground">
-                <Clock className="h-3 w-3" />
+              <Badge variant="outline" className="gap-1 text-xs border-muted bg-muted/50 text-muted-foreground">
+                <Clock className="h-2.5 w-2.5" />
                 {pendingApps.filter((a) => a.status === "Pending (not agent of record)").length} Not AOR
               </Badge>
             </div>
 
             {/* Pending Table */}
-            <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="min-w-0 overflow-hidden rounded-lg border border-blue-200/60 dark:border-blue-800/40">
-                <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="min-w-[140px]">Name</TableHead>
-                        <TableHead className="hidden md:table-cell">Type</TableHead>
-                        <TableHead className="hidden md:table-cell">Company</TableHead>
-                        <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
-                        <TableHead className="hidden lg:table-cell">
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 outline-none hover:text-foreground"
-                            onClick={() => setPendingSortAsc((v) => !v)}
-                          >
-                            Effective
-                            {pendingSortAsc ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
-                            ) : (
-                              <ChevronDown className="h-3.5 w-3.5" />
+            <div className="p-3 sm:p-5 pt-0 sm:pt-0">
+              {filteredPending.length === 0 ? (
+                <div className="flex h-24 items-center justify-center rounded-lg border border-blue-200/60 dark:border-blue-800/40">
+                  <p className="text-xs text-muted-foreground">No pending applications found</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile card layout */}
+                  <div className="flex flex-col gap-3 md:hidden">
+                    {filteredPending.map((app) => (
+                      <div
+                        key={app.coverageId}
+                        className="rounded-lg border-l-[3px] border border-blue-200/60 border-l-blue-400 bg-card dark:border-blue-800/40 dark:border-l-blue-500"
+                      >
+                        <div className="p-3.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Link
+                                href={`/clients/${app.clientId}?section=coverage`}
+                                className="font-medium text-foreground hover:text-primary hover:underline"
+                              >
+                                {app.clientName}
+                              </Link>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {app.planType}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    app.status === "Pending/Submitted"
+                                      ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[10px] px-1.5 py-0"
+                                      : "border-muted text-muted-foreground text-[10px] px-1.5 py-0"
+                                  }
+                                >
+                                  {app.status === "Pending/Submitted" ? "Pending" : "Not AOR"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <CommissionStatusPicker
+                                value={app.commissionStatus as CommissionStatus | null}
+                                onChange={(v) => handleCommissionChange(app.coverageId, v)}
+                              />
+                              <Checkbox
+                                checked={false}
+                                onCheckedChange={() => handleRequestIssue(app.coverageId)}
+                                aria-label={`Mark ${app.clientName} as issued`}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Carrier</span>
+                              <p className="font-medium text-foreground truncate">{app.carrier}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Effective</span>
+                              <p
+                                className={`whitespace-nowrap font-medium ${
+                                  isPastEffectiveDate(app.effectiveDate)
+                                    ? "text-amber-600 dark:text-amber-500"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">Policy</span>
+                              <p className="font-medium text-foreground truncate">{app.planName}</p>
+                            </div>
+                            {app.writtenAs && (
+                              <div className="col-span-2">
+                                <span className="text-muted-foreground">Written As</span>
+                                <p className="font-medium text-foreground truncate">{app.writtenAs}</p>
+                              </div>
                             )}
-                          </button>
-                        </TableHead>
-                        <TableHead className="hidden xl:table-cell">Written As</TableHead>
-                        <TableHead className="hidden md:table-cell">Status</TableHead>
-                        <TableHead className="text-center">Paid</TableHead>
-                        <TableHead className="text-center">Issued</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPending.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={9} className="h-32 text-center">
-                            <p className="text-sm text-muted-foreground">
-                              No pending applications found
-                            </p>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredPending.map((app, i) => (
-                          <TableRow key={app.coverageId} className={i % 2 === 1 ? "bg-blue-50/30 dark:bg-blue-950/10" : ""}>
-                            <TableCell className="py-3">
-                              <div className="flex flex-col gap-0.5">
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop/tablet table layout */}
+                  <div className="hidden md:block min-w-0 overflow-hidden rounded-lg border border-blue-200/60 dark:border-blue-800/40">
+                    <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+                    <div className="overflow-x-auto">
+                      <Table className="text-xs [&_th]:h-9 [&_th]:py-2 [&_td]:py-2 [&_th]:px-3 [&_td]:px-3">
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="min-w-[120px]">Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Company</TableHead>
+                            <TableHead className="min-w-[180px]">Policy</TableHead>
+                            <TableHead>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 whitespace-nowrap outline-none hover:text-foreground"
+                                onClick={() => setPendingSortAsc((v) => !v)}
+                              >
+                                Effective
+                                {pendingSortAsc ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )}
+                              </button>
+                            </TableHead>
+                            <TableHead className="hidden xl:table-cell">Written As</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-center">Paid</TableHead>
+                            <TableHead className="text-center">Issued</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredPending.map((app) => (
+                            <TableRow key={app.coverageId} className="bg-blue-50/50 dark:bg-blue-950/25 hover:bg-blue-50/50 dark:hover:bg-blue-950/25">
+                              <TableCell>
                                 <Link
                                   href={`/clients/${app.clientId}?section=coverage`}
                                   className="font-medium text-foreground hover:text-primary hover:underline"
                                 >
                                   {app.clientName}
                                 </Link>
-                                <div className="flex flex-wrap items-center gap-1.5 md:hidden">
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                    {app.planType}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">{app.carrier}</span>
-                                </div>
-                                <span className="text-xs text-muted-foreground md:hidden">
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-[10px] font-medium">
+                                  {app.planType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {app.carrier}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {app.planName}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                <span
+                                  className={
+                                    isPastEffectiveDate(app.effectiveDate)
+                                      ? "font-medium text-amber-600 dark:text-amber-500"
+                                      : "text-foreground"
+                                  }
+                                >
                                   {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
                                 </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Badge variant="secondary" className="text-xs font-medium">
-                                {app.planType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                              {app.carrier}
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                              {app.planName}
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell">
-                              <span className="text-sm text-foreground">
-                                {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
-                              </span>
-                            </TableCell>
-                            <TableCell className="hidden xl:table-cell">
-                              <span className="text-xs text-muted-foreground">{app.writtenAs}</span>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  app.status === "Pending/Submitted"
-                                    ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[11px]"
-                                    : "border-muted text-muted-foreground text-[11px]"
-                                }
-                              >
-                                {app.status === "Pending/Submitted" ? "Pending" : "Not AOR"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center">
-                                <CommissionStatusPicker
-                                  value={app.commissionStatus as CommissionStatus | null}
-                                  onChange={(v) => handleCommissionChange(app.coverageId, v)}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center">
-                                <Checkbox
-                                  checked={false}
-                                  onCheckedChange={() => handleRequestIssue(app.coverageId)}
-                                  aria-label={`Mark ${app.clientName} as issued`}
-                                />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                              </TableCell>
+                              <TableCell className="hidden xl:table-cell">
+                                <span className="text-muted-foreground">{app.writtenAs}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    app.status === "Pending/Submitted"
+                                      ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-[10px]"
+                                      : "border-muted text-muted-foreground text-[10px]"
+                                  }
+                                >
+                                  {app.status === "Pending/Submitted" ? "Pending" : "Not AOR"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center">
+                                  <CommissionStatusPicker
+                                    value={app.commissionStatus as CommissionStatus | null}
+                                    onChange={(v) => handleCommissionChange(app.coverageId, v)}
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center">
+                                  <Checkbox
+                                    checked={false}
+                                    onCheckedChange={() => handleRequestIssue(app.coverageId)}
+                                    aria-label={`Mark ${app.clientName} as issued`}
+                                  />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   Showing {filteredPending.length} of {pendingApps.length} pending applications
@@ -827,9 +1007,9 @@ export default function PendingPageInner() {
         {!loading && activeTab === "issued" && (
           <div>
             {/* Summary badges */}
-            <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-              <Badge variant="outline" className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                <CheckCircle2 className="h-3 w-3" />
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
+              <Badge variant="outline" className="gap-1 text-xs border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                <CheckCircle2 className="h-2.5 w-2.5" />
                 {filteredIssued.length} Issued
               </Badge>
               {(() => {
@@ -843,100 +1023,154 @@ export default function PendingPageInner() {
             </div>
 
             {/* Issued Table */}
-            <div className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
-                <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="min-w-[140px]">Name</TableHead>
-                        <TableHead className="hidden md:table-cell">Type</TableHead>
-                        <TableHead className="hidden md:table-cell">Company</TableHead>
-                        <TableHead className="hidden lg:table-cell min-w-[200px]">Policy</TableHead>
-                        <TableHead className="hidden lg:table-cell">Effective</TableHead>
-                        <TableHead className="hidden xl:table-cell">Written As</TableHead>
-                        <TableHead className="hidden md:table-cell">Status</TableHead>
-                        <TableHead className="text-center">Paid</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredIssued.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="h-32 text-center">
-                            <p className="text-sm text-muted-foreground">
-                              No issued policies found for this date range
-                            </p>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredIssued.map((app, i) => (
-                          <TableRow key={app.coverageId} className={i % 2 === 1 ? "bg-emerald-50/30 dark:bg-emerald-950/10" : ""}>
-                            <TableCell className="py-3">
-                              <div className="flex flex-col gap-0.5">
+            <div className="p-3 sm:p-5 pt-0 sm:pt-0">
+              {filteredIssued.length === 0 ? (
+                <div className="flex h-24 items-center justify-center rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
+                  <p className="text-xs text-muted-foreground">No issued policies found for this date range</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile card layout */}
+                  <div className="flex flex-col gap-3 md:hidden">
+                    {filteredIssued.map((app) => (
+                      <div
+                        key={app.coverageId}
+                        className="rounded-lg border-l-[3px] border border-emerald-200/60 border-l-emerald-400 bg-card dark:border-emerald-800/40 dark:border-l-emerald-500"
+                      >
+                        <div className="p-3.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Link
+                                href={`/clients/${app.clientId}?section=coverage`}
+                                className="font-medium text-foreground hover:text-primary hover:underline"
+                              >
+                                {app.clientName}
+                              </Link>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {app.planType}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    app.status === "Active"
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[10px] px-1.5 py-0"
+                                      : "border-muted text-muted-foreground text-[10px] px-1.5 py-0"
+                                  }
+                                >
+                                  {app.status === "Active" ? "Active" : "Not AOR"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              <CommissionStatusPicker
+                                value={app.commissionStatus as CommissionStatus | null}
+                                onChange={(v) => handleCommissionChange(app.coverageId, v)}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Carrier</span>
+                              <p className="font-medium text-foreground truncate">{app.carrier}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Effective</span>
+                              <p className="whitespace-nowrap font-medium text-foreground">
+                                {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">Policy</span>
+                              <p className="font-medium text-foreground truncate">{app.planName}</p>
+                            </div>
+                            {app.writtenAs && (
+                              <div className="col-span-2">
+                                <span className="text-muted-foreground">Written As</span>
+                                <p className="font-medium text-foreground truncate">{app.writtenAs}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop/tablet table layout */}
+                  <div className="hidden md:block min-w-0 overflow-hidden rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
+                    <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+                    <div className="overflow-x-auto">
+                      <Table className="text-xs [&_th]:h-9 [&_th]:py-2 [&_td]:py-2 [&_th]:px-3 [&_td]:px-3">
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="min-w-[120px]">Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Company</TableHead>
+                            <TableHead className="min-w-[180px]">Policy</TableHead>
+                            <TableHead className="whitespace-nowrap">Effective</TableHead>
+                            <TableHead className="hidden xl:table-cell">Written As</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-center">Paid</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredIssued.map((app) => (
+                            <TableRow key={app.coverageId} className="bg-emerald-50/50 dark:bg-emerald-950/25 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/25">
+                              <TableCell>
                                 <Link
                                   href={`/clients/${app.clientId}?section=coverage`}
                                   className="font-medium text-foreground hover:text-primary hover:underline"
                                 >
                                   {app.clientName}
                                 </Link>
-                                <div className="flex flex-wrap items-center gap-1.5 md:hidden">
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                    {app.planType}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">{app.carrier}</span>
-                                </div>
-                                <span className="text-xs text-muted-foreground md:hidden">
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-[10px] font-medium">
+                                  {app.planType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {app.carrier}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {app.planName}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                <span className="text-foreground">
                                   {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
                                 </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Badge variant="secondary" className="text-xs font-medium">
-                                {app.planType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                              {app.carrier}
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                              {app.planName}
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell">
-                              <span className="text-sm text-foreground">
-                                {format(parseLocalDate(app.effectiveDate), "MMM d, yyyy")}
-                              </span>
-                            </TableCell>
-                            <TableCell className="hidden xl:table-cell">
-                              <span className="text-xs text-muted-foreground">{app.writtenAs}</span>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  app.status === "Active"
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[11px]"
-                                    : "border-muted text-muted-foreground text-[11px]"
-                                }
-                              >
-                                {app.status === "Active" ? "Active" : "Not AOR"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center">
-                                <CommissionStatusPicker
-                                  value={app.commissionStatus as CommissionStatus | null}
-                                  onChange={(v) => handleCommissionChange(app.coverageId, v)}
-                                />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                              </TableCell>
+                              <TableCell className="hidden xl:table-cell">
+                                <span className="text-muted-foreground">{app.writtenAs}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    app.status === "Active"
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[10px]"
+                                      : "border-muted text-muted-foreground text-[10px]"
+                                  }
+                                >
+                                  {app.status === "Active" ? "Active" : "Not AOR"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center">
+                                  <CommissionStatusPicker
+                                    value={app.commissionStatus as CommissionStatus | null}
+                                    onChange={(v) => handleCommissionChange(app.coverageId, v)}
+                                  />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   Showing {filteredIssued.length} issued policies
@@ -946,6 +1180,26 @@ export default function PendingPageInner() {
           </div>
         )}
       </div>
+
+      {/* Bulk issue overdue confirmation dialog */}
+      <Dialog open={bulkIssueDialogOpen} onOpenChange={setBulkIssueDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bulk Issue Overdue Policies</DialogTitle>
+            <DialogDescription>
+              Issue all {overduePendingCount} overdue {overduePendingCount === 1 ? "policy" : "policies"} as &quot;Not paid&quot;? You can update commission status individually after issuing.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setBulkIssueDialogOpen(false)} disabled={bulkIssuing}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmBulkIssue} disabled={bulkIssuing} className="bg-emerald-600 hover:bg-emerald-700">
+              {bulkIssuing ? "Issuing…" : `Issue ${overduePendingCount} ${overduePendingCount === 1 ? "policy" : "policies"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Issue confirmation dialog */}
       <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>

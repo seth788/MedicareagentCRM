@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useCRMStore } from "@/lib/store"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,7 @@ export default function SettingsPageInner({
   initialProfile?: SettingsProfileType | null
 } = {}) {
   const { setTheme } = useTheme()
+  const { setAutoIssueApplications } = useCRMStore()
   const hasInitial = initialProfile != null
   const [profile, setProfile] = useState<SettingsProfileType | null>(hasInitial ? initialProfile : null)
   const [loading, setLoading] = useState(!hasInitial)
@@ -63,6 +65,7 @@ export default function SettingsPageInner({
         autoIssueApplications: form.autoIssueApplications,
       })
       setProfile({ ...form })
+      setAutoIssueApplications(form.autoIssueApplications)
       toast.success("Profile updated")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to update profile")

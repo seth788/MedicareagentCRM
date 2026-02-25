@@ -56,7 +56,7 @@ export async function getOrCreateProfile(agentId: string, displayName?: string) 
       id: agentId,
       display_name: displayName ?? null,
     })
-    .select("id, display_name, theme")
+    .select("id, display_name, theme, auto_issue_applications")
     .single()
   if (error) throw error
   return data

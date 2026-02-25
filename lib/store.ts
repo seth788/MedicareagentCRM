@@ -16,6 +16,8 @@ interface CRMState {
   agentCustomSources: Record<string, string[]>
   /** True after first hydrate attempt (success or fail). */
   hydrated: boolean
+  /** When true, pending policies with past effective dates are auto-issued on add/edit. */
+  autoIssueApplications: boolean
 }
 
 let state: CRMState = {
@@ -28,6 +30,7 @@ let state: CRMState = {
   currentAgent: "",
   agentCustomSources: {},
   hydrated: false,
+  autoIssueApplications: true,
 }
 
 /** Hydrate store from Supabase (called after auth). */
@@ -43,6 +46,7 @@ export function hydrateCRM(payload: HydratePayload) {
     agentCustomSources: payload.agentCustomSources,
     currentAgent: payload.displayName,
     hydrated: true,
+    autoIssueApplications: payload.autoIssueApplications ?? true,
   }
   emitChange()
 }
@@ -368,6 +372,11 @@ const VALID_LEAD_SOURCES: LeadSource[] = ["Facebook", "Referral", "Website", "Ca
     emitChange()
   }, [])
 
+  const setAutoIssueApplications = useCallback((value: boolean) => {
+    state = { ...state, autoIssueApplications: value }
+    emitChange()
+  }, [])
+
   return {
     ...snap,
     setCurrentAgent,
@@ -392,5 +401,6 @@ const VALID_LEAD_SOURCES: LeadSource[] = ["Facebook", "Referral", "Website", "Ca
     updateStage,
     deleteStage,
     setCurrentAgent,
+    setAutoIssueApplications,
   }
 }

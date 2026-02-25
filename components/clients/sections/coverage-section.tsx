@@ -104,7 +104,8 @@ function isEffectiveDateReached(effectiveDateStr: string): boolean {
   }
 }
 
-function maybeAutoIssueCoverage(cov: Coverage): Coverage {
+function maybeAutoIssueCoverage(cov: Coverage, autoIssueEnabled: boolean): Coverage {
+  if (!autoIssueEnabled) return cov
   if (!PENDING_STATUSES.includes(cov.status)) return cov
   if (!isEffectiveDateReached(cov.effectiveDate)) return cov
   const newStatus =
@@ -213,7 +214,7 @@ function formToCoverage(
 }
 
 export function CoverageSection({ client }: SectionProps) {
-  const { updateClient, addActivity, currentAgent } = useCRMStore()
+  const { updateClient, addActivity, currentAgent, autoIssueApplications } = useCRMStore()
   const coverages = client.coverages ?? []
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -416,13 +417,13 @@ export function CoverageSection({ client }: SectionProps) {
       return
     }
     let newCoverage = formToCoverage(addForm, crypto.randomUUID())
-    newCoverage = maybeAutoIssueCoverage(newCoverage)
+    newCoverage = maybeAutoIssueCoverage(newCoverage, autoIssueApplications)
     const nextCoverages = [...coverages, newCoverage]
     updateClient(client.id, { coverages: nextCoverages })
     logActivity(`Coverage added: ${newCoverage.carrier} ${newCoverage.planName}`)
     toast.success("Coverage added")
     setAddDialogOpen(false)
-  }, [addForm, coverages, client.id, updateClient, logActivity])
+  }, [addForm, coverages, client.id, updateClient, logActivity, autoIssueApplications])
 
   const handleEditStart = useCallback((c: Coverage) => {
     setExpandedId(c.id)
@@ -450,7 +451,7 @@ export function CoverageSection({ client }: SectionProps) {
       return
     }
     let updated = formToCoverage(editForm, cov.id, cov)
-    updated = maybeAutoIssueCoverage(updated)
+    updated = maybeAutoIssueCoverage(updated, autoIssueApplications)
     const nextCoverages = coverages.map((x) => (x.id === editingId ? updated : x))
     updateClient(client.id, { coverages: nextCoverages })
     logActivity(`Coverage updated: ${updated.carrier} ${updated.planName}`)
@@ -460,7 +461,7 @@ export function CoverageSection({ client }: SectionProps) {
     setEditCarriers([])
     setEditPlans([])
     setEditChangeCarrier(null)
-  }, [editingId, editForm, coverages, client.id, updateClient, logActivity])
+  }, [editingId, editForm, coverages, client.id, updateClient, logActivity, autoIssueApplications])
 
   const handleEditCancel = useCallback(() => {
     setEditingId(null)
