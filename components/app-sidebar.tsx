@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   BarChart3,
+  Clock,
   Settings,
   Shield,
 } from "@/components/icons"
@@ -38,6 +39,7 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Flows", url: "/flows", icon: BarChart3 },
   { title: "Clients", url: "/clients", icon: Users },
+  { title: "Pending", url: "/pending", icon: Clock },
   { title: "Settings", url: "/settings", icon: Settings },
 ]
 
