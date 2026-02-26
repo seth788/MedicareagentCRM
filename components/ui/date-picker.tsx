@@ -79,9 +79,9 @@ export function DatePicker({
   const displayValue = React.useMemo(() => {
     if (!isValidDate) return ""
     if (monthOnly) {
-      return format(date!, "MMMM yyyy")
+      return format(date!, "MMM yyyy")
     }
-    return format(date!, "PPP")
+    return format(date!, "MMM d, yyyy")
   }, [date, isValidDate, monthOnly])
 
   return (

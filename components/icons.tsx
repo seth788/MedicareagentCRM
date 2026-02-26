@@ -52,6 +52,8 @@ import {
   Edit03Icon,
   EyeIcon,
   File01Icon,
+  FilterHorizontalIcon as FilterHorizontalIconSvg,
+  FilterIcon as FilterIconSvg,
   HeartbreakIcon,
   HeartCheckIcon,
   Hospital02Icon,
@@ -170,6 +172,9 @@ export const MapPin = createIcon(Location03Icon, "MapPin")
 export const Shield = createIcon(Shield01Icon, "Shield")
 export const ShieldAlert = createIcon(Shield01Icon, "ShieldAlert")
 export const FileText = createIcon(File01Icon, "FileText")
+export const Filter = createIcon(FilterIconSvg, "Filter")
+export { Filter as FilterIcon }
+export const FilterHorizontal = createIcon(FilterHorizontalIconSvg, "FilterHorizontal")
 export const Moon = createIcon(Moon02Icon, "Moon")
 export const Sun = createIcon(Sun01Icon, "Sun")
 export const Monitor = createIcon(ComputerIcon, "Monitor")

@@ -122,6 +122,7 @@ export function EditClientDialog({
     preferredEmailValue: "",
     spouseId: null as string | null,
     source: "",
+    status: "active" as "active" | "lead" | "inactive",
     medicareNumber: "",
     partAEffectiveDate: "",
     partBEffectiveDate: "",
@@ -169,6 +170,7 @@ export function EditClientDialog({
         preferredEmailValue: prefEmail?.value ?? "",
         spouseId: client.spouseId ?? null,
         source: client.source || "",
+        status: (client.status ?? "active") as "active" | "lead" | "inactive",
         medicareNumber: client.medicareNumber || "",
         partAEffectiveDate: effectiveDateToMonthValue(client.partAEffectiveDate),
         partBEffectiveDate: effectiveDateToMonthValue(client.partBEffectiveDate),
@@ -237,6 +239,7 @@ export function EditClientDialog({
         gender: (form.gender === "M" || form.gender === "F" ? form.gender : undefined) as "M" | "F" | undefined,
         funFacts: form.funFacts.trim() || undefined,
         source: form.source.trim() || undefined,
+        status: form.status,
       })
       if (previousSpouseId !== newSpouseId) {
         if (previousSpouseId) {
@@ -568,6 +571,24 @@ export function EditClientDialog({
                             {form.language}
                           </SelectItem>
                         )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) =>
+                      setForm({ ...form, status: v as "active" | "lead" | "inactive" })
+                    }
+                  >
+                    <SelectTrigger id="edit-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active Client</SelectItem>
+                      <SelectItem value="lead">Lead</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

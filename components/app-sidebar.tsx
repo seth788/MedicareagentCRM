@@ -12,6 +12,7 @@ import {
   Settings,
   ArrowRight,
   MoreHorizontal,
+  FilterIcon,
 } from "@/components/icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -43,6 +44,7 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Flows", url: "/flows", icon: BarChart3 },
   { title: "Clients", url: "/clients", icon: Users },
+  { title: "Reports", url: "/reports", icon: FilterIcon },
   { title: "Pending", url: "/pending", icon: Clock },
   { title: "Settings", url: "/settings", icon: Settings },
 ]

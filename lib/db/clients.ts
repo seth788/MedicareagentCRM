@@ -27,7 +27,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
   const supabase = await createClient()
   const { data: rows, error } = await supabase
     .from("clients")
-    .select("id, first_name, last_name, title, middle_name, suffix, nickname, gender, fun_facts, dob, turning65_date, preferred_contact_method, language, spouse_id, medicare_number, part_a_effective_date, part_b_effective_date, allergies, conditions, health_tracker, source, image_url, created_at, updated_at")
+    .select("id, first_name, last_name, title, middle_name, suffix, nickname, gender, fun_facts, dob, turning65_date, preferred_contact_method, language, spouse_id, medicare_number, part_a_effective_date, part_b_effective_date, allergies, conditions, health_tracker, source, status, image_url, created_at, updated_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
   if (error) throw error
@@ -167,6 +167,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       conditions: c.conditions ?? [],
       healthTracker: c.health_tracker ?? undefined,
       source: c.source ?? undefined,
+      status: (c as { status?: string }).status ?? undefined,
       notes: (notesBy[c.id] ?? []).map((n) => ({
         text: n.text,
         createdAt: n.created_at,
@@ -205,6 +206,7 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
     part_a_effective_date: client.partAEffectiveDate ?? null,
     part_b_effective_date: client.partBEffectiveDate ?? null,
     source: client.source ?? null,
+    status: client.status ?? null,
     allergies: client.allergies ?? [],
     conditions: client.conditions ?? [],
     health_tracker: client.healthTracker ?? [],
@@ -394,6 +396,7 @@ export async function updateClient(
   if (updates.partBEffectiveDate !== undefined)
     clientRow.part_b_effective_date = updates.partBEffectiveDate
   if (updates.source !== undefined) clientRow.source = updates.source
+  if (updates.status !== undefined) clientRow.status = updates.status
   if (updates.allergies !== undefined) clientRow.allergies = updates.allergies
   if (updates.conditions !== undefined) clientRow.conditions = updates.conditions
   if (updates.healthTracker !== undefined) clientRow.health_tracker = updates.healthTracker

@@ -208,6 +208,8 @@ export interface Client {
   healthTracker?: string[]
   /** How the client was acquired (e.g. Website, Facebook, Referral); agents can add custom sources. */
   source?: string
+  /** Agent-set: active, lead, or inactive. */
+  status?: "active" | "lead" | "inactive"
   /** Agent-added notes (free-form) with timestamps; action-based events are in the activity timeline. */
   notes?: NoteEntry[]
   /** Multiple plans per client (MAPD, PDP, etc.). */

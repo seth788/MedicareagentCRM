@@ -85,6 +85,7 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
     firstName: "",
     lastName: "",
     source: "",
+    status: "active" as "active" | "lead" | "inactive",
     phones: [{ ...createEmptyPhone(), isPreferred: true }] as ClientPhone[],
     emails: [{ ...createEmptyEmail(), isPreferred: true }] as ClientEmail[],
     dob: "",
@@ -147,6 +148,7 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
       firstName: form.firstName,
       lastName: form.lastName,
       source: form.source.trim() || undefined,
+      status: form.status,
       phones,
       emails,
       dob: dobStr,
@@ -171,6 +173,7 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
       firstName: "",
       lastName: "",
       source: "",
+      status: "active",
       phones: [{ ...createEmptyPhone(), isPreferred: true }],
       emails: [{ ...createEmptyEmail(), isPreferred: true }],
       dob: "",
@@ -218,6 +221,24 @@ export function NewClientDialog({ open, onOpenChange }: NewClientDialogProps) {
                 placeholder="Adams"
               />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-status">Status</Label>
+            <Select
+              value={form.status}
+              onValueChange={(v) =>
+                setForm({ ...form, status: v as "active" | "lead" | "inactive" })
+              }
+            >
+              <SelectTrigger id="c-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active Client</SelectItem>
+                <SelectItem value="lead">Lead</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-source">Source</Label>
