@@ -5,6 +5,16 @@ export interface SendEmailOptions {
   subject: string
   text: string
   html?: string
+  from?: string
+  /** Override the display name only; email address comes from RESEND_FROM or from */
+  fromName?: string
+  replyTo?: string | string[]
+}
+
+/** Extract email address from "Name <email>" or return as-is if plain email */
+function getEmailFromAddress(from: string): string {
+  const match = from.match(/<([^>]+)>/)
+  return match ? match[1].trim() : from.trim()
 }
 
 export type SendEmailResult =
@@ -12,10 +22,16 @@ export type SendEmailResult =
   | { ok: false; error: string }
 
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-  const { to, subject, text, html } = options
+  const { to, subject, text, html, from: fromOverride, fromName, replyTo } = options
 
   const apiKey = process.env.RESEND_API_KEY
-  const from = process.env.RESEND_FROM
+  const baseFrom = fromOverride ?? process.env.RESEND_FROM
+  const email = baseFrom ? getEmailFromAddress(baseFrom) : ""
+  const from = baseFrom
+    ? fromName
+      ? `${fromName} <${email}>`
+      : baseFrom
+    : ""
 
   if (!apiKey || !from) {
     return {
@@ -34,6 +50,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       subject,
       text,
       ...(html && { html }),
+      ...(replyTo && { replyTo }),
     })
 
     if (error) {

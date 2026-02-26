@@ -11,7 +11,10 @@ import {
   MapPin,
   MessageSquare,
   Calendar,
+  CalendarPlus,
   StickyNote,
+  FileText,
+  BarChart3,
   CheckCircle2,
   Clock,
   ChevronRight,
@@ -96,19 +99,47 @@ const activityIcons: Record<ActivityType, React.ElementType> = {
   call: Phone,
   email: Mail,
   text: MessageSquare,
-  appointment: Calendar,
+  appointment: CalendarPlus,
   note: StickyNote,
+  coverage: FileText,
+  flow: BarChart3,
 }
 
 const activityColors: Record<ActivityType, string> = {
   call: "bg-chart-1/10 text-chart-1",
   email: "bg-chart-2/10 text-chart-2",
-  text: "bg-chart-3/10 text-chart-3",
+  text: "bg-chart-5/10 text-chart-5",
   appointment: "bg-chart-4/10 text-chart-4",
   note: "bg-muted text-muted-foreground",
+  coverage: "bg-chart-3/10 text-chart-3",
+  flow: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
 }
 
-const QUICK_ACTIVITY_LIMIT = 5
+/** Derive display type for backwards compat: note-type activities with coverage or flow descriptions. */
+function getActivityDisplayType(activity: { type: ActivityType; description: string }): ActivityType {
+  if (activity.type === "coverage") return "coverage"
+  if (
+    activity.type === "note" &&
+    /^Coverage (added|updated|removed):/.test(activity.description)
+  ) {
+    return "coverage"
+  }
+  if (activity.type === "flow") return "flow"
+  if (activity.type === "note" && isFlowActivityDescription(activity.description)) {
+    return "flow"
+  }
+  return activity.type
+}
+
+function isFlowActivityDescription(desc: string): boolean {
+  return (
+    (desc.startsWith("Moved to ") && desc.includes(" in ")) ||
+    (desc.startsWith("Added to ") && (desc.includes("(stage:") || desc.includes("— Stage:"))) ||
+    (desc.startsWith("Removed from ") && desc.endsWith(" Flow"))
+  )
+}
+
+const QUICK_ACTIVITY_LIMIT = 4
 
 function getClientDisplayName(c: { title?: string; firstName: string; lastName: string; suffix?: string }): string {
   return [c.title, c.firstName, c.lastName, c.suffix].filter(Boolean).join(" ")
@@ -118,6 +149,7 @@ export function ContactSection({
   client,
   activities,
   tasks,
+  sectionBasePath,
   onNavigateToSection,
   onEditPersonal,
   onEditAddresses,
@@ -147,8 +179,16 @@ export function ContactSection({
   const age = mounted ? getAgeFromDob(client.dob) : 0
   const pendingTasks = tasks.filter((t) => !t.completedAt)
   const completedTasks = tasks.filter((t) => t.completedAt)
-  const actionActivities = activities.filter((a) => a.type !== "note")
-  const sortedActivities = [...actionActivities].sort(
+  const clientNotes = client.notes ?? []
+  const clientNoteItems = clientNotes.map((n) => ({
+    id: `client-note-${n.createdAt}`,
+    type: "note" as const,
+    description: n.text,
+    createdAt: n.createdAt,
+    createdBy: undefined as string | undefined,
+  }))
+  const allActivitiesAndNotes = [...activities, ...clientNoteItems]
+  const sortedActivities = [...allActivitiesAndNotes].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
   const quickActivities = sortedActivities.slice(0, QUICK_ACTIVITY_LIMIT)
@@ -1344,16 +1384,25 @@ export function ContactSection({
             </div>
             Recent activity
           </CardTitle>
-          {sortedActivities.length > QUICK_ACTIVITY_LIMIT && onNavigateToSection && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-              onClick={() => onNavigateToSection("notes")}
-            >
-              View all
-              <ChevronRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
+          {sortedActivities.length > QUICK_ACTIVITY_LIMIT && (sectionBasePath || onNavigateToSection) && (
+            sectionBasePath ? (
+              <Button variant="ghost" size="sm" className="text-xs" asChild>
+                <Link href={`${sectionBasePath}?section=notes`} scroll={false} className="inline-flex items-center">
+                  View all
+                  <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => onNavigateToSection!("notes")}
+              >
+                View all
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )
           )}
         </CardHeader>
         <CardContent className="p-6">
@@ -1366,22 +1415,31 @@ export function ContactSection({
               <p className="mt-1 text-xs text-muted-foreground">
                 Add a note or log a call in Notes & Activity.
               </p>
-              {onNavigateToSection && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => onNavigateToSection("notes")}
-                >
-                  Go to Notes & Activity
-                </Button>
+              {(sectionBasePath || onNavigateToSection) && (
+                sectionBasePath ? (
+                  <Button variant="outline" size="sm" className="mt-4" asChild>
+                    <Link href={`${sectionBasePath}?section=notes`} scroll={false}>
+                      Go to Notes & Activity
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => onNavigateToSection!("notes")}
+                  >
+                    Go to Notes & Activity
+                  </Button>
+                )
               )}
             </div>
           ) : (
             <div className="space-y-3">
               {quickActivities.map((activity) => {
-                const Icon = activityIcons[activity.type]
-                const colorClass = activityColors[activity.type]
+                const displayType = getActivityDisplayType(activity)
+                const Icon = activityIcons[displayType]
+                const colorClass = activityColors[displayType]
                 return (
                   <div
                     key={activity.id}
@@ -1398,22 +1456,31 @@ export function ContactSection({
                         </p>
                       )}
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {activity.createdBy} · {format(new Date(activity.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                        {activity.createdBy ?? "Note"} · {format(new Date(activity.createdAt), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                   </div>
                 )
               })}
-              {sortedActivities.length > QUICK_ACTIVITY_LIMIT && onNavigateToSection && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs"
-                  onClick={() => onNavigateToSection("notes")}
-                >
-                  View all {sortedActivities.length} in Notes & Activity
-                  <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                </Button>
+              {sortedActivities.length > QUICK_ACTIVITY_LIMIT && (sectionBasePath || onNavigateToSection) && (
+                sectionBasePath ? (
+                  <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
+                    <Link href={`${sectionBasePath}?section=notes`} scroll={false} className="inline-flex items-center">
+                      View all {sortedActivities.length} in Notes & Activity
+                      <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => onNavigateToSection!("notes")}
+                  >
+                    View all {sortedActivities.length} in Notes & Activity
+                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )
               )}
             </div>
           )}

@@ -12,6 +12,7 @@ export type SettingsProfile = {
   npn: string
   theme: ThemeValue
   autoIssueApplications: boolean
+  avatarUrl?: string | null
 }
 
 export async function getSettingsProfile(): Promise<SettingsProfile | null> {

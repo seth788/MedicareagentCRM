@@ -12,6 +12,10 @@ interface CRMState {
   flows: Flow[]
   stages: Stage[]
   currentAgent: string
+  /** Agent email (from auth). */
+  currentAgentEmail: string
+  /** Agent profile picture URL. */
+  currentAgentAvatarUrl: string | null
   /** Custom source options per agent (agent name -> list of source labels). */
   agentCustomSources: Record<string, string[]>
   /** True after first hydrate attempt (success or fail). */
@@ -28,6 +32,8 @@ let state: CRMState = {
   flows: [],
   stages: [],
   currentAgent: "",
+  currentAgentEmail: "",
+  currentAgentAvatarUrl: null,
   agentCustomSources: {},
   hydrated: false,
   autoIssueApplications: true,
@@ -45,6 +51,8 @@ export function hydrateCRM(payload: HydratePayload) {
     tasks: payload.tasks,
     agentCustomSources: payload.agentCustomSources,
     currentAgent: payload.displayName,
+    currentAgentEmail: payload.email ?? "",
+    currentAgentAvatarUrl: payload.avatarUrl ?? null,
     hydrated: true,
     autoIssueApplications: payload.autoIssueApplications ?? true,
   }
@@ -372,6 +380,16 @@ const VALID_LEAD_SOURCES: LeadSource[] = ["Facebook", "Referral", "Website", "Ca
     emitChange()
   }, [])
 
+  const setCurrentAgentEmail = useCallback((email: string) => {
+    state = { ...state, currentAgentEmail: email }
+    emitChange()
+  }, [])
+
+  const setCurrentAgentAvatarUrl = useCallback((url: string | null) => {
+    state = { ...state, currentAgentAvatarUrl: url }
+    emitChange()
+  }, [])
+
   const setAutoIssueApplications = useCallback((value: boolean) => {
     state = { ...state, autoIssueApplications: value }
     emitChange()
@@ -401,6 +419,8 @@ const VALID_LEAD_SOURCES: LeadSource[] = ["Facebook", "Referral", "Website", "Ca
     updateStage,
     deleteStage,
     setCurrentAgent,
+    setCurrentAgentEmail,
+    setCurrentAgentAvatarUrl,
     setAutoIssueApplications,
   }
 }

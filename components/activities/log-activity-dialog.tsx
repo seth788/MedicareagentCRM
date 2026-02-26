@@ -24,7 +24,7 @@ import { toast } from "sonner"
 import type { ActivityType } from "@/lib/types"
 
 
-const ACTIVITY_TYPES: { value: Exclude<ActivityType, "note">; label: string }[] = [
+const ACTIVITY_TYPES: { value: Exclude<ActivityType, "note" | "coverage" | "flow">; label: string }[] = [
   { value: "call", label: "Call" },
   { value: "email", label: "Email" },
   { value: "text", label: "Text" },
@@ -48,7 +48,7 @@ export function LogActivityDialog({
   alsoLogToClientId,
 }: LogActivityDialogProps) {
   const { addActivity, currentAgent } = useCRMStore()
-  const [type, setType] = useState<Exclude<ActivityType, "note">>("call")
+  const [type, setType] = useState<Exclude<ActivityType, "note" | "coverage" | "flow">>("call")
   const [description, setDescription] = useState("")
   const [outcome, setOutcome] = useState("")
 
@@ -101,7 +101,7 @@ export function LogActivityDialog({
         <form onSubmit={handleSubmit} className="grid gap-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="log-activity-type">Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v as Exclude<ActivityType, "note">)}>
+            <Select value={type} onValueChange={(v) => setType(v as Exclude<ActivityType, "note" | "coverage" | "flow">)}>
               <SelectTrigger id="log-activity-type">
                 <SelectValue />
               </SelectTrigger>

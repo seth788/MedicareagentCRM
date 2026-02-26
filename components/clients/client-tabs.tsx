@@ -5,9 +5,9 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
   User,
   Heart,
-  ShieldCheck,
   FileText,
-  StickyNote,
+  StickyNote2,
+  SecurityLock,
   ChevronDown,
 } from "@/components/icons"
 import {
@@ -20,12 +20,12 @@ import {
 import type { Client, Activity, Task } from "@/lib/types"
 import type { SectionId } from "@/components/clients/sections"
 
-const SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[] = [
+export const CLIENT_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "contact", label: "Contact", icon: User },
   { id: "health", label: "Health", icon: Heart },
-  { id: "medicare", label: "Medicare", icon: ShieldCheck },
   { id: "coverage", label: "Coverage", icon: FileText },
-  { id: "notes", label: "Notes & Activity", icon: StickyNote },
+  { id: "notes", label: "Notes & Activity", icon: StickyNote2 },
+  { id: "medicare", label: "Medicare", icon: SecurityLock },
 ]
 
 const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes"]
@@ -42,6 +42,9 @@ interface ClientTabsProps {
   onEditContact?: () => void
   onEditAddresses?: () => void
   onEditMedicare?: () => void
+  /** When true, section is controlled by parent and desktop pill nav is hidden (icon sidebar used instead) */
+  activeSection?: SectionId
+  onSectionChange?: (section: SectionId) => void
 }
 
 export function ClientTabs({
@@ -52,6 +55,8 @@ export function ClientTabs({
   onEditContact,
   onEditAddresses,
   onEditMedicare,
+  activeSection: controlledSection,
+  onSectionChange,
 }: ClientTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -59,36 +64,40 @@ export function ClientTabs({
   const sectionFromUrl = searchParams.get("section")
   const initialSection = isValidSection(sectionFromUrl) ? sectionFromUrl : "contact"
 
-  const [activeSection, setActiveSectionState] = useState<SectionId>(initialSection)
+  const [internalSection, setInternalSection] = useState<SectionId>(initialSection)
+  const isControlled = controlledSection !== undefined && onSectionChange !== undefined
+  const activeSection = isControlled ? controlledSection! : internalSection
+
+  const setActiveSection = useCallback(
+    (section: SectionId) => {
+      if (!isControlled) {
+        setInternalSection(section)
+        const params = new URLSearchParams(searchParams.toString())
+        if (section === "contact") params.delete("section")
+        else params.set("section", section)
+        const query = params.toString()
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+      }
+      onSectionChange?.(section)
+    },
+    [pathname, router, searchParams, isControlled, onSectionChange]
+  )
 
   // Sync state from URL on mount and when URL section changes (e.g. back/forward)
   useEffect(() => {
     const section = searchParams.get("section")
     const next = isValidSection(section) ? section : "contact"
     if (next !== activeSection) {
-      setActiveSectionState(next)
+      if (!isControlled) setInternalSection(next)
+      onSectionChange?.(next)
     }
-  }, [searchParams])
-
-  const setActiveSection = useCallback(
-    (section: SectionId) => {
-      setActiveSectionState(section)
-      const params = new URLSearchParams(searchParams.toString())
-      if (section === "contact") {
-        params.delete("section")
-      } else {
-        params.set("section", section)
-      }
-      const query = params.toString()
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-    },
-    [pathname, router, searchParams]
-  )
+  }, [searchParams, activeSection, isControlled, onSectionChange])
 
   const sectionProps = {
     client,
     activities,
     tasks,
+    sectionBasePath: `/clients/${client.id}`,
     onNavigateToSection: setActiveSection,
     onEditPersonal,
     onEditContact,
@@ -102,7 +111,7 @@ export function ClientTabs({
       <div className="sm:hidden">
         <div className="relative rounded-xl border bg-card">
           {(() => {
-            const active = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0]
+            const active = CLIENT_SECTIONS.find((s) => s.id === activeSection) ?? CLIENT_SECTIONS[0]
             const ActiveIcon = active.icon
             return (
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center gap-2 pl-4">
@@ -116,7 +125,7 @@ export function ClientTabs({
             aria-label="Select profile section"
             className="w-full min-h-[48px] appearance-none rounded-xl bg-transparent py-3 pl-10 pr-10 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            {SECTIONS.map(({ id, label }) => (
+            {CLIENT_SECTIONS.map(({ id, label }) => (
               <option key={id} value={id}>
                 {label}
               </option>
@@ -128,14 +137,15 @@ export function ClientTabs({
         </div>
       </div>
 
-      {/* Desktop: pill-style section nav */}
+      {/* Desktop: pill-style section nav (hidden when using icon sidebar) */}
+      {!isControlled && (
       <nav
         className="hidden sm:block rounded-xl border bg-card p-1.5"
         role="tablist"
         aria-label="Profile sections"
       >
         <div className="flex flex-wrap gap-1">
-          {SECTIONS.map(({ id, label, icon: Icon }) => {
+          {CLIENT_SECTIONS.map(({ id, label, icon: Icon }) => {
             const isActive = activeSection === id
             return (
               <button
@@ -162,6 +172,7 @@ export function ClientTabs({
           })}
         </div>
       </nav>
+      )}
 
       {/* Content area */}
       <div

@@ -73,6 +73,7 @@ import {
   PillIcon,
   PlusSignIcon,
   Search01Icon,
+  SecurityLockIcon,
   SentIcon,
   Settings01Icon,
   SignatureIcon,
@@ -80,6 +81,7 @@ import {
   Shield01Icon,
   StethoscopeIcon,
   StickyNote01Icon,
+  StickyNote02Icon,
   Sun01Icon,
   StarIcon,
   TableIcon as TableIconSvg,
@@ -180,6 +182,7 @@ export const User = createIcon(UserCircleIcon, "User")
 export const Heart = createIcon(HeartCheckIcon, "Heart")
 export const ShieldCheck = createIcon(Shield01Icon, "ShieldCheck")
 export const StickyNote = createIcon(StickyNote01Icon, "StickyNote")
+export const StickyNote2 = createIcon(StickyNote02Icon, "StickyNote2")
 export const CalendarClock = createIcon(Calendar01Icon, "CalendarClock")
 export const CheckCircle2 = createIcon(CheckmarkCircle02Icon, "CheckCircle2")
 export const Clock = createIcon(Clock01Icon, "Clock")
@@ -214,3 +217,4 @@ export const UserBlock02 = createIcon(UserBlock02Icon, "UserBlock02")
 export const Appointment02 = createIcon(Appointment02Icon, "Appointment02")
 export const Mailbox01 = createIcon(Mailbox01Icon, "Mailbox01")
 export const Signature = createIcon(SignatureIcon, "Signature")
+export const SecurityLock = createIcon(SecurityLockIcon, "SecurityLock")

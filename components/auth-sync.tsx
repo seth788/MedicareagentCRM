@@ -4,15 +4,16 @@ import { useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useCRMStore } from "@/lib/store"
 
-/** Syncs logged-in user to store currentAgent and listens for sign out. */
+/** Syncs logged-in user to store currentAgent, currentAgentEmail and listens for sign out. */
 export function AuthSync() {
-  const { setCurrentAgent } = useCRMStore()
+  const { setCurrentAgent, setCurrentAgentEmail } = useCRMStore()
 
   useEffect(() => {
     const supabase = createClient()
     const setAgentFromUser = (email: string | undefined, fullName: string | undefined) => {
       const name = fullName?.trim() || email || "Agent"
       setCurrentAgent(name)
+      setCurrentAgentEmail(email ?? "")
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,7 +32,7 @@ export function AuthSync() {
       }
     })
     return () => subscription.unsubscribe()
-  }, [setCurrentAgent])
+  }, [setCurrentAgent, setCurrentAgentEmail])
 
   return null
 }

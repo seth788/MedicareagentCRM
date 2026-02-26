@@ -218,7 +218,7 @@ export interface Client {
   updatedAt: string
 }
 
-export type ActivityType = "call" | "email" | "text" | "appointment" | "note"
+export type ActivityType = "call" | "email" | "text" | "appointment" | "note" | "coverage" | "flow"
 
 export interface Activity {
   id: string

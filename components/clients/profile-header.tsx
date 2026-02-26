@@ -13,7 +13,7 @@ import {
   Pencil,
   Clock,
   Heart,
-  Shield,
+  FileText,
   MessageSquare,
 } from "@/components/icons"
 import { Badge } from "@/components/ui/badge"
@@ -134,7 +134,7 @@ export function ClientProfileHeader({
       id: `act-${Date.now()}`,
       relatedType: "Client",
       relatedId: client.id,
-      type: "note",
+      type: "flow",
       description: `Removed from "${flowName}" Flow`,
       createdAt: now,
       createdBy: currentAgent,
@@ -164,7 +164,7 @@ export function ClientProfileHeader({
         {/* Profile content overlapping the banner */}
         <div className="relative px-5 pb-6 sm:px-7">
           {/* Avatar - positioned to overlap the banner */}
-          <div className="-mt-10 mb-4 flex items-end justify-between sm:-mt-12">
+          <div className="-mt-8 mb-4 flex items-end justify-between sm:-mt-10">
             <TooltipProvider delayDuration={300}>
               <Tooltip
                 open={avatarTooltipOpen}
@@ -186,7 +186,7 @@ export function ClientProfileHeader({
                     type="button"
                     onClick={handleAvatarClick}
                     disabled={uploading}
-                    className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-primary text-lg font-bold tracking-wide text-primary-foreground shadow-md transition-opacity hover:opacity-90 disabled:opacity-70 sm:h-20 sm:w-20 sm:text-xl"
+                    className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-card bg-primary text-sm font-bold tracking-wide text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-70 sm:h-14 sm:w-14 sm:text-base"
                     aria-label="Upload client photo"
                   >
                     <input
@@ -387,7 +387,7 @@ export function ClientProfileHeader({
               </div>
               <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-chart-3/10">
-                  <Shield className="h-3.5 w-3.5 text-chart-3" />
+                  <FileText className="h-3.5 w-3.5 text-chart-3" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground leading-none">Coverage</p>

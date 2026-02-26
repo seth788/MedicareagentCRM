@@ -7,9 +7,13 @@ import {
   Mail,
   MessageSquare,
   Calendar,
+  CalendarPlus,
   StickyNote,
+  StickyNote2,
   Plus,
   Pencil,
+  FileText,
+  BarChart3,
 } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,16 +37,20 @@ const activityIcons: Record<ActivityType, React.ElementType> = {
   call: Phone,
   email: Mail,
   text: MessageSquare,
-  appointment: Calendar,
+  appointment: CalendarPlus,
   note: StickyNote,
+  coverage: FileText,
+  flow: BarChart3,
 }
 
 const activityColors: Record<ActivityType, string> = {
   call: "bg-chart-1/10 text-chart-1 border-chart-1/20",
   email: "bg-chart-2/10 text-chart-2 border-chart-2/20",
-  text: "bg-chart-3/10 text-chart-3 border-chart-3/20",
+  text: "bg-chart-5/10 text-chart-5 border-chart-5/20",
   appointment: "bg-chart-4/10 text-chart-4 border-chart-4/20",
   note: "bg-muted/50 text-muted-foreground border-muted",
+  coverage: "bg-chart-3/10 text-chart-3 border-chart-3/20",
+  flow: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
 }
 
 const activityLabels: Record<ActivityType, string> = {
@@ -51,6 +59,32 @@ const activityLabels: Record<ActivityType, string> = {
   text: "Text",
   appointment: "Appointment",
   note: "Note",
+  coverage: "Coverage",
+  flow: "Flows",
+}
+
+/** Derive display type for backwards compat: note-type activities with coverage or flow descriptions. */
+function getActivityDisplayType(activity: { type: ActivityType; description: string }): ActivityType {
+  if (activity.type === "coverage") return "coverage"
+  if (
+    activity.type === "note" &&
+    /^Coverage (added|updated|removed):/.test(activity.description)
+  ) {
+    return "coverage"
+  }
+  if (activity.type === "flow") return "flow"
+  if (activity.type === "note" && isFlowActivityDescription(activity.description)) {
+    return "flow"
+  }
+  return activity.type
+}
+
+function isFlowActivityDescription(desc: string): boolean {
+  return (
+    (desc.startsWith("Moved to ") && desc.includes(" in ")) ||
+    (desc.startsWith("Added to ") && (desc.includes("(stage:") || desc.includes("— Stage:"))) ||
+    (desc.startsWith("Removed from ") && desc.endsWith(" Flow"))
+  )
 }
 
 export function NotesSection({ client, activities }: SectionProps) {
@@ -98,7 +132,7 @@ export function NotesSection({ client, activities }: SectionProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-2/10">
-              <StickyNote className="h-4 w-4 text-chart-2" />
+              <StickyNote2 className="h-4 w-4 text-chart-2" />
             </div>
             Notes
             {clientNotes.length > 0 && (
@@ -261,9 +295,10 @@ export function NotesSection({ client, activities }: SectionProps) {
           ) : (
             <div className="space-y-1">
               {sortedActivities.map((activity) => {
-                const Icon = activityIcons[activity.type]
-                const colorClass = activityColors[activity.type]
-                const label = activityLabels[activity.type]
+                const displayType = getActivityDisplayType(activity)
+                const Icon = activityIcons[displayType]
+                const colorClass = activityColors[displayType]
+                const label = activityLabels[displayType]
                 return (
                   <div
                     key={activity.id}

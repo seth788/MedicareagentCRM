@@ -10,13 +10,14 @@ export type ProfileForSettings = {
   npn: string
   theme: ThemeValue
   autoIssueApplications: boolean
+  avatarUrl: string | null
 }
 
 export async function getProfile(agentId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, first_name, last_name, npn, theme, auto_issue_applications")
+    .select("id, display_name, first_name, last_name, npn, theme, auto_issue_applications, avatar_url")
     .eq("id", agentId)
     .single()
   if (error && error.code !== "PGRST116") throw error
@@ -36,6 +37,7 @@ export async function getProfileForSettings(
     themeRaw === "dark" || themeRaw === "system" ? themeRaw : "light"
   const autoIssue =
     (row?.auto_issue_applications as boolean | null) ?? true
+  const avatarUrl = (row?.avatar_url as string | null)?.trim() || null
   return {
     firstName: first || (display ? display.split(/\s+/)[0] ?? "" : ""),
     lastName: last || (display ? display.split(/\s+/).slice(1).join(" ") ?? "" : ""),
@@ -43,7 +45,17 @@ export async function getProfileForSettings(
     npn: (row?.npn as string | null)?.trim() ?? "",
     theme,
     autoIssueApplications: autoIssue,
+    avatarUrl,
   }
+}
+
+export async function updateProfileAvatar(agentId: string, avatarUrl: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+    .eq("id", agentId)
+  if (error) throw error
 }
 
 export async function getOrCreateProfile(agentId: string, displayName?: string) {
@@ -56,7 +68,7 @@ export async function getOrCreateProfile(agentId: string, displayName?: string) 
       id: agentId,
       display_name: displayName ?? null,
     })
-    .select("id, display_name, theme, auto_issue_applications")
+    .select("id, display_name, theme, auto_issue_applications, avatar_url")
     .single()
   if (error) throw error
   return data

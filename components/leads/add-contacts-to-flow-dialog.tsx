@@ -130,7 +130,7 @@ export function AddContactsToFlowDialog({
           id: `act-${Date.now()}-${clientId}-${added}`,
           relatedType: "Client",
           relatedId: clientId,
-          type: "note",
+          type: "flow",
           description: `Added to ${flowName} — Stage: ${stageName}`,
           createdAt: now,
           createdBy: currentAgent,

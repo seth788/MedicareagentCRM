@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from "react"
 import { format, isBefore, addDays, startOfDay } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
 import {
-  Shield,
   Plus,
   FileText,
   ChevronDown,
@@ -371,7 +370,7 @@ export function CoverageSection({ client }: SectionProps) {
         id: `act-${Date.now()}`,
         relatedType: "Client",
         relatedId: client.id,
-        type: "note",
+        type: "coverage",
         description,
         createdAt: new Date().toISOString(),
         createdBy: currentAgent,
@@ -499,7 +498,7 @@ export function CoverageSection({ client }: SectionProps) {
       <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
         <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-chart-3/10">
-            <Shield className="h-4 w-4 text-chart-3" />
+            <FileText className="h-4 w-4 text-chart-3" />
           </div>
           {coverages.length > 0 ? "Coverage" : "No Coverage on File"}
         </CardTitle>

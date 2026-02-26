@@ -1680,7 +1680,7 @@ export function HealthSection({ client }: SectionProps) {
                         </SelectTrigger>
                         <SelectContent>
                           {FREQUENCY_FILL_OPTIONS.map((opt) => (
-                            <SelectItem key={opt} value={opt} hideIndicator>
+                            <SelectItem key={opt} value={opt}>
                               {opt}
                             </SelectItem>
                           ))}

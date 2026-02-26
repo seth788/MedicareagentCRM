@@ -76,7 +76,7 @@ export function MarkAsLeadDialog({ client, open, onOpenChange }: MarkAsLeadDialo
         id: `act-${Date.now()}`,
         relatedType: "Client",
         relatedId: client.id,
-        type: "note",
+        type: "flow",
         description: `Added to ${flowName} (stage: ${stageName})`,
         createdAt: now,
         createdBy: currentAgent,

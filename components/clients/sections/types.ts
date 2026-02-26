@@ -4,6 +4,8 @@ export interface SectionProps {
   client: Client
   activities: Activity[]
   tasks: Task[]
+  /** Base path for building section URLs (e.g. /clients/123). Used for Link-based section nav. */
+  sectionBasePath?: string
   /** Optional: allows sections to request navigation to another section (e.g. Contact -> Notes) */
   onNavigateToSection?: (sectionId: SectionId) => void
   /** Optional: open edit dialog for personal details (name, DOB, language, household, gender, title, middle name, suffix, nickname, fun facts) */

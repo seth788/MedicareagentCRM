@@ -16,9 +16,9 @@ export default function LoginPage() {
         <Image
           src="/logo.svg"
           alt="AdvantaCRM"
-          width={180}
-          height={48}
-          className="h-12 w-auto"
+          width={140}
+          height={36}
+          className="h-9 w-auto"
           priority
         />
       </div>

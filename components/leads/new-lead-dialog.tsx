@@ -90,7 +90,7 @@ export function NewLeadDialog({ open, onOpenChange, defaultFlowId }: NewLeadDial
       id: `act-${Date.now()}-${leadId}`,
       relatedType: "Lead",
       relatedId: leadId,
-      type: "note",
+      type: "flow",
       description: `Added to ${flowName} (stage: ${stageName})`,
       createdAt: now,
       createdBy: currentAgent,

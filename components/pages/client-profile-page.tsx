@@ -1,15 +1,22 @@
 "use client"
 
-import { use, useState, useEffect, useRef } from "react"
+import { use, useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { notFound, useRouter, useSearchParams } from "next/navigation"
+import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation"
 import { ArrowLeft } from "@/components/icons"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/app-header"
 import { ClientProfileHeader } from "@/components/clients/profile-header"
-import { ClientTabs } from "@/components/clients/client-tabs"
+import { ClientTabs, CLIENT_SECTIONS } from "@/components/clients/client-tabs"
+import { SectionIconSidebar } from "@/components/section-icon-sidebar"
 import type { EditClientSection } from "@/components/clients/edit-client-dialog"
+import type { SectionId } from "@/components/clients/sections"
 import { useCRMStore } from "@/lib/store"
+
+const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes"]
+function isValidSection(value: string | null): value is SectionId {
+  return value !== null && VALID_SECTIONS.includes(value as SectionId)
+}
 
 export default function ClientProfilePageInner({
   params,
@@ -18,12 +25,35 @@ export default function ClientProfilePageInner({
 }) {
   const { id } = use(params)
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const { clients, activities, tasks } = useCRMStore()
   const client = clients.find((c) => c.id === id)
   const [editClientOpen, setEditClientOpen] = useState(false)
   const [editClientSection, setEditClientSection] = useState<EditClientSection | null>(null)
   const hasShownNewToast = useRef(false)
+  const sectionFromUrl = searchParams.get("section")
+  const [activeSection, setActiveSection] = useState<SectionId>(
+    isValidSection(sectionFromUrl) ? sectionFromUrl : "contact"
+  )
+
+  const handleSectionChange = useCallback(
+    (section: SectionId) => {
+      setActiveSection(section)
+      const params = new URLSearchParams(searchParams.toString())
+      if (section === "contact") params.delete("section")
+      else params.set("section", section)
+      const query = params.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    },
+    [router, pathname, searchParams]
+  )
+
+  useEffect(() => {
+    const section = searchParams.get("section")
+    const next = isValidSection(section) ? section : "contact"
+    setActiveSection(next)
+  }, [searchParams])
 
   useEffect(() => {
     if (searchParams.get("new") !== "1" || !client || hasShownNewToast.current) return
@@ -71,25 +101,34 @@ export default function ClientProfilePageInner({
           </Link>
         }
       />
-      <div className="flex-1 overflow-auto overflow-x-hidden">
-        <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 sm:px-6">
-          <ClientProfileHeader
-            client={client}
-            editClientOpen={editClientOpen}
-            onEditClientOpenChange={setEditClientOpen}
-            editClientSection={editClientSection}
-            onRequestEdit={openEditClient}
-          />
-          <div className="mt-6">
-            <ClientTabs
+      <div className="flex flex-1 min-h-0">
+        <SectionIconSidebar
+          items={CLIENT_SECTIONS}
+          activeId={activeSection}
+          basePath={`/clients/${id}`}
+        />
+        <div className="flex-1 min-w-0 overflow-auto overflow-x-hidden">
+          <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 sm:px-6">
+            <ClientProfileHeader
               client={client}
-              activities={clientActivities}
-              tasks={clientTasks}
-              onEditPersonal={() => openEditClient("personal")}
-              onEditContact={() => openEditClient("contact")}
-              onEditAddresses={() => openEditClient("addresses")}
-              onEditMedicare={() => openEditClient("medicare")}
+              editClientOpen={editClientOpen}
+              onEditClientOpenChange={setEditClientOpen}
+              editClientSection={editClientSection}
+              onRequestEdit={openEditClient}
             />
+            <div className="mt-6">
+              <ClientTabs
+                client={client}
+                activities={clientActivities}
+                tasks={clientTasks}
+                onEditPersonal={() => openEditClient("personal")}
+                onEditContact={() => openEditClient("contact")}
+                onEditAddresses={() => openEditClient("addresses")}
+                onEditMedicare={() => openEditClient("medicare")}
+                activeSection={activeSection}
+                onSectionChange={handleSectionChange}
+              />
+            </div>
           </div>
         </div>
       </div>

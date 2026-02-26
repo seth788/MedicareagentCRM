@@ -20,6 +20,10 @@ export interface HydratePayload {
   tasks: Task[]
   agentCustomSources: Record<string, string[]>
   displayName: string
+  /** Agent email from auth. */
+  email: string
+  /** Agent profile picture URL. */
+  avatarUrl: string | null
   /** Saved profile theme: light | dark | system. Applied on sign-in. */
   theme: "light" | "dark" | "system"
   /** When true, pending policies with past effective dates are auto-issued on add/edit. */
@@ -45,6 +49,7 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     themeRaw === "dark" || themeRaw === "system" ? themeRaw : "light"
   const autoIssueApplications =
     (profile as { auto_issue_applications?: boolean } | null)?.auto_issue_applications ?? true
+  const avatarUrl = (profile as { avatar_url?: string | null } | null)?.avatar_url?.trim() || null
 
   const [flows, stages, clients, leads, activities, tasks, customSources] = await Promise.all([
     fetchFlows(agentId),
@@ -65,6 +70,8 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     tasks,
     agentCustomSources: { [displayName]: customSources },
     displayName,
+    email: user.email ?? "",
+    avatarUrl,
     theme,
     autoIssueApplications,
   }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useCRMStore } from "@/lib/store"
+import { useCRMStore, getRefetchCRM } from "@/lib/store"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,11 +9,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
 import { Moon, Sun, Monitor } from "@/components/icons"
 import { getSettingsProfile, updateProfileSettings } from "@/app/actions/settings"
+import { uploadAgentAvatar } from "@/app/actions/agent-avatar"
 import type { SettingsProfile as SettingsProfileType } from "@/app/actions/settings"
+
+function getInitials(firstName: string, lastName: string): string {
+  const first = firstName?.trim().slice(0, 1) ?? ""
+  const last = lastName?.trim().slice(0, 1) ?? ""
+  if (first || last) return (first + last).toUpperCase()
+  return "?"
+}
 
 const defaultForm: SettingsProfileType = {
   firstName: "",
@@ -36,7 +51,12 @@ export default function SettingsPageInner({
   const [profile, setProfile] = useState<SettingsProfileType | null>(hasInitial ? initialProfile : null)
   const [loading, setLoading] = useState(!hasInitial)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [avatarTooltipOpen, setAvatarTooltipOpen] = useState(false)
   const [form, setForm] = useState<SettingsProfileType>(hasInitial ? initialProfile! : defaultForm)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const avatarButtonRef = useRef<HTMLButtonElement>(null)
+  const avatarTooltipSuppressRef = useRef(false)
 
   useEffect(() => {
     if (hasInitial) return
@@ -77,6 +97,34 @@ export default function SettingsPageInner({
   const handleThemeChange = (value: "light" | "dark" | "system") => {
     setForm((f) => ({ ...f, theme: value }))
     setTheme(value)
+  }
+
+  const handleAvatarClick = () => {
+    setAvatarTooltipOpen(false)
+    avatarTooltipSuppressRef.current = true
+    fileInputRef.current?.click()
+    setTimeout(() => {
+      avatarTooltipSuppressRef.current = false
+    }, 800)
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const formData = new FormData()
+    formData.set("file", file)
+    const result = await uploadAgentAvatar(formData)
+    setUploading(false)
+    e.target.value = ""
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.imageUrl) {
+      toast.success("Profile photo updated")
+      setProfile((p) => (p ? { ...p, avatarUrl: result.imageUrl! } : p))
+      setForm((f) => ({ ...f, avatarUrl: result.imageUrl! }))
+      getRefetchCRM()?.()
+    }
   }
 
   const savedThemeRef = useRef(profile?.theme ?? "light")
@@ -123,6 +171,58 @@ export default function SettingsPageInner({
                   <p className="text-sm text-muted-foreground">Loading profile…</p>
                 ) : (
                   <>
+                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip
+                          open={avatarTooltipOpen}
+                          onOpenChange={(open) => {
+                            if (open) {
+                              const isHoveringAvatar = avatarButtonRef.current?.matches(":hover") ?? false
+                              if (avatarTooltipSuppressRef.current || !isHoveringAvatar) {
+                                // Ignore auto-open events when returning from native file picker.
+                                avatarTooltipSuppressRef.current = false
+                                return
+                              }
+                            }
+                            setAvatarTooltipOpen(open)
+                          }}
+                        >
+                          <TooltipTrigger asChild>
+                            <button
+                              ref={avatarButtonRef}
+                              type="button"
+                              onClick={handleAvatarClick}
+                              disabled={uploading}
+                              className="relative flex shrink-0 overflow-hidden rounded-full ring-2 ring-muted transition-opacity hover:opacity-90 disabled:opacity-70"
+                              aria-label="Change profile photo"
+                            >
+                              <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
+                                <AvatarImage src={form.avatarUrl ?? undefined} alt="" />
+                                <AvatarFallback className="bg-primary text-xl font-medium text-primary-foreground">
+                                  {getInitials(form.firstName, form.lastName)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{uploading ? "Uploading…" : "Change photo"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={handleAvatarChange}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Profile picture</p>
+                        <p className="text-xs text-muted-foreground">
+                          Click the avatar to upload a new photo. JPEG, PNG, or WebP. Max 2MB.
+                        </p>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label>First Name</Label>

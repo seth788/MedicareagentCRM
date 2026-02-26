@@ -10,6 +10,8 @@ import {
   BarChart3,
   Clock,
   Settings,
+  ArrowRight,
+  MoreHorizontal,
 } from "@/components/icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -30,8 +32,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useCRMStore } from "@/lib/store"
 import { signOut } from "@/app/actions/auth"
 
@@ -55,7 +59,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const isMobile = useIsMobile()
   const { setOpenMobile } = useSidebar()
-  const { currentAgent } = useCRMStore()
+  const { currentAgent, currentAgentEmail, currentAgentAvatarUrl } = useCRMStore()
 
   // Auto-close mobile sidebar on route change
   useEffect(() => {
@@ -71,17 +75,17 @@ export function AppSidebar() {
           <Image
             src="/logo.svg"
             alt="AdvantaCRM"
-            width={140}
-            height={36}
-            className="h-9 w-auto dark:hidden"
+            width={112}
+            height={29}
+            className="h-7 w-auto dark:hidden"
             priority
           />
           <Image
             src="/logo-dark.svg"
             alt="AdvantaCRM"
-            width={140}
-            height={36}
-            className="hidden h-9 w-auto dark:block"
+            width={112}
+            height={29}
+            className="hidden h-7 w-auto dark:block"
             priority
           />
         </Link>
@@ -117,20 +121,48 @@ export function AppSidebar() {
               type="button"
               className="flex min-h-[40px] w-full items-center gap-3 rounded-md p-2 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring sm:p-1.5"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                {getInitials(currentAgent)}
-              </div>
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarImage src={currentAgentAvatarUrl ?? undefined} alt={currentAgent} />
+                <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+                  {getInitials(currentAgent)}
+                </AvatarFallback>
+              </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{currentAgent}</p>
-                <p className="truncate text-xs text-muted-foreground">Licensed Agent</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {currentAgentEmail || "—"}
+                </p>
               </div>
+              <MoreHorizontal className="h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-56">
+            <div className="flex items-center gap-3 px-2 py-2">
+              <Avatar className="h-10 w-10 shrink-0">
+                <AvatarImage src={currentAgentAvatarUrl ?? undefined} alt={currentAgent} />
+                <AvatarFallback className="bg-primary text-sm font-medium text-primary-foreground">
+                  {getInitials(currentAgent)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">{currentAgent}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {currentAgentEmail || "—"}
+                </p>
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings" className="flex cursor-pointer items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
             <form action={signOut}>
               <DropdownMenuItem asChild>
-                <button type="submit" className="w-full cursor-pointer">
-                  Sign out
+                <button type="submit" className="flex w-full cursor-pointer items-center gap-2">
+                  <ArrowRight className="h-4 w-4" />
+                  Log out
                 </button>
               </DropdownMenuItem>
             </form>

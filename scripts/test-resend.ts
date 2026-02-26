@@ -33,9 +33,11 @@ async function main() {
   console.log("Sending test email via Resend...")
 
   const result = await sendEmail({
-    to: ["Seth Clayton <seth@advantacrm.com>"],
-    subject: "Hello Seth Clayton",
-    text: "Congratulations Seth Clayton, you just sent an email with Resend! You are truly awesome!",
+    to: ["seth.clayton83@gmail.com"],
+    subject: "Test Email from Medicare CRM",
+    text: "This is a test email from our domain. Replies will go to seth@resourcemedicare.com.",
+    fromName: "Seth Clayton",
+    replyTo: "seth@resourcemedicare.com",
   })
 
   if (result.ok) {

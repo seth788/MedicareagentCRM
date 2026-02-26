@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { format, formatDistanceToNow } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Phone, Mail, MessageSquare, CalendarPlus, ArrowRightLeft, Clock, Share05, Calendar, StickyNote, ChevronRight, Pencil } from "@/components/icons"
+import { Phone, Mail, MessageSquare, CalendarPlus, ArrowRightLeft, Clock, Share05, Calendar, StickyNote, FileText, BarChart3, ChevronRight, Pencil } from "@/components/icons"
 import {
   Sheet,
   SheetContent,
@@ -38,16 +38,44 @@ const activityIcons: Record<ActivityType, React.ElementType> = {
   call: Phone,
   email: Mail,
   text: MessageSquare,
-  appointment: Calendar,
+  appointment: CalendarPlus,
   note: StickyNote,
+  coverage: FileText,
+  flow: BarChart3,
 }
 
 const activityColors: Record<ActivityType, string> = {
   call: "bg-chart-1/10 text-chart-1",
   email: "bg-chart-2/10 text-chart-2",
-  text: "bg-chart-3/10 text-chart-3",
+  text: "bg-chart-5/10 text-chart-5",
   appointment: "bg-chart-4/10 text-chart-4",
   note: "bg-muted text-muted-foreground",
+  coverage: "bg-chart-3/10 text-chart-3",
+  flow: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+}
+
+/** Derive display type for backwards compat: note-type activities with coverage or flow descriptions. */
+function getActivityDisplayType(activity: { type: ActivityType; description: string }): ActivityType {
+  if (activity.type === "coverage") return "coverage"
+  if (
+    activity.type === "note" &&
+    /^Coverage (added|updated|removed):/.test(activity.description)
+  ) {
+    return "coverage"
+  }
+  if (activity.type === "flow") return "flow"
+  if (activity.type === "note" && isFlowActivityDescription(activity.description)) {
+    return "flow"
+  }
+  return activity.type
+}
+
+function isFlowActivityDescription(desc: string): boolean {
+  return (
+    (desc.startsWith("Moved to ") && desc.includes(" in ")) ||
+    (desc.startsWith("Added to ") && (desc.includes("(stage:") || desc.includes("— Stage:"))) ||
+    (desc.startsWith("Removed from ") && desc.endsWith(" Flow"))
+  )
 }
 
 interface LeadDetailSheetProps {
@@ -133,7 +161,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
         id: `act-${Date.now()}`,
         relatedType: "Client",
         relatedId: targetLead.clientId,
-        type: "note",
+        type: "flow",
         description: `Moved to ${stageName} in ${flowName}`,
         createdAt: new Date().toISOString(),
         createdBy: currentAgent,
@@ -150,7 +178,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
         id: `act-${Date.now()}`,
         relatedType: "Client",
         relatedId: leadToRemove.clientId,
-        type: "note",
+        type: "flow",
         description: `Removed from "${flowName}" Flow`,
         createdAt: new Date().toISOString(),
         createdBy: currentAgent,
@@ -471,8 +499,9 @@ export function LeadDetailSheet({ lead, open, onOpenChange }: LeadDetailSheetPro
               <>
                 <div className="space-y-2">
                   {recentActivities.map((activity) => {
-                    const Icon = activityIcons[activity.type]
-                    const colorClass = activityColors[activity.type]
+                    const displayType = getActivityDisplayType(activity)
+                    const Icon = activityIcons[displayType]
+                    const colorClass = activityColors[displayType]
                     return (
                       <div
                         key={activity.id}
