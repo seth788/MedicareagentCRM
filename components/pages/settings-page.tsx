@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useCRMStore } from "@/lib/store"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -74,22 +74,22 @@ export default function SettingsPageInner({
     }
   }
 
-  const handleThemeChange = async (value: "light" | "dark" | "system") => {
+  const handleThemeChange = (value: "light" | "dark" | "system") => {
     setForm((f) => ({ ...f, theme: value }))
     setTheme(value)
-    try {
-      await updateProfileSettings({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        npn: form.npn,
-        theme: value,
-        autoIssueApplications: form.autoIssueApplications,
-      })
-      setProfile((p) => (p ? { ...p, theme: value } : p))
-    } catch {
-      toast.error("Could not save theme")
-    }
   }
+
+  const savedThemeRef = useRef(profile?.theme ?? "light")
+  useEffect(() => {
+    savedThemeRef.current = profile?.theme ?? "light"
+  }, [profile?.theme])
+  useEffect(() => {
+    return () => {
+      if (form.theme !== savedThemeRef.current) {
+        setTheme(savedThemeRef.current)
+      }
+    }
+  }, [form.theme, setTheme])
 
   const savedProfile = profile ?? defaultForm
   const hasProfileChanges =
@@ -183,7 +183,7 @@ export default function SettingsPageInner({
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Saved with your profile and applied when you sign in.
+                        Click to preview; save to apply to your profile.
                       </p>
                     </div>
                     <Button

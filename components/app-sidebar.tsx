@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -9,7 +10,6 @@ import {
   BarChart3,
   Clock,
   Settings,
-  Shield,
 } from "@/components/icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -68,17 +68,22 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="px-3 py-4 sm:px-4 sm:py-5">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Shield className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <div>
-            <span className="text-base font-semibold tracking-tight text-foreground">
-              MediCRM
-            </span>
-            <span className="block text-[11px] leading-none text-muted-foreground">
-              Medicare Agent Platform
-            </span>
-          </div>
+          <Image
+            src="/logo.svg"
+            alt="AdvantaCRM"
+            width={140}
+            height={36}
+            className="h-9 w-auto dark:hidden"
+            priority
+          />
+          <Image
+            src="/logo-dark.svg"
+            alt="AdvantaCRM"
+            width={140}
+            height={36}
+            className="hidden h-9 w-auto dark:block"
+            priority
+          />
         </Link>
       </SidebarHeader>
       <SidebarSeparator />

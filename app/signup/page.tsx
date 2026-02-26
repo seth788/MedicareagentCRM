@@ -1,31 +1,47 @@
+import Image from "next/image"
 import Link from "next/link"
 import { ForceLightTheme } from "@/components/force-light-theme"
-import { Shield } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { signUp } from "@/app/actions/auth"
+import { signUp, signInWithGoogle } from "@/app/actions/auth"
+import { GoogleIcon } from "@/components/icons/google-icon"
 
 export default function SignUpPage() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4">
       <ForceLightTheme />
-      <div className="mb-8 flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-          <Shield className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <div>
-          <span className="text-lg font-semibold tracking-tight text-foreground">MediCRM</span>
-          <span className="block text-xs text-muted-foreground">Medicare Agent Platform</span>
-        </div>
+      <div className="mb-8 flex items-center justify-center">
+        <Image
+          src="/logo.svg"
+          alt="AdvantaCRM"
+          width={180}
+          height={48}
+          className="h-12 w-auto"
+          priority
+        />
       </div>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Create an account</CardTitle>
-          <CardDescription>Enter your details to register as an agent.</CardDescription>
+          <CardDescription>Enter your details or sign up with Google.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <form action={signInWithGoogle}>
+            <Button type="submit" variant="outline" className="min-h-[40px] w-full gap-2">
+              <GoogleIcon className="h-4 w-4" />
+              Continue with Google
+            </Button>
+          </form>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
           <form action={signUp} className="flex flex-col gap-4">
             <div className="grid gap-2">
               <Label htmlFor="fullName">Full name (optional)</Label>
@@ -60,7 +76,7 @@ export default function SignUpPage() {
               />
             </div>
             <Button type="submit" className="min-h-[40px] w-full">
-              Sign up
+              Sign up with email
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">

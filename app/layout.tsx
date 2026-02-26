@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" })
 
 export const metadata: Metadata = {
-  title: "MediCRM - Medicare Agent Platform",
+  title: "AdvantaCRM - Medicare Agent Platform",
   description: "Modern CRM for Medicare agents to manage leads, clients, and enrollment.",
 }
 

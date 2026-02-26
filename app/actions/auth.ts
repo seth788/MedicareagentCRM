@@ -1,7 +1,29 @@
 "use server"
 
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+
+export async function signInWithGoogle() {
+  const supabase = await createClient()
+  const h = await headers()
+  const host = h.get("host") ?? "localhost:3000"
+  const proto = h.get("x-forwarded-proto") === "https" ? "https" : "http"
+  const origin = `${proto}://${host}`
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    },
+  })
+  if (error) {
+    return { error: error.message }
+  }
+  if (data?.url) {
+    redirect(data.url)
+  }
+  return { error: "Failed to get OAuth URL" }
+}
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient()
