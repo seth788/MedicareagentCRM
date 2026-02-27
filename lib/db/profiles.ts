@@ -11,6 +11,8 @@ export type ProfileForSettings = {
   npn: string
   theme: ThemeValue
   autoIssueApplications: boolean
+  taskReminderEmails: boolean
+  turning65Alerts: boolean
   avatarUrl: string | null
 }
 
@@ -18,7 +20,7 @@ export async function getProfile(agentId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, first_name, last_name, phone, npn, theme, auto_issue_applications, avatar_url")
+    .select("id, display_name, first_name, last_name, phone, npn, theme, auto_issue_applications, task_reminder_emails, turning_65_alerts, avatar_url")
     .eq("id", agentId)
     .single()
   if (error && error.code !== "PGRST116") throw error
@@ -38,6 +40,8 @@ export async function getProfileForSettings(
     themeRaw === "dark" || themeRaw === "system" ? themeRaw : "light"
   const autoIssue =
     (row?.auto_issue_applications as boolean | null) ?? true
+  const taskReminderEmails = (row?.task_reminder_emails as boolean | null) ?? true
+  const turning65Alerts = (row?.turning_65_alerts as boolean | null) ?? true
   const avatarUrl = (row?.avatar_url as string | null)?.trim() || null
   const phone = (row?.phone as string | null)?.trim() ?? ""
   return {
@@ -48,6 +52,8 @@ export async function getProfileForSettings(
     npn: (row?.npn as string | null)?.trim() ?? "",
     theme,
     autoIssueApplications: autoIssue,
+    taskReminderEmails,
+    turning65Alerts,
     avatarUrl,
   }
 }
@@ -95,6 +101,8 @@ export async function updateProfileSettings(
     npn: string
     theme?: ThemeValue
     autoIssueApplications?: boolean
+    taskReminderEmails?: boolean
+    turning65Alerts?: boolean
   }
 ) {
   const supabase = await createClient()
@@ -110,6 +118,22 @@ export async function updateProfileSettings(
   if (updates.theme !== undefined) row.theme = updates.theme
   if (updates.autoIssueApplications !== undefined)
     row.auto_issue_applications = updates.autoIssueApplications
+  if (updates.taskReminderEmails !== undefined)
+    row.task_reminder_emails = updates.taskReminderEmails
+  if (updates.turning65Alerts !== undefined)
+    row.turning_65_alerts = updates.turning65Alerts
+  const { error } = await supabase.from("profiles").update(row).eq("id", agentId)
+  if (error) throw error
+}
+
+export async function updateNotificationPreferences(
+  agentId: string,
+  prefs: { taskReminderEmails?: boolean; turning65Alerts?: boolean }
+) {
+  const supabase = await createClient()
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (prefs.taskReminderEmails !== undefined) row.task_reminder_emails = prefs.taskReminderEmails
+  if (prefs.turning65Alerts !== undefined) row.turning_65_alerts = prefs.turning65Alerts
   const { error } = await supabase.from("profiles").update(row).eq("id", agentId)
   if (error) throw error
 }

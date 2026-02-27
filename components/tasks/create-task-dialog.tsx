@@ -46,12 +46,14 @@ export function CreateTaskDialog({
   const { addTask, addActivity, currentAgent } = useCRMStore()
   const [title, setTitle] = useState("")
   const [dueDate, setDueDate] = useState("")
+  const [dueTime, setDueTime] = useState("09:00")
   const [description, setDescription] = useState("")
 
   useEffect(() => {
     if (open) {
       setTitle(defaultTitle || `Follow up with ${relatedName}`)
       setDueDate(toLocalDateString(new Date()))
+      setDueTime("09:00")
       setDescription(defaultDescription)
     }
   }, [open, relatedName, defaultTitle, defaultDescription])
@@ -63,8 +65,9 @@ export function CreateTaskDialog({
       toast.error("Please enter a task title")
       return
     }
+    const timePart = dueTime || "09:00"
     const dueIso = dueDate
-      ? new Date(dueDate + "T12:00:00").toISOString()
+      ? new Date(dueDate + "T" + timePart + ":00").toISOString()
       : new Date().toISOString()
     const task: Task = {
       id: crypto.randomUUID(),
@@ -77,12 +80,17 @@ export function CreateTaskDialog({
       createdAt: new Date().toISOString(),
     }
     addTask(task)
+    const dueDisplay = dueDate
+      ? dueTime
+        ? `${dueDate} at ${dueTime}`
+        : dueDate
+      : ""
     addActivity({
       id: `act-${Date.now()}`,
       relatedType,
       relatedId,
       type: "note",
-      description: `Task: ${trimmedTitle}${dueDate ? ` — Due ${dueDate}` : ""}`,
+      description: `Task: ${trimmedTitle}${dueDisplay ? ` — Due ${dueDisplay}` : ""}`,
       createdAt: new Date().toISOString(),
       createdBy: currentAgent,
     })
@@ -106,14 +114,26 @@ export function CreateTaskDialog({
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
-          <div>
-            <Label htmlFor="task-due">Due date</Label>
-            <DatePicker
-              id="task-due"
-              value={dueDate}
-              onChange={setDueDate}
-              placeholder="Pick a date"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="task-due">Due date</Label>
+              <DatePicker
+                id="task-due"
+                value={dueDate}
+                onChange={setDueDate}
+                placeholder="Pick a date"
+              />
+            </div>
+            <div>
+              <Label htmlFor="task-notify-time">Notify at</Label>
+              <Input
+                id="task-notify-time"
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                className="h-10"
+              />
+            </div>
           </div>
           <div>
             <Label htmlFor="task-desc">Description (optional)</Label>

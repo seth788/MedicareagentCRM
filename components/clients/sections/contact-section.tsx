@@ -1326,7 +1326,7 @@ export function ContactSection({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground">{task.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        Due {format(parseLocalDate(task.dueDate), "MMM d, yyyy")}
+                        Due {format(new Date(task.dueDate), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                       {task.description?.trim() && (
                         <Collapsible defaultOpen={false} className="group mt-1.5">

@@ -19,8 +19,9 @@ import {
 import { useTheme } from "next-themes"
 import { formatPhoneNumber } from "@/lib/utils"
 import { toast } from "sonner"
-import { Moon, Sun, Monitor } from "@/components/icons"
-import { getSettingsProfile, updateProfileSettings } from "@/app/actions/settings"
+import { Moon, Sun, Monitor, Mail, Cake } from "@/components/icons"
+import { Switch } from "@/components/ui/switch"
+import { getSettingsProfile, updateProfileSettings, updateNotificationSettings } from "@/app/actions/settings"
 import { uploadAgentAvatar } from "@/app/actions/agent-avatar"
 import type { SettingsProfile as SettingsProfileType } from "@/app/actions/settings"
 
@@ -39,6 +40,8 @@ const defaultForm: SettingsProfileType = {
   npn: "",
   theme: "light",
   autoIssueApplications: true,
+  taskReminderEmails: true,
+  turning65Alerts: true,
 }
 
 export default function SettingsPageInner({
@@ -55,6 +58,7 @@ export default function SettingsPageInner({
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [avatarTooltipOpen, setAvatarTooltipOpen] = useState(false)
+  const [savingNotifications, setSavingNotifications] = useState(false)
   const [form, setForm] = useState<SettingsProfileType>(hasInitial ? initialProfile! : defaultForm)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const avatarButtonRef = useRef<HTMLButtonElement>(null)
@@ -86,6 +90,8 @@ export default function SettingsPageInner({
         npn: form.npn,
         theme: form.theme,
         autoIssueApplications: form.autoIssueApplications,
+        taskReminderEmails: form.taskReminderEmails,
+        turning65Alerts: form.turning65Alerts,
       })
       setProfile({ ...form })
       setAutoIssueApplications(form.autoIssueApplications)
@@ -94,6 +100,25 @@ export default function SettingsPageInner({
       toast.error(e instanceof Error ? e.message : "Failed to update profile")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleNotificationToggle = async (
+    key: "taskReminderEmails" | "turning65Alerts",
+    value: boolean
+  ) => {
+    const prev = form[key]
+    setForm((f) => ({ ...f, [key]: value }))
+    setSavingNotifications(true)
+    try {
+      await updateNotificationSettings({ [key]: value })
+      setProfile((p) => (p ? { ...p, [key]: value } : p))
+      toast.success("Saved")
+    } catch (e) {
+      setForm((f) => ({ ...f, [key]: prev }))
+      toast.error(e instanceof Error ? e.message : "Failed to save")
+    } finally {
+      setSavingNotifications(false)
     }
   }
 
@@ -366,37 +391,41 @@ export default function SettingsPageInner({
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Notifications</CardTitle>
-                <CardDescription>Configure how you receive alerts.</CardDescription>
+                <CardDescription>Configure email alerts. Emails come from notifications@advantacrm.com. Daily Turning 65 digest runs at 6:00 AM.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">New lead alerts</p>
-                    <p className="text-xs text-muted-foreground">
-                      Get notified when a new lead is assigned to you
-                    </p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Task reminders</p>
+                      <p className="text-xs text-muted-foreground">
+                        Email reminders at the date and time you set for each task
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="secondary">On</Badge>
+                  <Switch
+                    checked={form.taskReminderEmails}
+                    onCheckedChange={(checked) => handleNotificationToggle("taskReminderEmails", checked)}
+                    disabled={savingNotifications}
+                  />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Task reminders</p>
-                    <p className="text-xs text-muted-foreground">
-                      Reminders for upcoming and overdue tasks
-                    </p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Cake className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Turning 65 alerts</p>
+                      <p className="text-xs text-muted-foreground">
+                        Daily email with clients approaching their 65th birthday (next 90 days)
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="secondary">On</Badge>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Turning 65 alerts</p>
-                    <p className="text-xs text-muted-foreground">
-                      Alerts when clients are approaching their 65th birthday
-                    </p>
-                  </div>
-                  <Badge variant="secondary">On</Badge>
+                  <Switch
+                    checked={form.turning65Alerts}
+                    onCheckedChange={(checked) => handleNotificationToggle("turning65Alerts", checked)}
+                    disabled={savingNotifications}
+                  />
                 </div>
               </CardContent>
             </Card>
