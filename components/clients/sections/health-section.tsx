@@ -914,7 +914,7 @@ export function HealthSection({ client }: SectionProps) {
       {/* Doctors */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <Stethoscope className="h-4 w-4 text-primary" />
             </div>
@@ -1355,24 +1355,31 @@ export function HealthSection({ client }: SectionProps) {
                       >
                         {importanceLabel(doc.importance)}
                       </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => openDoctorForm(doc, i)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Edit doctor</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemoveDoctor(i)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Remove doctor</span>
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            aria-label={`Options for ${doctorDisplayName(doc)}`}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openDoctorForm(doc, i)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleRemoveDoctor(i)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                   {doc.note?.trim() && (
@@ -1399,7 +1406,7 @@ export function HealthSection({ client }: SectionProps) {
       {/* Medications */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/10">
               <Pill className="h-4 w-4 text-chart-3" />
             </div>
@@ -1783,24 +1790,31 @@ export function HealthSection({ client }: SectionProps) {
                         Brand
                       </Badge>
                     ) : null}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      onClick={() => openMedForm(med, i)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Edit medication</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemoveMed(i)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove medication</span>
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          aria-label={`Options for ${med.name}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openMedForm(med, i)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleRemoveMed(i)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remove
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -1812,7 +1826,7 @@ export function HealthSection({ client }: SectionProps) {
       {/* Pharmacies */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-2/10">
               <Building2 className="h-4 w-4 text-chart-2" />
             </div>
@@ -2100,24 +2114,31 @@ export function HealthSection({ client }: SectionProps) {
                     <p className="text-muted-foreground">{pharm.address}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      onClick={() => openPharmForm(pharm, i)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Edit pharmacy</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemovePharmacy(i)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove pharmacy</span>
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          aria-label={`Options for ${pharm.name}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openPharmForm(pharm, i)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleRemovePharmacy(i)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remove
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -2129,7 +2150,7 @@ export function HealthSection({ client }: SectionProps) {
       {/* Health Tracker */}
       <Card className="overflow-hidden lg:col-span-2">
         <CardHeader className="border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-1/10">
               <Heart className="h-4 w-4 text-chart-1" />
             </div>
@@ -2198,7 +2219,7 @@ export function HealthSection({ client }: SectionProps) {
       {/* Allergies */}
       <Card className="overflow-hidden lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </div>

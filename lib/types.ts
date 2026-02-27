@@ -114,8 +114,8 @@ export interface Pharmacy {
 
 export type PlanType = "MA" | "MAPD" | "PDP" | "Supp"
 
-/** Plan type for new coverage flow (MAPD or PDP only). */
-export type CoveragePlanType = "MAPD" | "PDP"
+/** Plan type for new coverage flow. */
+export type CoveragePlanType = "MAPD" | "PDP" | "Med Supp"
 
 export type AddressType = "Home" | "Mailing" | "Secondary Home" | "Secondary Mailing"
 
@@ -166,6 +166,18 @@ export interface Coverage {
   hraCollected: boolean
   commissionStatus?: string
   notes?: string
+  /** Med Supp / PDP: monthly premium in dollars */
+  premium?: number
+  /** Med Supp / PDP: bonus amount */
+  bonus?: number
+  /** Med Supp / PDP: billing method */
+  billingMethod?: string
+  /** Med Supp / PDP: draft day (1-28) */
+  draftDay?: string
+  /** Med Supp / PDP: enrollment method */
+  enrollmentMethod?: string
+  /** Med Supp / PDP: new to book or rewrite */
+  newToBookOrRewrite?: string
   createdAt?: string
   updatedAt?: string
 }

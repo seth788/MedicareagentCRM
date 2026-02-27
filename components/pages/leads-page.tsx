@@ -204,7 +204,7 @@ export default function LeadsPageInner() {
                 <Kanban className="h-10 w-10" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h3 className="text-lg font-semibold text-foreground">No flows yet</h3>
+                <h3 className="text-base font-semibold text-foreground sm:text-lg">No flows yet</h3>
                 <p className="text-sm text-muted-foreground">
                   Create your first flow to organize leads through stages—from first contact to converted client.
                 </p>
@@ -220,7 +220,7 @@ export default function LeadsPageInner() {
                 <Kanban className="h-10 w-10" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h3 className="text-lg font-semibold text-foreground">Select a flow</h3>
+                <h3 className="text-base font-semibold text-foreground sm:text-lg">Select a flow</h3>
                 <p className="text-sm text-muted-foreground">
                   Choose a flow from the dropdown above, or open Manage flows to create or edit flows and stages.
                 </p>
@@ -236,7 +236,7 @@ export default function LeadsPageInner() {
                 <Settings2 className="h-10 w-10" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h3 className="text-lg font-semibold text-foreground">Add stages to this flow</h3>
+                <h3 className="text-base font-semibold text-foreground sm:text-lg">Add stages to this flow</h3>
                 <p className="text-sm text-muted-foreground">
                   &quot;{activeFlow?.name}&quot; has no stages yet. Add stages like New, Contacted, and Converted to move leads through your pipeline.
                 </p>
@@ -252,7 +252,7 @@ export default function LeadsPageInner() {
                 <UserPlus className="h-10 w-10" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h3 className="text-lg font-semibold text-foreground">No leads in this flow</h3>
+                <h3 className="text-base font-semibold text-foreground sm:text-lg">No leads in this flow</h3>
                 <p className="text-sm text-muted-foreground">
                   Add contacts from your clients or create new leads to start moving them through &quot;{activeFlow?.name}&quot;.
                 </p>

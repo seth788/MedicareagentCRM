@@ -25,7 +25,38 @@ const PRODUCT_LABELS: Record<string, string> = {
   medigap: "Medigap",
 }
 
+const EDIT_FIELD_LABELS: Record<string, string> = {
+  agent_name: "Agent name",
+  appointment_date: "Appointment date",
+  initial_contact_method: "Initial contact method",
+}
+
 function formatMetadata(action: string, metadata: Record<string, unknown>): ReactNode {
+  if (action === "edited") {
+    const fieldsChanged = metadata.fields_changed as Record<
+      string,
+      { before: unknown; after: unknown }
+    > | undefined
+    if (fieldsChanged && Object.keys(fieldsChanged).length > 0) {
+      return (
+        <div className="text-xs text-muted-foreground mt-1 space-y-2">
+          {Object.entries(fieldsChanged).map(([key, change]) => {
+            const label = EDIT_FIELD_LABELS[key] ?? key.replace(/_/g, " ")
+            const before = change.before ?? "—"
+            const after = change.after ?? "—"
+            return (
+              <div key={key} className="flex flex-wrap gap-x-1.5">
+                <span className="capitalize font-medium">{label}:</span>
+                <span className="line-through opacity-75">{String(before)}</span>
+                <span aria-hidden>→</span>
+                <span>{String(after)}</span>
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+  }
   if (action === "sent") {
     const to = metadata.to as string | undefined
     const method = metadata.delivery_method as string | undefined
@@ -64,6 +95,30 @@ function formatMetadata(action: string, metadata: Record<string, unknown>): Reac
   return null
 }
 
+function formatGenericMetadata(metadata: Record<string, unknown>): ReactNode {
+  return (
+    <dl className="space-y-1">
+      {Object.entries(metadata).map(([key, value]) => {
+        const label = key.replace(/_/g, " ")
+        const display =
+          value === null || value === undefined
+            ? "—"
+            : typeof value === "object" && !Array.isArray(value) && value !== null
+              ? Object.entries(value as Record<string, unknown>)
+                  .map(([k, v]) => `${k}: ${v ?? "—"}`)
+                  .join(", ")
+              : String(value)
+        return (
+          <div key={key} className="flex gap-2">
+            <dt className="font-medium capitalize shrink-0">{label}:</dt>
+            <dd className="min-w-0 break-words">{display}</dd>
+          </div>
+        )
+      })}
+    </dl>
+  )
+}
+
 interface SOAActivityTimelineProps {
   entries: SOAAuditEntry[]
 }
@@ -73,11 +128,11 @@ export function SOAActivityTimeline({ entries }: SOAActivityTimelineProps) {
   return (
     <div className="relative space-y-4 pl-4 border-l-2 border-muted pt-4">
       {entries.map((e) => {
-        const formatted = e.metadata && ["sent", "client_signed"].includes(e.action)
+        const formatted = e.metadata && ["edited", "sent", "client_signed"].includes(e.action)
           ? formatMetadata(e.action, e.metadata as Record<string, unknown>)
           : null
         const hasMetadata = e.metadata && Object.keys(e.metadata).length > 0
-        const showRaw = hasMetadata && !formatted
+        const showFallback = hasMetadata && !formatted
 
         return (
           <div key={e.id} className="relative -left-4">
@@ -90,10 +145,10 @@ export function SOAActivityTimeline({ entries }: SOAActivityTimelineProps) {
                 {new Date(e.createdAt).toLocaleString()}
               </p>
               {formatted}
-              {showRaw && (
-                <pre className="text-xs text-muted-foreground mt-1 overflow-x-auto">
-                  {JSON.stringify(e.metadata, null, 2)}
-                </pre>
+              {showFallback && (
+                <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                  {formatGenericMetadata(e.metadata as Record<string, unknown>)}
+                </div>
               )}
             </div>
           </div>

@@ -39,7 +39,7 @@ export default function DashboardPageInner() {
         <div className="mx-auto max-w-7xl p-4 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="mb-1">
-              <h2 className="text-lg font-semibold text-foreground sm:text-xl">Today at a Glance</h2>
+              <h2 className="text-base font-semibold text-foreground sm:text-xl">Today at a Glance</h2>
               <p className="text-sm text-muted-foreground">
                 Overview of your pipeline, tasks, and upcoming milestones.
               </p>

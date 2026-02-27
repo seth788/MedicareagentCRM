@@ -22,6 +22,10 @@ interface CRMState {
   hydrated: boolean
   /** When true, pending policies with past effective dates are auto-issued on add/edit. */
   autoIssueApplications: boolean
+  /** Orgs the user has dashboard access to. */
+  dashboardOrgs: { id: string; name: string }[]
+  /** Orgs where user can view agency book. */
+  agencyBookOrgs: { id: string; name: string }[]
 }
 
 let state: CRMState = {
@@ -37,6 +41,8 @@ let state: CRMState = {
   agentCustomSources: {},
   hydrated: false,
   autoIssueApplications: true,
+  dashboardOrgs: [],
+  agencyBookOrgs: [],
 }
 
 /** Hydrate store from Supabase (called after auth). */
@@ -55,6 +61,8 @@ export function hydrateCRM(payload: HydratePayload) {
     currentAgentAvatarUrl: payload.avatarUrl ?? null,
     hydrated: true,
     autoIssueApplications: payload.autoIssueApplications ?? true,
+    dashboardOrgs: payload.dashboardOrgs ?? [],
+    agencyBookOrgs: payload.agencyBookOrgs ?? [],
   }
   emitChange()
 }

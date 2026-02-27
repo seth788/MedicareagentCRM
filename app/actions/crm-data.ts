@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { getOrCreateProfile } from "@/lib/db/profiles"
+import { getUserDashboardOrgs, getUserAgencyBookOrgs } from "@/lib/db/organizations"
 import { fetchFlows, fetchStages } from "@/lib/db/flows"
 import { getFlowTemplates } from "@/lib/db/flow-templates"
 import { fetchClients } from "@/lib/db/clients"
@@ -28,6 +29,10 @@ export interface HydratePayload {
   theme: "light" | "dark" | "system"
   /** When true, pending policies with past effective dates are auto-issued on add/edit. */
   autoIssueApplications: boolean
+  /** Orgs the user has dashboard access to (for Agency nav). */
+  dashboardOrgs: { id: string; name: string }[]
+  /** Orgs where user can view agency book (community agents). */
+  agencyBookOrgs: { id: string; name: string }[]
 }
 
 export async function fetchCRMData(): Promise<HydratePayload | null> {
@@ -51,7 +56,7 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     (profile as { auto_issue_applications?: boolean } | null)?.auto_issue_applications ?? true
   const avatarUrl = (profile as { avatar_url?: string | null } | null)?.avatar_url?.trim() || null
 
-  const [flows, stages, clients, leads, activities, tasks, customSources] = await Promise.all([
+  const [flows, stages, clients, leads, activities, tasks, customSources, dashboardOrgs, agencyBookOrgs] = await Promise.all([
     fetchFlows(agentId),
     fetchStages(agentId),
     fetchClients(agentId),
@@ -59,6 +64,8 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     fetchActivities(agentId),
     fetchTasks(agentId),
     fetchCustomSources(agentId),
+    getUserDashboardOrgs(agentId),
+    getUserAgencyBookOrgs(agentId),
   ])
 
   return {
@@ -74,6 +81,8 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     avatarUrl,
     theme,
     autoIssueApplications,
+    dashboardOrgs: dashboardOrgs ?? [],
+    agencyBookOrgs: agencyBookOrgs ?? [],
   }
 }
 

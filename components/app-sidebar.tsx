@@ -13,6 +13,7 @@ import {
   ArrowRight,
   MoreHorizontal,
   FilterIcon,
+  Building2,
 } from "@/components/icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -35,6 +36,12 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu as NavDropdownMenu,
+  DropdownMenuContent as NavDropdownContent,
+  DropdownMenuItem as NavDropdownItem,
+  DropdownMenuTrigger as NavDropdownTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useCRMStore } from "@/lib/store"
@@ -60,7 +67,9 @@ export function AppSidebar() {
   const pathname = usePathname()
   const isMobile = useIsMobile()
   const { setOpenMobile } = useSidebar()
-  const { currentAgent, currentAgentEmail, currentAgentAvatarUrl } = useCRMStore()
+  const { currentAgent, currentAgentEmail, currentAgentAvatarUrl, dashboardOrgs, agencyBookOrgs } = useCRMStore()
+  const hasAgencyAccess = dashboardOrgs.length > 0
+  const hasSharedBookAccess = agencyBookOrgs.length > 0
 
   // Auto-close mobile sidebar on route change
   useEffect(() => {
@@ -97,6 +106,20 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {hasSharedBookAccess && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === "/shared-book" || pathname.startsWith("/shared-book/")}
+                    tooltip="Shared Book"
+                  >
+                    <Link href={agencyBookOrgs[0] ? `/shared-book?org=${agencyBookOrgs[0].id}` : "/shared-book"}>
+                      <Users className="h-4 w-4" />
+                      <span>Shared Book</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {navItems.map((item) => {
                 const isActive =
                   pathname === item.url || pathname.startsWith(item.url + "/")
@@ -111,6 +134,41 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 )
               })}
+              {hasAgencyAccess && (
+                <SidebarMenuItem>
+                  {dashboardOrgs.length === 1 ? (
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === "/agency" || pathname.startsWith("/agency/")}
+                      tooltip="Agency"
+                    >
+                      <Link href={`/agency?org=${dashboardOrgs[0].id}`}>
+                        <Building2 className="h-4 w-4" />
+                        <span>Agency</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  ) : (
+                    <NavDropdownMenu>
+                      <NavDropdownTrigger asChild>
+                        <SidebarMenuButton
+                          isActive={pathname === "/agency" || pathname.startsWith("/agency/")}
+                          tooltip="Agency"
+                        >
+                          <Building2 className="h-4 w-4" />
+                          <span>Agency</span>
+                        </SidebarMenuButton>
+                      </NavDropdownTrigger>
+                      <NavDropdownContent>
+                        {dashboardOrgs.map((org) => (
+                          <NavDropdownItem key={org.id} asChild>
+                            <Link href={`/agency?org=${org.id}`}>{org.name}</Link>
+                          </NavDropdownItem>
+                        ))}
+                      </NavDropdownContent>
+                    </NavDropdownMenu>
+                  )}
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -44,7 +44,7 @@ export function soaRequestToClientText(params: {
   const { clientFirstName, agentName, agentPhone, signUrl } = params
   return `Hi ${clientFirstName},
 
-Before your Medicare appointment, we need you to review and sign a Scope of Appointment (SOA) form. This document lets us know which products you'd like to discuss.
+Before your upcoming Medicare appointment, please take a moment to review and sign a quick form. This is a standard step required before every Medicare consultation.
 
 Your agent ${agentName} is ready to meet with you. If you have questions, call ${agentPhone || "your agent"}.
 

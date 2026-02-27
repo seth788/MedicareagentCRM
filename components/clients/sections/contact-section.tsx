@@ -210,7 +210,7 @@ export function ContactSection({
       {/* Personal Info - full width */}
       <Card className="overflow-hidden lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <User className="h-4 w-4 text-primary" />
             </div>
@@ -299,7 +299,7 @@ export function ContactSection({
       {/* Contact information: full width, phones left, emails right */}
       <Card className="overflow-hidden lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <Phone className="h-4 w-4 text-primary" />
             </div>
@@ -967,7 +967,7 @@ export function ContactSection({
       {/* Addresses: full-width container */}
       <Card className="overflow-hidden lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <MapPin className="h-4 w-4 text-primary" />
             </div>
@@ -1284,7 +1284,7 @@ export function ContactSection({
       {/* Tasks */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-4/10">
               <Calendar className="h-4 w-4 text-chart-4" />
             </div>
@@ -1378,7 +1378,7 @@ export function ContactSection({
       {/* Quick Activity Summary */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-2/10">
               <StickyNote className="h-4 w-4 text-chart-2" />
             </div>

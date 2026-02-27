@@ -42,7 +42,7 @@ export function Turning65Widget() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div className="flex items-center gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
               <Cake className="h-4 w-4 text-primary" />
               Turning 65 Soon
             </CardTitle>

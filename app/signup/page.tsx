@@ -8,7 +8,13 @@ import { Label } from "@/components/ui/label"
 import { signUp, signInWithGoogle } from "@/app/actions/auth"
 import { GoogleIcon } from "@/components/icons/google-icon"
 
-export default function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>
+}) {
+  const { next } = await searchParams
+  const nextVal = next && next.startsWith("/") ? next : ""
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4">
       <ForceLightTheme />
@@ -29,6 +35,7 @@ export default function SignUpPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <form action={signInWithGoogle}>
+            {nextVal ? <input type="hidden" name="next" value={nextVal} /> : null}
             <Button type="submit" variant="outline" className="min-h-[40px] w-full gap-2">
               <GoogleIcon className="h-4 w-4" />
               Continue with Google
@@ -43,6 +50,7 @@ export default function SignUpPage() {
             </div>
           </div>
           <form action={signUp} className="flex flex-col gap-4">
+            {nextVal ? <input type="hidden" name="next" value={nextVal} /> : null}
             <div className="grid gap-2">
               <Label htmlFor="fullName">Full name (optional)</Label>
               <Input
@@ -81,7 +89,10 @@ export default function SignUpPage() {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link
+              href={nextVal ? `/login?next=${encodeURIComponent(nextVal)}` : "/login"}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
               Sign in
             </Link>
           </p>

@@ -209,6 +209,11 @@ export const QUICK_REPORT_PRESETS: QuickReportPreset[] = [
     filters: [{ field: "coverage_plan_type", value: "PDP" }],
   },
   {
+    id: "policies_by_type_med_supp",
+    label: "Policies by type (Med Supp)",
+    filters: [{ field: "coverage_plan_type", value: "Med Supp" }],
+  },
+  {
     id: "plans_by_company",
     label: "Plans by company",
     filters: [{ field: "coverage_carrier", value: "" }],
@@ -545,7 +550,9 @@ export function applyFilters(clients: Client[], filters: ReportFilter[]): Client
           if (!coverages.length) return false
           const hasMatch = coverages.some((c) => {
             if (f.field === "coverage_plan_type") {
-              return selected && selected.includes(c.planType)
+              if (!selected?.length) return false
+              const planTypeNorm = (c.planType ?? "").trim().toLowerCase()
+              return selected.some((s) => (s ?? "").trim().toLowerCase() === planTypeNorm)
             }
             if (f.field === "coverage_status") {
               return selected && selected.includes(c.status)

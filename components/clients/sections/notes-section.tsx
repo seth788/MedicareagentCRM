@@ -130,7 +130,7 @@ export function NotesSection({ client, activities }: SectionProps) {
       {/* Notes — agent-added */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-2/10">
               <StickyNote2 className="h-4 w-4 text-chart-2" />
             </div>
@@ -251,7 +251,7 @@ export function NotesSection({ client, activities }: SectionProps) {
       {/* Activities — when an action is taken */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <Calendar className="h-4 w-4 text-primary" />
             </div>

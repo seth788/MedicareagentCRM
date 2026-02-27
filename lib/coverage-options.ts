@@ -58,8 +58,46 @@ export const ELECTION_PERIOD_OPTIONS: { value: string; label: string }[] = [
   { value: "SEP Other", label: "SEP Other" },
 ]
 
-/** Plan type options for add-coverage step 1 (MAPD or PDP only). */
+/** Plan type options for add-coverage step 1. */
 export const COVERAGE_PLAN_TYPE_OPTIONS = [
   { value: "MAPD", label: "MAPD" },
   { value: "PDP", label: "PDP" },
+  { value: "Med Supp", label: "Med Supp" },
 ] as const
+
+/** Billing method options (all plan types). */
+export const BILLING_METHOD_OPTIONS: { value: string; label: string }[] = [
+  { value: "EFT", label: "EFT" },
+  { value: "SSA Deduction", label: "SSA Deduction" },
+  { value: "SSI Deduction", label: "SSI Deduction" },
+  { value: "Direct Bill (M)", label: "Direct Bill (M)" },
+  { value: "Direct Bill (Q)", label: "Direct Bill (Q)" },
+  { value: "Direct Bill (S)", label: "Direct Bill (S)" },
+  { value: "Direct Bill (A)", label: "Direct Bill (A)" },
+  { value: "Credit Card", label: "Credit Card" },
+]
+
+/** Draft day options (1–28 for monthly billing). */
+export const DRAFT_DAY_OPTIONS: { value: string; label: string }[] = Array.from(
+  { length: 28 },
+  (_, i) => {
+    const d = i + 1
+    const suffix = d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"
+    return { value: String(d), label: `${d}${suffix}` }
+  }
+)
+
+/** Enrollment method options. */
+export const ENROLLMENT_METHOD_OPTIONS: { value: string; label: string }[] = [
+  { value: "Paper", label: "Paper" },
+  { value: "Electronic", label: "Electronic" },
+  { value: "Phone", label: "Phone" },
+  { value: "eSign", label: "eSign" },
+  { value: "Other", label: "Other" },
+]
+
+/** New to book or rewrite options. */
+export const NEW_TO_BOOK_OR_REWRITE_OPTIONS: { value: string; label: string }[] = [
+  { value: "New to book", label: "New to book" },
+  { value: "Rewrite", label: "Rewrite" },
+]

@@ -76,6 +76,10 @@ import {
   WRITTEN_AS_OPTIONS,
   ELECTION_PERIOD_OPTIONS,
   COVERAGE_PLAN_TYPE_OPTIONS,
+  BILLING_METHOD_OPTIONS,
+  DRAFT_DAY_OPTIONS,
+  ENROLLMENT_METHOD_OPTIONS,
+  NEW_TO_BOOK_OR_REWRITE_OPTIONS,
   isActiveCoverageStatus,
 } from "@/lib/coverage-options"
 import type { SectionProps } from "./types"
@@ -83,6 +87,7 @@ import { getPreferredOrFirstAddress } from "@/lib/utils"
 import { normalizeCountyToPlainName } from "@/lib/utils"
 import { fetchCarriersForLocation, fetchPlansForCarrier } from "@/app/actions/medicare-plans"
 import type { MedicarePlanOption } from "@/lib/db/medicare-plans"
+import { MED_SUPP_CARRIERS, MED_SUPP_PLANS, MED_SUPP_PLANS_GROUPED } from "@/lib/med-supp-options"
 
 type StatusStyle = {
   Icon: React.ComponentType<{ className?: string; size?: number }>
@@ -157,6 +162,12 @@ function emptyCoverageForm(planType: CoveragePlanType) {
     applicationId: "",
     hraCollected: false,
     notes: "",
+    premium: "",
+    bonus: "",
+    billingMethod: "",
+    draftDay: "",
+    enrollmentMethod: "",
+    newToBookOrRewrite: "",
   }
 }
 
@@ -176,6 +187,12 @@ function coverageToForm(c: Coverage) {
     applicationId: c.applicationId,
     hraCollected: c.hraCollected,
     notes: c.notes ?? "",
+    premium: c.premium != null ? String(c.premium) : "",
+    bonus: c.bonus != null ? String(c.bonus) : "",
+    billingMethod: c.billingMethod ?? "",
+    draftDay: c.draftDay ?? "",
+    enrollmentMethod: c.enrollmentMethod ?? "",
+    newToBookOrRewrite: c.newToBookOrRewrite ?? "",
   }
 }
 
@@ -189,6 +206,12 @@ function formToCoverage(
     isActiveCoverageStatus(form.status)
       ? (existing?.commissionStatus ?? "paid_full")
       : existing?.commissionStatus
+
+  const parseNum = (s: string) => {
+    if (!s?.trim()) return undefined
+    const n = parseFloat(String(s).replace(/[^0-9.-]/g, ""))
+    return Number.isNaN(n) ? undefined : n
+  }
 
   return {
     id,
@@ -207,6 +230,12 @@ function formToCoverage(
     hraCollected: form.hraCollected,
     notes: form.notes.trim() || undefined,
     commissionStatus,
+    premium: parseNum(form.premium),
+    bonus: parseNum(form.bonus),
+    billingMethod: form.billingMethod?.trim() || undefined,
+    draftDay: form.draftDay?.trim() || undefined,
+    enrollmentMethod: form.enrollmentMethod?.trim() || undefined,
+    newToBookOrRewrite: form.newToBookOrRewrite?.trim() || undefined,
     createdAt: existing?.createdAt,
     updatedAt: existing?.updatedAt,
   }
@@ -232,10 +261,23 @@ export function CoverageSection({ client }: SectionProps) {
       : getPreferredOrFirstAddress(client)
   const normalizedCounty = normalizeCountyToPlainName(resolvedAddress?.county)
   const hasState = Boolean(resolvedAddress?.state?.trim())
-  const canFetchPlans = Boolean(addStep === 2 && addPlanType && hasState)
+  const isMedSupp = addPlanType === "Med Supp"
+  const canFetchPlans = Boolean(addStep === 2 && addPlanType && !isMedSupp && hasState)
+
+  // Med Supp: use hardcoded carriers and plans
+  const medSuppPlansAsOptions: MedicarePlanOption[] = MED_SUPP_PLANS.map((p) => ({
+    id: p,
+    planName: p,
+    contractId: "",
+  }))
 
   useEffect(() => {
-    if (!canFetchPlans || !resolvedAddress?.state) {
+    if (addStep !== 2 || !addPlanType) return
+    if (isMedSupp) {
+      setCarriers([...MED_SUPP_CARRIERS])
+      return
+    }
+    if (!resolvedAddress?.state) {
       setCarriers([])
       return
     }
@@ -254,9 +296,14 @@ export function CoverageSection({ client }: SectionProps) {
         toast.error("Failed to load carriers")
       })
       .finally(() => setLoadingCarriers(false))
-  }, [canFetchPlans, addPlanType, resolvedAddress?.state, resolvedAddress?.county, normalizedCounty])
+  }, [addStep, addPlanType, isMedSupp, resolvedAddress?.state, resolvedAddress?.county, normalizedCounty])
 
   useEffect(() => {
+    if (addStep !== 2 || !addPlanType) return
+    if (isMedSupp) {
+      setPlans(medSuppPlansAsOptions)
+      return
+    }
     if (!canFetchPlans || !addForm.carrier.trim() || !resolvedAddress?.state) {
       setPlans([])
       return
@@ -271,8 +318,10 @@ export function CoverageSection({ client }: SectionProps) {
       .then((r) => setPlans(r.plans ?? []))
       .finally(() => setLoadingPlans(false))
   }, [
-    canFetchPlans,
+    addStep,
     addPlanType,
+    isMedSupp,
+    canFetchPlans,
     resolvedAddress?.state,
     resolvedAddress?.county,
     normalizedCounty,
@@ -302,12 +351,30 @@ export function CoverageSection({ client }: SectionProps) {
           : undefined
       : undefined
   const normalizedEditCounty = normalizeCountyToPlainName(resolvedEditAddress?.county)
+  const isEditMedSupp = editForm.planType === "Med Supp"
   const canFetchEditPlans = Boolean(
-    editingId && resolvedEditAddress?.state?.trim() && (editForm.planType === "MAPD" || editForm.planType === "PDP")
+    editingId &&
+      (isEditMedSupp ||
+        (resolvedEditAddress?.state?.trim() &&
+          (editForm.planType === "MAPD" || editForm.planType === "PDP")))
   )
 
+  const editMedSuppPlansAsOptions: MedicarePlanOption[] = MED_SUPP_PLANS.map((p) => ({
+    id: p,
+    planName: p,
+    contractId: "",
+  }))
+
   useEffect(() => {
-    if (!canFetchEditPlans || !resolvedEditAddress?.state) {
+    if (!editingId || !canFetchEditPlans) {
+      if (!editingId) setEditCarriers([])
+      return
+    }
+    if (isEditMedSupp) {
+      setEditCarriers([...MED_SUPP_CARRIERS])
+      return
+    }
+    if (!resolvedEditAddress?.state) {
       setEditCarriers([])
       return
     }
@@ -327,7 +394,9 @@ export function CoverageSection({ client }: SectionProps) {
       })
       .finally(() => setEditLoadingCarriers(false))
   }, [
+    editingId,
     canFetchEditPlans,
+    isEditMedSupp,
     editForm.planType,
     resolvedEditAddress?.state,
     resolvedEditAddress?.county,
@@ -336,11 +405,15 @@ export function CoverageSection({ client }: SectionProps) {
 
   const carrierForPlans = editChangeCarrier !== null ? editChangeCarrier : editForm.carrier
   useEffect(() => {
-    if (
-      !canFetchEditPlans ||
-      !carrierForPlans.trim() ||
-      !resolvedEditAddress?.state
-    ) {
+    if (!editingId || !canFetchEditPlans) {
+      if (!editingId) setEditPlans([])
+      return
+    }
+    if (isEditMedSupp) {
+      setEditPlans(editMedSuppPlansAsOptions)
+      return
+    }
+    if (!carrierForPlans.trim() || !resolvedEditAddress?.state) {
       setEditPlans([])
       return
     }
@@ -354,7 +427,9 @@ export function CoverageSection({ client }: SectionProps) {
       .then((r) => setEditPlans(r.plans ?? []))
       .finally(() => setEditLoadingPlans(false))
   }, [
+    editingId,
     canFetchEditPlans,
+    isEditMedSupp,
     editForm.planType,
     resolvedEditAddress?.state,
     resolvedEditAddress?.county,
@@ -390,19 +465,22 @@ export function CoverageSection({ client }: SectionProps) {
   }, [])
 
   const handleAddClick = useCallback(() => {
-    if (!hasAddress) {
-      setAddressRequiredOpen(true)
-      return
-    }
     handleAddOpen()
-  }, [hasAddress, handleAddOpen])
+  }, [handleAddOpen])
 
-  const handleAddPlanTypeSelect = useCallback((value: CoveragePlanType) => {
-    setAddPlanType(value)
-    setAddForm(emptyCoverageForm(value))
-    setPlans([])
-    setAddStep(2)
-  }, [])
+  const handleAddPlanTypeSelect = useCallback(
+    (value: CoveragePlanType) => {
+      if ((value === "MAPD" || value === "PDP") && !hasAddress) {
+        setAddressRequiredOpen(true)
+        return
+      }
+      setAddPlanType(value)
+      setAddForm(emptyCoverageForm(value))
+      setPlans([])
+      setAddStep(2)
+    },
+    [hasAddress]
+  )
 
   const handleAddAddressChange = useCallback((addressId: string | null) => {
     setSelectedAddressId(addressId)
@@ -411,8 +489,14 @@ export function CoverageSection({ client }: SectionProps) {
   }, [])
 
   const handleAddSubmit = useCallback(() => {
+    const isSupp = addPlanType === "Med Supp"
+    const needsPremium = isSupp && !addForm.premium?.trim()
     if (!addForm.carrier.trim() || !addForm.planName.trim() || !addForm.status || !addForm.effectiveDate) {
       toast.error("Please fill required fields: Company/Carrier, Plan, Status, Effective date")
+      return
+    }
+    if (needsPremium) {
+      toast.error("Please enter the monthly premium")
       return
     }
     let newCoverage = formToCoverage(addForm, crypto.randomUUID())
@@ -447,6 +531,10 @@ export function CoverageSection({ client }: SectionProps) {
     if (!cov) return
     if (!editForm.carrier.trim() || !editForm.planName.trim() || !editForm.status || !editForm.effectiveDate) {
       toast.error("Please fill required fields")
+      return
+    }
+    if (editForm.planType === "Med Supp" && !editForm.premium?.trim()) {
+      toast.error("Please enter the monthly premium")
       return
     }
     let updated = formToCoverage(editForm, cov.id, cov)
@@ -496,7 +584,7 @@ export function CoverageSection({ client }: SectionProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/30 py-4">
-        <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+        <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-chart-3/10">
             <FileText className="h-4 w-4 text-chart-3" />
           </div>
@@ -556,7 +644,8 @@ export function CoverageSection({ client }: SectionProps) {
                     !addForm.carrier.trim() ||
                     !addForm.planName.trim() ||
                     !addForm.status ||
-                    !addForm.effectiveDate
+                    !addForm.effectiveDate ||
+                    (addPlanType === "Med Supp" && !addForm.premium?.trim())
                   }
                   className="min-h-[44px] w-full touch-manipulation sm:min-h-0 sm:w-auto"
                 >
@@ -679,8 +768,9 @@ function AddCoverageForm({
   const addresses = client.addresses ?? []
   const hasMultipleAddresses = addresses.length > 1
   const hasState = Boolean(resolvedAddress?.state?.trim())
-  const canShowPlans = hasState
-  const needsCounty = hasState && !normalizedCounty
+  const isMedSupp = planType === "Med Supp"
+  const canShowPlans = hasState || isMedSupp
+  const needsCounty = hasState && !normalizedCounty && !isMedSupp
 
   return (
     <div className="grid max-h-[60vh] gap-3 overflow-y-auto px-2 py-2">
@@ -689,7 +779,7 @@ function AddCoverageForm({
           Add an address to this client to see plans by location.
         </p>
       )}
-      {hasMultipleAddresses && resolvedAddress && (
+      {hasMultipleAddresses && resolvedAddress && !isMedSupp && (
         <div>
           <Label>View plans for</Label>
           <Select
@@ -770,18 +860,33 @@ function AddCoverageForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_">Select...</SelectItem>
-                {plans.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.planName} ({p.contractId})
-                  </SelectItem>
-                ))}
+                {isMedSupp
+                  ? MED_SUPP_PLANS_GROUPED.map((group) => (
+                      <SelectGroup key={group.label ?? "standard"}>
+                        {group.label && (
+                          <SelectLabel className="text-muted-foreground">
+                            --{group.label}--
+                          </SelectLabel>
+                        )}
+                        {group.plans.map((planName) => (
+                          <SelectItem key={planName} value={planName}>
+                            {planName}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))
+                  : plans.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.contractId ? `${p.planName} (${p.contractId})` : p.planName}
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>
         </>
       )}
       <div>
-        <Label>Status</Label>
+        <Label>Status *</Label>
         <Select value={form.status || "_"} onValueChange={(v) => setForm((f) => ({ ...f, status: v === "_" ? "" : v }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select..." />
@@ -827,36 +932,17 @@ function AddCoverageForm({
         </div>
       </div>
       <div>
-        <Label>Written as</Label>
+        <Label>Billing method</Label>
         <Select
-          value={form.writtenAs || "_"}
-          onValueChange={(v) => setForm((f) => ({ ...f, writtenAs: v === "_" ? "" : v }))}
-        >
-          <SelectTrigger className="min-h-[44px] sm:min-h-0">
-            <SelectValue placeholder="Select..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_">Select...</SelectItem>
-            {WRITTEN_AS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label>Election period</Label>
-        <Select
-          value={form.electionPeriod || "_"}
-          onValueChange={(v) => setForm((f) => ({ ...f, electionPeriod: v === "_" ? "" : v }))}
+          value={form.billingMethod || "_"}
+          onValueChange={(v) => setForm((f) => ({ ...f, billingMethod: v === "_" ? "" : v }))}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_">Select...</SelectItem>
-            {ELECTION_PERIOD_OPTIONS.map((opt) => (
+            {BILLING_METHOD_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -864,12 +950,59 @@ function AddCoverageForm({
           </SelectContent>
         </Select>
       </div>
+      {isMedSupp && (
+        <>
+          <div>
+            <Label>Premium * (monthly)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                value={form.premium}
+                onChange={(e) => setForm((f) => ({ ...f, premium: e.target.value }))}
+                placeholder="0.00"
+                className="pl-7 min-h-[44px] sm:min-h-0"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Bonus</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                value={form.bonus}
+                onChange={(e) => setForm((f) => ({ ...f, bonus: e.target.value }))}
+                placeholder="0.00"
+                className="pl-7 min-h-[44px] sm:min-h-0"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Draft day</Label>
+            <Select
+              value={form.draftDay || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, draftDay: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {DRAFT_DAY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
       <div>
-        <Label>Member / Policy #</Label>
+        <Label>{isMedSupp ? "Policy number" : "Member / Policy #"}</Label>
         <Input
           value={form.memberPolicyNumber}
           onChange={(e) => setForm((f) => ({ ...f, memberPolicyNumber: e.target.value }))}
-          placeholder="Member or policy number"
+          placeholder={isMedSupp ? "Policy number" : "Member or policy number"}
         />
       </div>
       <div>
@@ -892,24 +1025,110 @@ function AddCoverageForm({
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <Label>Application ID</Label>
-        <Input
-          value={form.applicationId}
-          onChange={(e) => setForm((f) => ({ ...f, applicationId: e.target.value }))}
-          placeholder="Application ID"
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="add-hra"
-          checked={form.hraCollected}
-          onCheckedChange={(checked) => setForm((f) => ({ ...f, hraCollected: !!checked }))}
-        />
-        <Label htmlFor="add-hra" className="font-normal cursor-pointer">
-          HRA collected
-        </Label>
-      </div>
+      {isMedSupp && (
+        <>
+          <div>
+            <Label>Enrollment method</Label>
+            <Select
+              value={form.enrollmentMethod || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, enrollmentMethod: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {ENROLLMENT_METHOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>New to book or rewrite</Label>
+            <Select
+              value={form.newToBookOrRewrite || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, newToBookOrRewrite: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {NEW_TO_BOOK_OR_REWRITE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+      {!isMedSupp && (
+        <>
+          <div>
+            <Label>Written as</Label>
+            <Select
+              value={form.writtenAs || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, writtenAs: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger className="min-h-[44px] sm:min-h-0">
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {WRITTEN_AS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Election period</Label>
+            <Select
+              value={form.electionPeriod || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, electionPeriod: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {ELECTION_PERIOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Application ID</Label>
+            <Input
+              value={form.applicationId}
+              onChange={(e) => setForm((f) => ({ ...f, applicationId: e.target.value }))}
+              placeholder="Application ID"
+            />
+          </div>
+        </>
+      )}
+      {planType === "MAPD" && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="add-hra"
+            checked={form.hraCollected}
+            onCheckedChange={(checked) => setForm((f) => ({ ...f, hraCollected: !!checked }))}
+          />
+          <Label htmlFor="add-hra" className="font-normal cursor-pointer">
+            HRA collected
+          </Label>
+        </div>
+      )}
       <div>
         <Label>Notes</Label>
         <Textarea
@@ -998,16 +1217,18 @@ function CoverageCard({
                 {effectiveDateDisplay}
               </span>
             )}
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                coverage.hraCollected
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
-                  : "bg-muted text-muted-foreground border-border"
-              }`}
-              title="HRA collected"
-            >
-              HRA {coverage.hraCollected ? "Yes" : "No"}
-            </span>
+            {(coverage.planType === "MAPD") && (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                  coverage.hraCollected
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                    : "bg-muted text-muted-foreground border-border"
+                }`}
+                title="HRA collected"
+              >
+                HRA {coverage.hraCollected ? "Yes" : "No"}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1070,15 +1291,39 @@ function CoverageCard({
                 <Row label="Status" value={coverage.status} />
                 <Row label="Application date" value={coverage.applicationDate ? format(parseLocalDate(coverage.applicationDate), "MMM d, yyyy") : "—"} />
                 <Row label="Effective date" value={effectiveDateDisplay ?? "—"} />
-                <Row label="Written as" value={coverage.writtenAs || "—"} />
-                <Row label="Election period" value={coverage.electionPeriod || "—"} />
-                <Row label="Member / Policy #" value={coverage.memberPolicyNumber || "—"} />
+                {coverage.planType === "Med Supp" && coverage.premium != null && (
+                  <Row label="Premium (monthly)" value={`$${Number(coverage.premium).toFixed(2)}`} />
+                )}
+                {coverage.planType === "Med Supp" && coverage.bonus != null && (
+                  <Row label="Bonus" value={`$${Number(coverage.bonus).toFixed(2)}`} />
+                )}
+                {coverage.billingMethod && (
+                  <Row label="Billing method" value={coverage.billingMethod} />
+                )}
+                {coverage.planType === "Med Supp" && coverage.draftDay && (
+                  <Row label="Draft day" value={coverage.draftDay} />
+                )}
+                {coverage.planType !== "Med Supp" && (
+                  <>
+                    <Row label="Written as" value={coverage.writtenAs || "—"} />
+                    <Row label="Election period" value={coverage.electionPeriod || "—"} />
+                    <Row label="Application ID" value={coverage.applicationId || "—"} />
+                  </>
+                )}
+                <Row label={coverage.planType === "Med Supp" ? "Policy #" : "Member / Policy #"} value={coverage.memberPolicyNumber || "—"} />
                 <Row
                   label="Replacing"
                   value={coverage.replacingCoverageId ? getReplacingLabel(coverage.replacingCoverageId) : "—"}
                 />
-                <Row label="Application ID" value={coverage.applicationId || "—"} />
-                <Row label="HRA collected" value={coverage.hraCollected ? "Yes" : "No"} />
+                {coverage.planType === "Med Supp" && coverage.enrollmentMethod && (
+                  <Row label="Enrollment method" value={coverage.enrollmentMethod} />
+                )}
+                {coverage.planType === "Med Supp" && coverage.newToBookOrRewrite && (
+                  <Row label="New to book or rewrite" value={coverage.newToBookOrRewrite} />
+                )}
+                {coverage.planType === "MAPD" && (
+                  <Row label="HRA collected" value={coverage.hraCollected ? "Yes" : "No"} />
+                )}
                 {coverage.notes?.trim() && <Row label="Notes" value={coverage.notes} />}
               </div>
             )}
@@ -1136,7 +1381,8 @@ function InlineCoverageForm({
   const [changePlanId, setChangePlanId] = useState("")
   const [changePlanName, setChangePlanName] = useState("")
   const hasMultipleAddresses = addresses.length > 1
-  const canShowPlanDropdowns = Boolean(resolvedEditAddress?.state?.trim())
+  const isEditMedSupp = form.planType === "Med Supp"
+  const canShowPlanDropdowns = Boolean(resolvedEditAddress?.state?.trim() || isEditMedSupp)
 
   const handleOpenChange = useCallback(() => {
     setShowChangePlans(true)
@@ -1182,7 +1428,7 @@ function InlineCoverageForm({
               size="sm"
               className="!h-full min-h-0 shrink-0 rounded-none border-0 border-l border-primary px-3 text-xs font-medium touch-manipulation"
               onClick={handleOpenChange}
-              disabled={addresses.length === 0}
+              disabled={addresses.length === 0 && !isEditMedSupp}
             >
               Change
             </Button>
@@ -1202,7 +1448,7 @@ function InlineCoverageForm({
               size="sm"
               className="!h-full min-h-0 shrink-0 rounded-none border-0 border-l border-primary px-3 text-xs font-medium touch-manipulation"
               onClick={handleOpenChange}
-              disabled={addresses.length === 0}
+              disabled={addresses.length === 0 && !isEditMedSupp}
             >
               Change
             </Button>
@@ -1211,8 +1457,10 @@ function InlineCoverageForm({
       </div>
       {showChangePlans && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">Choose carrier and plan by location</p>
-          {addresses.length === 0 ? (
+          <p className="text-xs font-medium text-muted-foreground">
+            {isEditMedSupp ? "Choose carrier and plan" : "Choose carrier and plan by location"}
+          </p>
+          {addresses.length === 0 && !isEditMedSupp ? (
             <p className="text-xs text-muted-foreground">Add an address to this client to view plans.</p>
           ) : (
             <>
@@ -1301,11 +1549,26 @@ function InlineCoverageForm({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_">Select...</SelectItem>
-                        {editPlans.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.planName} ({p.contractId})
-                          </SelectItem>
-                        ))}
+                        {isEditMedSupp
+                          ? MED_SUPP_PLANS_GROUPED.map((group) => (
+                              <SelectGroup key={group.label ?? "standard"}>
+                                {group.label && (
+                                  <SelectLabel className="text-muted-foreground text-xs">
+                                    --{group.label}--
+                                  </SelectLabel>
+                                )}
+                                {group.plans.map((planName) => (
+                                  <SelectItem key={planName} value={planName}>
+                                    {planName}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            ))
+                          : editPlans.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.contractId ? `${p.planName} (${p.contractId})` : p.planName}
+                              </SelectItem>
+                            ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1369,48 +1632,154 @@ function InlineCoverageForm({
           />
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <Label className="text-xs">Written as</Label>
-          <Select
-            value={form.writtenAs || "_"}
-            onValueChange={(v) => setForm((f) => ({ ...f, writtenAs: v === "_" ? "" : v }))}
-          >
-            <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_">Select...</SelectItem>
-              {WRITTEN_AS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Election period</Label>
-          <Select
-            value={form.electionPeriod || "_"}
-            onValueChange={(v) => setForm((f) => ({ ...f, electionPeriod: v === "_" ? "" : v }))}
-          >
-            <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_">Select...</SelectItem>
-              {ELECTION_PERIOD_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
       <div>
-        <Label className="text-xs">Member / Policy #</Label>
+        <Label className="text-xs">Billing method</Label>
+        <Select
+          value={form.billingMethod || "_"}
+          onValueChange={(v) => setForm((f) => ({ ...f, billingMethod: v === "_" ? "" : v }))}
+        >
+          <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_">Select...</SelectItem>
+            {BILLING_METHOD_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {isEditMedSupp && (
+        <>
+          <div>
+            <Label className="text-xs">Premium * (monthly)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+              <Input
+                value={form.premium}
+                onChange={(e) => setForm((f) => ({ ...f, premium: e.target.value }))}
+                placeholder="0.00"
+                className="pl-7 h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Bonus</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+              <Input
+                value={form.bonus}
+                onChange={(e) => setForm((f) => ({ ...f, bonus: e.target.value }))}
+                placeholder="0.00"
+                className="pl-7 h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Draft day</Label>
+            <Select
+              value={form.draftDay || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, draftDay: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {DRAFT_DAY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Enrollment method</Label>
+            <Select
+              value={form.enrollmentMethod || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, enrollmentMethod: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {ENROLLMENT_METHOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">New to book or rewrite</Label>
+            <Select
+              value={form.newToBookOrRewrite || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, newToBookOrRewrite: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {NEW_TO_BOOK_OR_REWRITE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+      {!isEditMedSupp && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <Label className="text-xs">Written as</Label>
+            <Select
+              value={form.writtenAs || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, writtenAs: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {WRITTEN_AS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Election period</Label>
+            <Select
+              value={form.electionPeriod || "_"}
+              onValueChange={(v) => setForm((f) => ({ ...f, electionPeriod: v === "_" ? "" : v }))}
+            >
+              <SelectTrigger className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_">Select...</SelectItem>
+                {ELECTION_PERIOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+      <div>
+        <Label className="text-xs">{isEditMedSupp ? "Policy number" : "Member / Policy #"}</Label>
         <Input
           value={form.memberPolicyNumber}
           onChange={(e) => setForm((f) => ({ ...f, memberPolicyNumber: e.target.value }))}
@@ -1437,24 +1806,28 @@ function InlineCoverageForm({
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <Label className="text-xs">Application ID</Label>
-        <Input
-          value={form.applicationId}
-          onChange={(e) => setForm((f) => ({ ...f, applicationId: e.target.value }))}
-          className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="edit-hra"
-          checked={form.hraCollected}
-          onCheckedChange={(checked) => setForm((f) => ({ ...f, hraCollected: !!checked }))}
-        />
-        <Label htmlFor="edit-hra" className="text-xs font-normal cursor-pointer">
-          HRA collected
-        </Label>
-      </div>
+      {!isEditMedSupp && (
+        <div>
+          <Label className="text-xs">Application ID</Label>
+          <Input
+            value={form.applicationId}
+            onChange={(e) => setForm((f) => ({ ...f, applicationId: e.target.value }))}
+            className="h-10 min-h-[44px] text-sm sm:h-8 sm:min-h-0"
+          />
+        </div>
+      )}
+      {form.planType === "MAPD" && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="edit-hra"
+            checked={form.hraCollected}
+            onCheckedChange={(checked) => setForm((f) => ({ ...f, hraCollected: !!checked }))}
+          />
+          <Label htmlFor="edit-hra" className="text-xs font-normal cursor-pointer">
+            HRA collected
+          </Label>
+        </div>
+      )}
       <div>
         <Label className="text-xs">Notes</Label>
         <Textarea

@@ -25,7 +25,7 @@ export function AppHeader({ title, onOpenCommandPalette, breadcrumb, children }:
         </>
       )}
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base font-semibold text-foreground">{title}</h1>
+        <h1 className="truncate text-sm font-semibold text-foreground sm:text-base">{title}</h1>
       </div>
       <div className="ml-auto flex min-h-[40px] shrink-0 items-center gap-2">
         {children}

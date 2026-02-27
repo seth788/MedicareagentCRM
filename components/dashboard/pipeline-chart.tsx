@@ -52,7 +52,7 @@ export function PipelineChart() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
               <BarChart3 className="h-4 w-4 text-primary" />
               {defaultFlow ? `${defaultFlow.name} Pipeline` : "Lead Pipeline"}
             </CardTitle>

@@ -8,7 +8,6 @@ import {
   FileText,
   StickyNote2,
   SecurityLock,
-  ChevronDown,
 } from "@/components/icons"
 import { Signature } from "@/components/icons"
 import {
@@ -110,36 +109,6 @@ export function ClientTabs({
 
   return (
     <div className="w-full">
-      {/* Mobile: dropdown section selector */}
-      <div className="sm:hidden">
-        <div className="relative rounded-xl border bg-card">
-          {(() => {
-            const active = CLIENT_SECTIONS.find((s) => s.id === activeSection) ?? CLIENT_SECTIONS[0]
-            const ActiveIcon = active.icon
-            return (
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center gap-2 pl-4">
-                <ActiveIcon className="h-4 w-4 text-primary" />
-              </div>
-            )
-          })()}
-          <select
-            value={activeSection}
-            onChange={(e) => setActiveSection(e.target.value as SectionId)}
-            aria-label="Select profile section"
-            className="w-full min-h-[48px] appearance-none rounded-xl bg-transparent py-3 pl-10 pr-10 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {CLIENT_SECTIONS.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </div>
-        </div>
-      </div>
-
       {/* Desktop: pill-style section nav (hidden when using icon sidebar) */}
       {!isControlled && (
       <nav

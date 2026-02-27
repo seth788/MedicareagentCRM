@@ -11,9 +11,6 @@ import {
   UserPlus,
   UserMinus,
   Pencil,
-  Clock,
-  Heart,
-  FileText,
   MessageSquare,
 } from "@/components/icons"
 import { Badge } from "@/components/ui/badge"
@@ -67,7 +64,7 @@ export function ClientProfileHeader({
   editClientSection,
   onRequestEdit,
 }: ClientProfileHeaderProps) {
-  const { leads, deleteLead, addActivity, flows, activities, tasks, currentAgent } = useCRMStore()
+  const { leads, deleteLead, addActivity, flows, currentAgent } = useCRMStore()
   const [mounted, setMounted] = useState(false)
   const [createTaskOpen, setCreateTaskOpen] = useState(false)
   const [markAsLeadOpen, setMarkAsLeadOpen] = useState(false)
@@ -117,14 +114,6 @@ export function ClientProfileHeader({
   const days = mounted ? differenceInDays(parseLocalDate(t65Date), new Date()) : 0
   const isAlready65 = age >= 65
   const isFuture = !isAlready65 && days >= 0
-
-  const clientActivities = activities.filter(
-    (a) => a.relatedId === client.id && a.relatedType === "Client"
-  )
-  const clientTasks = tasks.filter(
-    (t) => t.relatedId === client.id && t.relatedType === "Client"
-  )
-  const pendingTasks = clientTasks.filter((t) => !t.completedAt)
 
   const handleRemoveFromLead = (leadToRemove: Lead) => {
     const flow = flows.find((f) => f.id === leadToRemove.flowId)
@@ -186,7 +175,7 @@ export function ClientProfileHeader({
                     type="button"
                     onClick={handleAvatarClick}
                     disabled={uploading}
-                    className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-card bg-primary text-sm font-bold tracking-wide text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-70 sm:h-14 sm:w-14 sm:text-base"
+                    className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-card bg-primary text-xs font-bold tracking-wide text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-70 sm:h-14 sm:w-14 sm:text-base"
                     aria-label="Upload client photo"
                   >
                     <input
@@ -261,7 +250,7 @@ export function ClientProfileHeader({
 
           {/* Name and badges */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               {client.nickname ? `${client.firstName} "${client.nickname}" ${client.lastName}` : `${client.firstName} ${client.lastName}`}
             </h2>
             {mounted && (isFuture ? (
@@ -365,42 +354,6 @@ export function ClientProfileHeader({
               </div>
             </TooltipProvider>
 
-            {/* Quick stat pills */}
-            <div className="flex shrink-0 flex-wrap gap-2.5">
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none">Tasks</p>
-                  <p className="mt-0.5 text-sm font-semibold text-foreground leading-none">{pendingTasks.length}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-chart-2/10">
-                  <Heart className="h-3.5 w-3.5 text-chart-2" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none">Conditions</p>
-                  <p className="mt-0.5 text-sm font-semibold text-foreground leading-none">{client.conditions.length}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-chart-3/10">
-                  <FileText className="h-3.5 w-3.5 text-chart-3" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none">Coverage</p>
-                  <p className="mt-0.5 text-sm font-semibold text-foreground leading-none">
-                    {(client.coverages?.length ?? 0) > 0
-                      ? client.coverages!.length === 1
-                        ? client.coverages![0].planType
-                        : `${client.coverages!.length} plans`
-                      : "None"}
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

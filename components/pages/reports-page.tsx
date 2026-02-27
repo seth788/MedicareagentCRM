@@ -43,13 +43,25 @@ export function ReportsPageInner() {
     }
   }, [])
   const [filtersChangedSinceRun, setFiltersChangedSinceRun] = useState(false)
-  const [hasRun, setHasRun] = useState(false)
+  const [hasRun, setHasRun] = useState(true)
+  const [lastRunFilters, setLastRunFilters] = useState<ReportFilter[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleFiltersChange = (newFilters: ReportFilter[]) => {
     setFilters(newFilters)
-    setFiltersChangedSinceRun(true)
+    if (newFilters.length === 0) {
+      setLastRunFilters([])
+      setHasRun(true)
+      setFiltersChangedSinceRun(false)
+    } else {
+      setFiltersChangedSinceRun(true)
+    }
   }
 
   useEffect(() => {
@@ -63,9 +75,9 @@ export function ReportsPageInner() {
   }, [fetchSavedReports])
 
   const rows = useMemo(() => {
-    if (!hasRun && filters.length > 0) return []
-    return getReportRows(clients, filters)
-  }, [clients, filters, hasRun])
+    if (!hasRun) return []
+    return getReportRows(clients, lastRunFilters)
+  }, [clients, lastRunFilters, hasRun])
 
   const pharmacyOptions = useMemo(() => getPharmacyOptionsFromClients(clients), [clients])
   const rxOptions = useMemo(() => getRxOptionsFromClients(clients), [clients])
@@ -79,12 +91,14 @@ export function ReportsPageInner() {
   const carrierOptions = useMemo(() => getCarrierOptionsFromClients(clients), [clients])
 
   const runReport = () => {
+    setLastRunFilters(filters)
     setHasRun(true)
     setFiltersChangedSinceRun(false)
   }
 
   const handleSelectPreset = (presetFilters: ReportFilter[]) => {
     setFilters(presetFilters)
+    setLastRunFilters(presetFilters)
     setFiltersChangedSinceRun(false)
     setHasRun(true)
   }
@@ -132,7 +146,7 @@ export function ReportsPageInner() {
           size="sm"
           className="min-h-[40px]"
           onClick={handleExportCsv}
-          disabled={rows.length === 0 || exporting}
+          disabled={!mounted || rows.length === 0 || exporting}
         >
           <Share05 className="mr-1.5 h-3.5 w-3.5" />
           Export CSV
@@ -176,13 +190,15 @@ export function ReportsPageInner() {
         <main className="min-h-0 min-w-0 flex-1 overflow-auto">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {filters.length === 0 || hasRun
-                ? `${rows.length} result${rows.length === 1 ? "" : "s"}`
-                : "Run a report or choose a quick report to see results"}
+              {!mounted
+                ? "Run a report or choose a quick report to see results"
+                : filters.length === 0 || hasRun
+                  ? `${rows.length} result${rows.length === 1 ? "" : "s"}`
+                  : "Run a report or choose a quick report to see results"}
             </p>
           </div>
           <ReportResultsTable
-            rows={rows}
+            rows={mounted ? rows : []}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
           />

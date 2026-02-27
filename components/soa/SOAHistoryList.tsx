@@ -119,25 +119,28 @@ function SOAHistoryItem({
     <Collapsible open={open} onOpenChange={setOpen}>
       <Card>
         <CollapsibleTrigger asChild>
-          <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 cursor-pointer hover:bg-muted/50 gap-3 sm:gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+          <CardContent className="flex flex-col gap-3 py-4 cursor-pointer hover:bg-muted/50">
+            {/* Top row: chevron + date/products (content never overlaps) */}
+            <div className="flex items-start gap-3 min-w-0">
               {open ? (
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               ) : (
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               )}
-              <div className="text-left min-w-0 flex-1">
+              <div className="text-left min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium">{createdDate}</p>
-                <p className="text-xs text-muted-foreground">{productsDisplay}</p>
+                <p className="text-xs text-muted-foreground break-words">{productsDisplay}</p>
               </div>
+            </div>
+            {/* Bottom row: status badge + action buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pl-7">
               <Badge variant={statusInfo.variant} className="shrink-0">
                 {statusInfo.label}
               </Badge>
-            </div>
-            <div
-              className="flex flex-wrap items-center gap-2 shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
+              <div
+                className="flex flex-wrap items-center gap-2 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
               {soa.status === "client_signed" && onCountersign && (
                 <Button size="sm" onClick={() => onCountersign(soa)}>
                   Countersign
@@ -194,11 +197,12 @@ function SOAHistoryItem({
                   Copy Link
                 </Button>
               )}
+              </div>
             </div>
           </CardContent>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-4 border-t">
+          <CardContent className="pt-0 pb-4 border-t max-h-72 overflow-y-auto">
             <SOAActivityTimeline entries={auditEntries} />
           </CardContent>
         </CollapsibleContent>

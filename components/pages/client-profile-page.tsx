@@ -12,6 +12,7 @@ import { SectionIconSidebar } from "@/components/section-icon-sidebar"
 import type { EditClientSection } from "@/components/clients/edit-client-dialog"
 import type { SectionId } from "@/components/clients/sections"
 import { useCRMStore } from "@/lib/store"
+import { ClientSOAProvider } from "@/lib/contexts/client-soa-context"
 
 const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes", "soa"]
 function isValidSection(value: string | null): value is SectionId {
@@ -101,6 +102,7 @@ export default function ClientProfilePageInner({
           </Link>
         }
       />
+      <ClientSOAProvider clientId={id}>
       <div className="flex flex-1 min-h-0">
         <SectionIconSidebar
           items={CLIENT_SECTIONS}
@@ -132,6 +134,7 @@ export default function ClientProfilePageInner({
           </div>
         </div>
       </div>
+      </ClientSOAProvider>
     </>
   )
 }

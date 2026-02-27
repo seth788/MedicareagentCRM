@@ -43,7 +43,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
       supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
       supabase.from("client_notes").select("client_id, text, created_at, updated_at").in("client_id", clientIds),
-      supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, commission_status, notes, created_at, updated_at").in("client_id", clientIds),
+      supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, commission_status, notes, premium, bonus, billing_method, draft_day, enrollment_method, new_to_book_or_rewrite, created_at, updated_at").in("client_id", clientIds),
     ])
 
   const byClient = (arr: { client_id: string }[]) => {
@@ -66,7 +66,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
   function mapCoverageRow(r: CoverageRow): Client["coverages"][number] {
     return {
       id: r.id,
-      planType: r.plan_type as "MAPD" | "PDP",
+      planType: r.plan_type as "MAPD" | "PDP" | "Med Supp",
       companyId: r.company_id ?? undefined,
       carrier: r.carrier ?? "",
       planId: r.plan_id ?? undefined,
@@ -82,6 +82,12 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       hraCollected: r.hra_collected ?? false,
       commissionStatus: r.commission_status ?? undefined,
       notes: r.notes ?? undefined,
+      premium: r.premium != null ? Number(r.premium) : undefined,
+      bonus: r.bonus != null ? Number(r.bonus) : undefined,
+      billingMethod: r.billing_method ?? undefined,
+      draftDay: r.draft_day ?? undefined,
+      enrollmentMethod: r.enrollment_method ?? undefined,
+      newToBookOrRewrite: r.new_to_book_or_rewrite ?? undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }
@@ -347,6 +353,12 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
               hra_collected: cov.hraCollected ?? false,
               notes: cov.notes ?? null,
               commission_status: cov.commissionStatus ?? "not_paid",
+              premium: cov.premium ?? null,
+              bonus: cov.bonus ?? null,
+              billing_method: cov.billingMethod ?? null,
+              draft_day: cov.draftDay ?? null,
+              enrollment_method: cov.enrollmentMethod ?? null,
+              new_to_book_or_rewrite: cov.newToBookOrRewrite ?? null,
             }))
           )
         })()
@@ -587,6 +599,12 @@ export async function updateClient(
         hra_collected: cov.hraCollected ?? false,
         notes: cov.notes ?? null,
         commission_status: cov.commissionStatus ?? "not_paid",
+        premium: cov.premium ?? null,
+        bonus: cov.bonus ?? null,
+        billing_method: cov.billingMethod ?? null,
+        draft_day: cov.draftDay ?? null,
+        enrollment_method: cov.enrollmentMethod ?? null,
+        new_to_book_or_rewrite: cov.newToBookOrRewrite ?? null,
       }))
       const { error: insertError } = await supabase
         .from("client_coverages")

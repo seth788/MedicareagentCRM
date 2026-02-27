@@ -112,7 +112,7 @@ export function KPICards() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <p className="text-2xl font-bold tabular-nums text-foreground">{kpi.value}</p>
+                <p className="text-xl font-bold tabular-nums text-foreground sm:text-2xl">{kpi.value}</p>
                 <p className="text-xs text-muted-foreground">{kpi.subtitle}</p>
               </div>
             </CardContent>

@@ -19,7 +19,8 @@ import {
 import { useTheme } from "next-themes"
 import { formatPhoneNumber } from "@/lib/utils"
 import { toast } from "sonner"
-import { Moon, Sun, Monitor, Mail, Cake } from "@/components/icons"
+import { Moon, Sun, Monitor, Mail, Cake, Building2 } from "@/components/icons"
+import Link from "next/link"
 import { Switch } from "@/components/ui/switch"
 import { getSettingsProfile, updateProfileSettings, updateNotificationSettings } from "@/app/actions/settings"
 import { uploadAgentAvatar } from "@/app/actions/agent-avatar"
@@ -51,7 +52,7 @@ export default function SettingsPageInner({
   initialProfile?: SettingsProfileType | null
 } = {}) {
   const { setTheme } = useTheme()
-  const { setAutoIssueApplications } = useCRMStore()
+  const { setAutoIssueApplications, dashboardOrgs } = useCRMStore()
   const hasInitial = initialProfile != null
   const [profile, setProfile] = useState<SettingsProfileType | null>(hasInitial ? initialProfile : null)
   const [loading, setLoading] = useState(!hasInitial)
@@ -183,7 +184,7 @@ export default function SettingsPageInner({
       <div className="flex-1 overflow-auto overflow-x-hidden">
         <div className="mx-auto max-w-3xl p-4 sm:p-6">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-foreground">Settings</h2>
+            <h2 className="text-lg font-semibold text-foreground sm:text-xl">Settings</h2>
             <p className="text-sm text-muted-foreground">
               Manage your account preferences and application settings.
             </p>
@@ -192,7 +193,7 @@ export default function SettingsPageInner({
           <div className="grid gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Profile</CardTitle>
+                <CardTitle className="text-sm sm:text-base">Profile</CardTitle>
                 <CardDescription>Your agent profile information.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
@@ -346,7 +347,7 @@ export default function SettingsPageInner({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Applications</CardTitle>
+                <CardTitle className="text-sm sm:text-base">Applications</CardTitle>
                 <CardDescription>
                   How pending applications are marked as issued.
                 </CardDescription>
@@ -390,7 +391,7 @@ export default function SettingsPageInner({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Notifications</CardTitle>
+                <CardTitle className="text-sm sm:text-base">Notifications</CardTitle>
                 <CardDescription>Configure email alerts. Emails come from notifications@advantacrm.com. Daily Turning 65 digest runs at 6:00 AM.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
@@ -432,7 +433,45 @@ export default function SettingsPageInner({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">About</CardTitle>
+                <CardTitle className="text-sm sm:text-base">Agency</CardTitle>
+                <CardDescription>
+                  {dashboardOrgs.length > 0
+                    ? "Manage your agency and invite agents."
+                    : "Create an agency to invite agents and manage your downline."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dashboardOrgs.length > 0 ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <p className="text-sm text-muted-foreground">
+                      You have access to {dashboardOrgs.length === 1 ? "an agency" : `${dashboardOrgs.length} agencies`}.
+                    </p>
+                    <Button asChild variant="outline" size="sm" className="w-fit gap-2">
+                      <Link href={dashboardOrgs[0] ? `/agency?org=${dashboardOrgs[0].id}` : "/agency"}>
+                        <Building2 className="h-4 w-4" />
+                        Go to Agency Dashboard
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <p className="text-sm text-muted-foreground">
+                      Create an agency to invite agents, track production, and manage your book of business.
+                    </p>
+                    <Button asChild size="sm" className="w-fit gap-2">
+                      <Link href="/organization/create">
+                        <Building2 className="h-4 w-4" />
+                        Create Agency
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm sm:text-base">About</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-2 text-sm">
                 <div className="flex justify-between">

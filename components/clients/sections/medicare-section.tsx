@@ -67,7 +67,7 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
       <Card className="overflow-hidden border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
           <div className="flex items-center gap-2.5">
-            <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <CardTitle className="flex items-center gap-2.5 text-sm font-semibold sm:text-base">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <ShieldAlert className="h-4 w-4 text-primary" />
               </div>

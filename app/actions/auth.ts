@@ -4,16 +4,18 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData?: FormData) {
   const supabase = await createClient()
   const h = await headers()
   const host = h.get("host") ?? "localhost:3000"
   const proto = h.get("x-forwarded-proto") === "https" ? "https" : "http"
   const origin = `${proto}://${host}`
+  const next = (formData?.get("next") as string)?.trim()
+  const nextParam = next && next.startsWith("/") ? `?next=${encodeURIComponent(next)}` : ""
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: `${origin}/auth/callback${nextParam}`,
     },
   })
   if (error) {
@@ -36,7 +38,11 @@ export async function signIn(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
-  redirect("/dashboard")
+  let next = (formData.get("next") as string)?.trim()
+  if (next && next.startsWith("/") && next.startsWith("/invite/")) {
+    next = `${next}${next.includes("?") ? "&" : "?"}from_login=1`
+  }
+  redirect(next && next.startsWith("/") ? next : "/dashboard")
 }
 
 export async function signUp(formData: FormData) {
@@ -55,7 +61,11 @@ export async function signUp(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
-  redirect("/dashboard")
+  let next = (formData.get("next") as string)?.trim()
+  if (next && next.startsWith("/") && next.startsWith("/invite/")) {
+    next = `${next}${next.includes("?") ? "&" : "?"}from_login=1`
+  }
+  redirect(next && next.startsWith("/") ? next : "/dashboard")
 }
 
 export async function signOut() {
