@@ -24,3 +24,4 @@ export type SectionId =
   | "medicare"
   | "coverage"
   | "notes"
+  | "soa"

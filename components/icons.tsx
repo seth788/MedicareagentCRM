@@ -51,6 +51,7 @@ import {
   DragDropVerticalIcon,
   Edit03Icon,
   EyeIcon,
+  ViewOffIcon,
   File01Icon,
   FilterHorizontalIcon as FilterHorizontalIconSvg,
   FilterIcon as FilterIconSvg,
@@ -159,7 +160,8 @@ export const MoreVertical = createIcon(MoreHorizontalIcon, "MoreVertical")
 export const ArrowUpDown = createIcon(ArrowUpDownIcon, "ArrowUpDown")
 export const Trash2 = createIcon(Delete01Icon, "Trash2")
 export const Eye = createIcon(EyeIcon, "Eye")
-export const EyeOff = createIcon(EyeIcon, "EyeOff")
+export const EyeOff = createIcon(ViewOffIcon, "EyeOff")
+export const ViewOff = createIcon(ViewOffIcon, "ViewOff")
 export const ArrowRightLeft = createIcon(ArrowLeftRightIcon, "ArrowRightLeft")
 export const MessageSquare = createIcon(Message01Icon, "MessageSquare")
 export const GripVertical = createIcon(DragDropVerticalIcon, "GripVertical")

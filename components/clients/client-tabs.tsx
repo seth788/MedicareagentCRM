@@ -10,12 +10,14 @@ import {
   SecurityLock,
   ChevronDown,
 } from "@/components/icons"
+import { Signature } from "@/components/icons"
 import {
   ContactSection,
   HealthSection,
   MedicareSection,
   CoverageSection,
   NotesSection,
+  SOASection,
 } from "@/components/clients/sections"
 import type { Client, Activity, Task } from "@/lib/types"
 import type { SectionId } from "@/components/clients/sections"
@@ -26,9 +28,10 @@ export const CLIENT_SECTIONS: { id: SectionId; label: string; icon: React.Elemen
   { id: "coverage", label: "Coverage", icon: FileText },
   { id: "notes", label: "Notes & Activity", icon: StickyNote2 },
   { id: "medicare", label: "Medicare", icon: SecurityLock },
+  { id: "soa", label: "Scope of Appointment", icon: Signature },
 ]
 
-const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes"]
+const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes", "soa"]
 
 function isValidSection(value: string | null): value is SectionId {
   return value !== null && VALID_SECTIONS.includes(value as SectionId)
@@ -177,7 +180,7 @@ export function ClientTabs({
       {/* Content area */}
       <div
         id="section-content"
-        className="min-h-[400px] pt-6"
+        className="min-h-[400px] pt-4"
         role="tabpanel"
         aria-labelledby={`tab-${activeSection}`}
       >
@@ -195,6 +198,9 @@ export function ClientTabs({
         )}
         {activeSection === "notes" && (
           <NotesSection {...sectionProps} />
+        )}
+        {activeSection === "soa" && (
+          <SOASection {...sectionProps} />
         )}
       </div>
     </div>

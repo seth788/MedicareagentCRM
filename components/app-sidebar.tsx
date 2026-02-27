@@ -46,7 +46,6 @@ const navItems = [
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Reports", url: "/reports", icon: FilterIcon },
   { title: "Pending", url: "/pending", icon: Clock },
-  { title: "Settings", url: "/settings", icon: Settings },
 ]
 
 function getInitials(name: string): string {

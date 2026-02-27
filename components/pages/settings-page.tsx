@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useTheme } from "next-themes"
+import { formatPhoneNumber } from "@/lib/utils"
 import { toast } from "sonner"
 import { Moon, Sun, Monitor } from "@/components/icons"
 import { getSettingsProfile, updateProfileSettings } from "@/app/actions/settings"
@@ -34,6 +35,7 @@ const defaultForm: SettingsProfileType = {
   firstName: "",
   lastName: "",
   email: "",
+  phone: "",
   npn: "",
   theme: "light",
   autoIssueApplications: true,
@@ -80,6 +82,7 @@ export default function SettingsPageInner({
       await updateProfileSettings({
         firstName: form.firstName,
         lastName: form.lastName,
+        phone: form.phone,
         npn: form.npn,
         theme: form.theme,
         autoIssueApplications: form.autoIssueApplications,
@@ -143,6 +146,7 @@ export default function SettingsPageInner({
   const hasProfileChanges =
     form.firstName !== savedProfile.firstName ||
     form.lastName !== savedProfile.lastName ||
+    form.phone !== savedProfile.phone ||
     form.npn !== savedProfile.npn ||
     form.theme !== savedProfile.theme ||
     form.autoIssueApplications !== savedProfile.autoIssueApplications
@@ -252,6 +256,23 @@ export default function SettingsPageInner({
                       />
                       <p className="text-xs text-muted-foreground">
                         Email is managed by your account sign-in.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Phone</Label>
+                      <Input
+                        value={formatPhoneNumber(form.phone)}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "").slice(0, 10)
+                          setForm((f) => ({ ...f, phone: formatPhoneNumber(digits) }))
+                        }}
+                        placeholder="(555) 123-4567"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={14}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Used for Scope of Appointment and client communications.
                       </p>
                     </div>
                     <div className="space-y-1.5">

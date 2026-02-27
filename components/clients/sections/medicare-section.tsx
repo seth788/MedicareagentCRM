@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { format } from "date-fns"
 import { parseLocalDate } from "@/lib/date-utils"
-import { Eye, EyeOff, ShieldAlert } from "@/components/icons"
+import { Eye, ViewOff, ShieldAlert } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 import type { SectionProps } from "./types"
 
 const MASKED_PLACEHOLDER = "••••••••••" // Shown when client has MBI on file but not revealed
@@ -36,6 +37,7 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
   async function handleConfirmReveal() {
     setRevealDialog(false)
     setLoadingReveal(true)
+    const toastId = toast.loading("Decrypting Medicare number…")
     try {
       const res = await fetch(`/api/clients/${client.id}/reveal-mbi`)
       if (!res.ok) {
@@ -45,9 +47,11 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
       const data = (await res.json()) as { medicareNumber: string }
       setRevealedMbi(data.medicareNumber ?? "")
       setShowMedicare(true)
+      toast.success("Medicare number revealed", { id: toastId })
     } catch {
       setRevealedMbi(null)
       setShowMedicare(false)
+      toast.error("Failed to load Medicare number", { id: toastId })
     } finally {
       setLoadingReveal(false)
     }
@@ -59,7 +63,7 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <Card className="overflow-hidden border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
           <div className="flex items-center gap-2.5">
@@ -114,9 +118,9 @@ export function MedicareSection({ client, onEditMedicare }: SectionProps) {
                     }}
                   >
                     {showMedicare ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
                       <Eye className="h-4 w-4" />
+                    ) : (
+                      <ViewOff className="h-4 w-4" />
                     )}
                     <span className="sr-only">
                       {showMedicare ? "Hide" : "Reveal"} Medicare number

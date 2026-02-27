@@ -7,6 +7,7 @@ export type ProfileForSettings = {
   firstName: string
   lastName: string
   email: string
+  phone: string
   npn: string
   theme: ThemeValue
   autoIssueApplications: boolean
@@ -17,7 +18,7 @@ export async function getProfile(agentId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, first_name, last_name, npn, theme, auto_issue_applications, avatar_url")
+    .select("id, display_name, first_name, last_name, phone, npn, theme, auto_issue_applications, avatar_url")
     .eq("id", agentId)
     .single()
   if (error && error.code !== "PGRST116") throw error
@@ -38,10 +39,12 @@ export async function getProfileForSettings(
   const autoIssue =
     (row?.auto_issue_applications as boolean | null) ?? true
   const avatarUrl = (row?.avatar_url as string | null)?.trim() || null
+  const phone = (row?.phone as string | null)?.trim() ?? ""
   return {
     firstName: first || (display ? display.split(/\s+/)[0] ?? "" : ""),
     lastName: last || (display ? display.split(/\s+/).slice(1).join(" ") ?? "" : ""),
     email: email ?? "",
+    phone,
     npn: (row?.npn as string | null)?.trim() ?? "",
     theme,
     autoIssueApplications: autoIssue,
@@ -88,6 +91,7 @@ export async function updateProfileSettings(
   updates: {
     firstName: string
     lastName: string
+    phone: string
     npn: string
     theme?: ThemeValue
     autoIssueApplications?: boolean
@@ -98,6 +102,7 @@ export async function updateProfileSettings(
   const row: Record<string, unknown> = {
     first_name: updates.firstName.trim() || null,
     last_name: updates.lastName.trim() || null,
+    phone: updates.phone.trim() || null,
     npn: updates.npn.trim() || null,
     display_name: displayName,
     updated_at: new Date().toISOString(),

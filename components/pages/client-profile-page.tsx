@@ -13,7 +13,7 @@ import type { EditClientSection } from "@/components/clients/edit-client-dialog"
 import type { SectionId } from "@/components/clients/sections"
 import { useCRMStore } from "@/lib/store"
 
-const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes"]
+const VALID_SECTIONS: SectionId[] = ["contact", "health", "medicare", "coverage", "notes", "soa"]
 function isValidSection(value: string | null): value is SectionId {
   return value !== null && VALID_SECTIONS.includes(value as SectionId)
 }
@@ -116,7 +116,7 @@ export default function ClientProfilePageInner({
               editClientSection={editClientSection}
               onRequestEdit={openEditClient}
             />
-            <div className="mt-6">
+            <div className="mt-2">
               <ClientTabs
                 client={client}
                 activities={clientActivities}

@@ -9,6 +9,7 @@ export type SettingsProfile = {
   firstName: string
   lastName: string
   email: string
+  phone: string
   npn: string
   theme: ThemeValue
   autoIssueApplications: boolean
@@ -28,6 +29,7 @@ export async function getSettingsProfile(): Promise<SettingsProfile | null> {
 export async function updateProfileSettings(formData: {
   firstName: string
   lastName: string
+  phone: string
   npn: string
   theme?: "light" | "dark" | "system"
   autoIssueApplications?: boolean
@@ -40,6 +42,7 @@ export async function updateProfileSettings(formData: {
   await dbUpdateProfileSettings(user.id, {
     firstName: formData.firstName.trim(),
     lastName: formData.lastName.trim(),
+    phone: formData.phone.trim(),
     npn: formData.npn.trim(),
     theme: formData.theme,
     autoIssueApplications: formData.autoIssueApplications,
