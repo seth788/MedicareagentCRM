@@ -1,5 +1,6 @@
 import type { Client } from "@/lib/types"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { getUserAgencyBookOrgs } from "@/lib/db/organizations"
 import { encrypt } from "@/lib/encryption"
 import { logPhiAccess } from "@/lib/db/phi-access-log"
 import { normalizeCountyToPlainName } from "@/lib/utils"
@@ -42,7 +43,7 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       supabase.from("client_doctors").select("client_id, name, specialty, phone, first_name, last_name, provider_id, facility_address, importance, note").in("client_id", clientIds),
       supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
       supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
-      supabase.from("client_notes").select("client_id, text, created_at, updated_at").in("client_id", clientIds),
+      supabase.from("client_notes").select("client_id, text, created_at, updated_at, created_by").in("client_id", clientIds),
       supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, commission_status, notes, premium, bonus, billing_method, draft_day, enrollment_method, new_to_book_or_rewrite, created_at, updated_at").in("client_id", clientIds),
     ])
 
@@ -62,6 +63,13 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
   const pharmaciesBy = byClient(pharmaciesRes.data ?? [])
   const notesBy = byClient(notesRes.data ?? [])
   const coveragesBy = byClient(coverageRes.data ?? [])
+
+  const noteAuthorIds = [...new Set((notesRes.data ?? []).map((n) => (n as { created_by?: string }).created_by).filter(Boolean))] as string[]
+  const { data: noteProfiles } = noteAuthorIds.length > 0
+    ? await supabase.from("profiles").select("id, display_name").in("id", noteAuthorIds)
+    : { data: [] }
+  const noteAuthorMap = new Map((noteProfiles ?? []).map((p) => [p.id, p.display_name ?? "Unknown"]))
+
   type CoverageRow = (typeof coverageRes.data)[number]
   function mapCoverageRow(r: CoverageRow): Client["coverages"][number] {
     return {
@@ -174,11 +182,16 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
       healthTracker: c.health_tracker ?? undefined,
       source: c.source ?? undefined,
       status: (c as { status?: string }).status ?? undefined,
-      notes: (notesBy[c.id] ?? []).map((n) => ({
-        text: n.text,
-        createdAt: n.created_at,
-        updatedAt: n.updated_at ?? undefined,
-      })),
+      notes: (notesBy[c.id] ?? []).map((n) => {
+        const nb = n as { text: string; created_at: string; updated_at?: string; created_by?: string }
+        return {
+          text: nb.text,
+          createdAt: nb.created_at,
+          updatedAt: nb.updated_at ?? undefined,
+          createdBy: nb.created_by ?? undefined,
+          createdByName: nb.created_by ? noteAuthorMap.get(nb.created_by) ?? undefined : undefined,
+        }
+      }),
       coverages: (coveragesBy[c.id] ?? []).map(mapCoverageRow),
       imageUrl: c.image_url ?? undefined,
       createdAt: c.created_at,
@@ -186,6 +199,218 @@ export async function fetchClients(agentId: string): Promise<Client[]> {
     } as Client
   })
 }
+
+/** Fetch clients from other agents' books when user has can_view_agency_book. Returns clients with agentId and agentDisplayName set.
+ * Street-level agents: contact info (phones, emails, addresses, MBI) is excluded per RLS/data visibility. */
+export async function fetchAgencyBookClients(userId: string): Promise<Client[]> {
+  const agencyBookOrgs = await getUserAgencyBookOrgs(userId)
+  if (!agencyBookOrgs?.length) return []
+
+  const supabase = await createClient()
+  const allOtherAgentIds = new Set<string>()
+  for (const org of agencyBookOrgs) {
+    const { data: agentIds } = await supabase.rpc("get_downline_agent_ids", {
+      root_org_id: org.id,
+    })
+    const ids = (agentIds ?? []) as string[]
+    for (const id of ids) {
+      if (id !== userId) allOtherAgentIds.add(id)
+    }
+  }
+  const otherIds = Array.from(allOtherAgentIds)
+  if (otherIds.length === 0) return []
+
+  const { data: agentMembers } = await createServiceRoleClient()
+    .from("organization_members")
+    .select("user_id, agency_can_view_book")
+    .in("user_id", otherIds)
+    .eq("status", "active")
+  const fullAccessAgentIds = new Set(
+    (agentMembers ?? []).filter((m) => m.agency_can_view_book).map((m) => m.user_id)
+  )
+
+  const { data: rows, error } = await supabase
+    .from("clients")
+    .select("id, agent_id, first_name, last_name, title, middle_name, suffix, nickname, gender, fun_facts, dob, turning65_date, preferred_contact_method, language, spouse_id, medicare_number, part_a_effective_date, part_b_effective_date, allergies, conditions, health_tracker, source, status, image_url, created_at, updated_at")
+    .in("agent_id", otherIds)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  if (!rows?.length) return []
+
+  const { data: profiles } = await supabase.from("profiles").select("id, display_name").in("id", otherIds)
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? "Unknown"]))
+
+  const clientIds = rows.map((r) => r.id)
+  const [phonesRes, emailsRes, addressesRes, doctorsRes, medsRes, pharmaciesRes, notesRes, coverageRes] =
+    await Promise.all([
+      supabase.from("client_phones").select("id, client_id, number, type, is_preferred, note").in("client_id", clientIds),
+      supabase.from("client_emails").select("id, client_id, value, is_preferred, note").in("client_id", clientIds),
+      supabase.from("client_addresses").select("id, client_id, type, address, unit, city, county, state, zip, is_preferred").in("client_id", clientIds),
+      supabase.from("client_doctors").select("client_id, name, specialty, phone, first_name, last_name, provider_id, facility_address, importance, note").in("client_id", clientIds),
+      supabase.from("client_medications").select("client_id, name, dosage, frequency, quantity, notes, first_prescribed, rxcui, drug_name, dosage_display, dose_form, is_package_drug, package_description, package_ndc, brand_name").in("client_id", clientIds),
+      supabase.from("client_pharmacies").select("client_id, name, phone, address").in("client_id", clientIds),
+      supabase.from("client_notes").select("client_id, text, created_at, updated_at, created_by").in("client_id", clientIds),
+      supabase.from("client_coverages").select("id, client_id, plan_type, company_id, carrier, plan_id, plan_name, status, application_date, effective_date, written_as, election_period, member_policy_number, replacing_coverage_id, application_id, hra_collected, commission_status, notes, premium, bonus, billing_method, draft_day, enrollment_method, new_to_book_or_rewrite, created_at, updated_at").in("client_id", clientIds),
+    ])
+
+  const byClient = (arr: { client_id: string }[]) => {
+    const m: Record<string, typeof arr> = {}
+    for (const x of arr) {
+      if (!m[x.client_id]) m[x.client_id] = []
+      m[x.client_id].push(x)
+    }
+    return m
+  }
+  const phonesBy = byClient(phonesRes.data ?? [])
+  const emailsBy = byClient(emailsRes.data ?? [])
+  const addressesBy = byClient(addressesRes.data ?? [])
+  const doctorsBy = byClient(doctorsRes.data ?? [])
+  const medsBy = byClient(medsRes.data ?? [])
+  const pharmaciesBy = byClient(pharmaciesRes.data ?? [])
+  const notesBy = byClient(notesRes.data ?? [])
+  const coveragesBy = byClient(coverageRes.data ?? [])
+
+  const noteAuthorIds = [...new Set((notesRes.data ?? []).map((n) => (n as { created_by?: string }).created_by).filter(Boolean))] as string[]
+  const { data: noteProfiles } = noteAuthorIds.length > 0
+    ? await supabase.from("profiles").select("id, display_name").in("id", noteAuthorIds)
+    : { data: [] }
+  const noteAuthorMap = new Map((noteProfiles ?? []).map((p) => [p.id, p.display_name ?? "Unknown"]))
+
+  type CoverageRow = { client_id: string; id: string; plan_type: string; company_id?: string; carrier: string; plan_id?: string; plan_name: string; status: string; application_date?: string; effective_date?: string; written_as?: string; election_period?: string; member_policy_number?: string; replacing_coverage_id?: string; application_id?: string; hra_collected?: boolean; commission_status?: string; notes?: string; premium?: number; bonus?: number; billing_method?: string; draft_day?: string; enrollment_method?: string; new_to_book_or_rewrite?: string; created_at?: string; updated_at?: string }
+  function mapCoverageRow(r: CoverageRow): Client["coverages"][number] {
+    return {
+      id: r.id,
+      planType: r.plan_type as "MAPD" | "PDP" | "Med Supp",
+      companyId: r.company_id ?? undefined,
+      carrier: r.carrier ?? "",
+      planId: r.plan_id ?? undefined,
+      planName: r.plan_name ?? "",
+      status: r.status ?? "",
+      applicationDate: r.application_date ?? "",
+      effectiveDate: r.effective_date ?? "",
+      writtenAs: r.written_as ?? "",
+      electionPeriod: r.election_period ?? "",
+      memberPolicyNumber: r.member_policy_number ?? "",
+      replacingCoverageId: r.replacing_coverage_id ?? undefined,
+      applicationId: r.application_id ?? "",
+      hraCollected: r.hra_collected ?? false,
+      commissionStatus: r.commission_status ?? undefined,
+      notes: r.notes ?? undefined,
+      premium: r.premium != null ? Number(r.premium) : undefined,
+      bonus: r.bonus != null ? Number(r.bonus) : undefined,
+      billingMethod: r.billing_method ?? undefined,
+      draftDay: r.draft_day ?? undefined,
+      enrollmentMethod: r.enrollment_method ?? undefined,
+      newToBookOrRewrite: r.new_to_book_or_rewrite ?? undefined,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }
+  }
+
+  return rows.map((c) => {
+    const agentIdVal = c.agent_id as string
+    const agentDisplayNameVal = profileMap.get(agentIdVal) ?? "Unknown"
+    const canViewContactInfo = fullAccessAgentIds.has(agentIdVal)
+    return {
+      id: c.id,
+      firstName: c.first_name,
+      lastName: c.last_name,
+      title: c.title ?? undefined,
+      middleName: c.middle_name ?? undefined,
+      suffix: c.suffix ?? undefined,
+      nickname: c.nickname ?? undefined,
+      gender: c.gender ?? undefined,
+      funFacts: c.fun_facts ?? undefined,
+      phones: (phonesBy[c.id] ?? []).map((p) => ({
+        id: p.id,
+        number: p.number,
+        type: p.type,
+        isPreferred: p.is_preferred,
+        note: p.note ?? undefined,
+      })),
+      emails: (emailsBy[c.id] ?? []).map((e) => ({
+        id: e.id,
+        value: e.value,
+        isPreferred: e.is_preferred,
+        note: e.note ?? undefined,
+      })),
+      addresses: (addressesBy[c.id] ?? []).map((a) => ({
+        id: a.id,
+        type: a.type,
+        address: a.address,
+        unit: a.unit ?? undefined,
+        city: a.city,
+        county: formatCountyForDisplay(a.county),
+        state: a.state,
+        zip: a.zip,
+        isPreferred: a.is_preferred,
+      })),
+      dob: c.dob,
+      turning65Date: c.turning65_date,
+      preferredContactMethod: c.preferred_contact_method,
+      language: c.language,
+      spouseId: c.spouse_id ?? undefined,
+      medicareNumber: canViewContactInfo ? (c.medicare_number ?? "") : "",
+      hasMedicareNumber: canViewContactInfo ? !!c.medicare_number : false,
+      partAEffectiveDate: c.part_a_effective_date ?? "",
+      partBEffectiveDate: c.part_b_effective_date ?? "",
+      doctors: (doctorsBy[c.id] ?? []).map((d) => ({
+        name: d.name,
+        specialty: d.specialty,
+        phone: d.phone ?? "",
+        firstName: d.first_name ?? undefined,
+        lastName: d.last_name ?? undefined,
+        providerId: d.provider_id ?? undefined,
+        facilityAddress: d.facility_address ?? undefined,
+        importance: d.importance ?? undefined,
+        note: d.note ?? undefined,
+      })),
+      medications: (medsBy[c.id] ?? []).map((m) => ({
+        name: m.name,
+        dosage: m.dosage ?? undefined,
+        frequency: m.frequency,
+        quantity: m.quantity ?? undefined,
+        notes: m.notes ?? undefined,
+        firstPrescribed: m.first_prescribed ?? undefined,
+        rxcui: m.rxcui ?? undefined,
+        drugName: m.drug_name ?? undefined,
+        dosageDisplay: m.dosage_display ?? undefined,
+        doseForm: m.dose_form ?? undefined,
+        isPackageDrug: m.is_package_drug ?? undefined,
+        packageDescription: m.package_description ?? undefined,
+        packageNdc: m.package_ndc ?? undefined,
+        brandName: m.brand_name ?? undefined,
+      })),
+      pharmacies: (pharmaciesBy[c.id] ?? []).map((p) => ({
+        name: p.name,
+        phone: p.phone ?? "",
+        address: p.address ?? "",
+      })),
+      allergies: c.allergies ?? [],
+      conditions: c.conditions ?? [],
+      healthTracker: c.health_tracker ?? undefined,
+      source: c.source ?? undefined,
+      status: (c as { status?: string }).status ?? undefined,
+      notes: (notesBy[c.id] ?? []).map((n) => {
+        const nb = n as { text: string; created_at: string; updated_at?: string; created_by?: string }
+        return {
+          text: nb.text,
+          createdAt: nb.created_at,
+          updatedAt: nb.updated_at ?? undefined,
+          createdBy: nb.created_by ?? undefined,
+          createdByName: nb.created_by ? noteAuthorMap.get(nb.created_by) ?? undefined : undefined,
+        }
+      }),
+      coverages: (coveragesBy[c.id] ?? []).map(mapCoverageRow),
+      imageUrl: c.image_url ?? undefined,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+      agentId: agentIdVal,
+      agentDisplayName: agentDisplayNameVal,
+    } as Client
+  })
+}
+
 
 export async function insertClient(agentId: string, client: Client): Promise<Client> {
   const supabase = await createClient()
@@ -320,6 +545,7 @@ export async function insertClient(agentId: string, client: Client): Promise<Cli
             text: n.text,
             created_at: n.createdAt,
             updated_at: n.updatedAt ?? null,
+            created_by: (n as { createdBy?: string }).createdBy ?? agentId,
           }))
         )
       : Promise.resolve(),
@@ -419,7 +645,6 @@ export async function updateClient(
       .from("clients")
       .update(clientRow)
       .eq("id", clientId)
-      .eq("agent_id", agentId)
     if (error) throw error
     if (updates.medicareNumber !== undefined) {
       await logPhiAccess({
@@ -563,6 +788,7 @@ export async function updateClient(
           text: n.text,
           created_at: n.createdAt,
           updated_at: n.updatedAt ?? null,
+          created_by: (n as { createdBy?: string }).createdBy ?? agentId,
         }))
       )
   }

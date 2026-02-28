@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { getUserMemberOrgs, getUserMemberOrgsWithRoles, ROLES_CAN_CREATE_AGENCY } from "@/lib/db/organizations"
+import { getRootOrgId, getValidParentOrgsForSubAgency } from "@/lib/db/agency"
 import { sendSubAgencyCreated } from "@/lib/emails/organization"
 
 export async function createOrganization(formData: FormData) {
@@ -17,6 +19,26 @@ export async function createOrganization(formData: FormData) {
 
   if (!name) return { error: "Organization name is required" }
   if (!["agency", "sub_agency"].includes(orgType)) return { error: "Invalid organization type" }
+
+  const memberOrgs = await getUserMemberOrgs(user.id)
+  const memberOrgsWithRoles = await getUserMemberOrgsWithRoles(user.id)
+  const userHasAgency = memberOrgs.length > 0
+
+  // Only plain agents (and agency/owner) can create. LOA and community agents cannot.
+  const canCreateAgency = memberOrgsWithRoles.length === 0 || memberOrgsWithRoles.some((m) => ROLES_CAN_CREATE_AGENCY.includes(m.role as (typeof ROLES_CAN_CREATE_AGENCY)[number]))
+  if (!canCreateAgency) return { error: "LOA and community agents cannot create agencies. Only agents with full producing status can create or own sub-agencies." }
+
+  // Agents in an agency (agent/agency role) can only create sub-agencies; they must choose a valid direct upline
+  if (userHasAgency) {
+    if (orgType !== "sub_agency") return { error: "You can only create sub-agencies under your existing agency" }
+    if (!parentOrgId) return { error: "Please select a direct upline (parent agency)" }
+    const rootOrgId = await getRootOrgId(memberOrgs[0].id)
+    const validParents = await getValidParentOrgsForSubAgency(rootOrgId)
+    const validParentIds = new Set(validParents.map((p) => p.id))
+    if (!validParentIds.has(parentOrgId)) return { error: "Invalid parent agency selected" }
+  } else if (orgType === "sub_agency" && !parentOrgId) {
+    return { error: "Sub-agency requires a parent organization" }
+  }
 
   const serviceSupabase = (await import("@/lib/supabase/server")).createServiceRoleClient()
 
@@ -45,25 +67,22 @@ export async function createOrganization(formData: FormData) {
     accepted_at: new Date().toISOString(),
   })
 
+  // When creating a sub-agency, move the agent out of their previous org(s) so they're under the new sub-agency
+  if (parentOrgId && memberOrgs.length > 0) {
+    const orgIdsToRemove = memberOrgs.map((o) => o.id)
+    await serviceSupabase
+      .from("organization_members")
+      .delete()
+      .eq("user_id", user.id)
+      .in("organization_id", orgIdsToRemove)
+  }
+
   await serviceSupabase.from("organization_audit_log").insert({
     organization_id: org.id,
     action: parentOrgId ? "sub_agency_created" : "organization_created",
     performed_by: user.id,
     details: parentOrgId ? { parent_org_id: parentOrgId } : { org_name: name },
   })
-
-  /* Create static invite links (one per role) for the new org */
-  const { randomBytes } = await import("crypto")
-  const roles = ["agent", "loa_agent", "community_agent", "agency", "staff"] as const
-  for (const role of roles) {
-    const token = randomBytes(32).toString("base64url")
-    await serviceSupabase.from("organization_invites").insert({
-      organization_id: org.id,
-      role,
-      invite_token: token,
-      created_by: user.id,
-    })
-  }
 
   if (parentOrgId) {
     await serviceSupabase.from("organization_audit_log").insert({

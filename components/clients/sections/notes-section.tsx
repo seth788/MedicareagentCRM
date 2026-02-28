@@ -235,6 +235,9 @@ export function NotesSection({ client, activities }: SectionProps) {
                       </div>
                       <p className="mt-1.5 text-xs text-muted-foreground">
                         {format(new Date(note.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                        {note.createdByName && (
+                          <span> · {note.createdByName}</span>
+                        )}
                         {note.updatedAt && (
                           <span> · Edited {format(new Date(note.updatedAt), "MMM d 'at' h:mm a")}</span>
                         )}

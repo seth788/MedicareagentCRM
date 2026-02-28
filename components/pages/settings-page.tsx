@@ -47,9 +47,15 @@ const defaultForm: SettingsProfileType = {
 
 export default function SettingsPageInner({
   initialProfile,
+  canCreateAgency = true,
+  canRequestSubagency = false,
 }: {
   /** When provided, form is pre-filled and client skip fetch on mount. */
   initialProfile?: SettingsProfileType | null
+  /** Independent agents only: show Create Agency. */
+  canCreateAgency?: boolean
+  /** Street-level/agency: show Request Subagency (request + invite flow). */
+  canRequestSubagency?: boolean
 } = {}) {
   const { setTheme } = useTheme()
   const { setAutoIssueApplications, dashboardOrgs } = useCRMStore()
@@ -442,7 +448,7 @@ export default function SettingsPageInner({
               </CardHeader>
               <CardContent>
                 {dashboardOrgs.length > 0 ? (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
                     <p className="text-sm text-muted-foreground">
                       You have access to {dashboardOrgs.length === 1 ? "an agency" : `${dashboardOrgs.length} agencies`}.
                     </p>
@@ -452,8 +458,26 @@ export default function SettingsPageInner({
                         Go to Agency Dashboard
                       </Link>
                     </Button>
+                    {canRequestSubagency && (
+                      <Button asChild size="sm" variant="outline" className="w-fit gap-2">
+                        <Link href="/organization/subagency-request">
+                          Request Subagency
+                        </Link>
+                      </Button>
+                    )}
                   </div>
-                ) : (
+                ) : canRequestSubagency ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <p className="text-sm text-muted-foreground">
+                      Request to create a subagency. Your top-line agency will review and approve placement.
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="w-fit gap-2">
+                      <Link href="/organization/subagency-request">
+                        Request Subagency
+                      </Link>
+                    </Button>
+                  </div>
+                ) : canCreateAgency ? (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <p className="text-sm text-muted-foreground">
                       Create an agency to invite agents, track production, and manage your book of business.
@@ -465,6 +489,10 @@ export default function SettingsPageInner({
                       </Link>
                     </Button>
                   </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    LOA and community agents cannot create agencies. Contact your agency owner if you need to create one.
+                  </p>
                 )}
               </CardContent>
             </Card>

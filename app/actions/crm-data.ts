@@ -5,7 +5,7 @@ import { getOrCreateProfile } from "@/lib/db/profiles"
 import { getUserDashboardOrgs, getUserAgencyBookOrgs } from "@/lib/db/organizations"
 import { fetchFlows, fetchStages } from "@/lib/db/flows"
 import { getFlowTemplates } from "@/lib/db/flow-templates"
-import { fetchClients } from "@/lib/db/clients"
+import { fetchClients, fetchAgencyBookClients } from "@/lib/db/clients"
 import { fetchLeads } from "@/lib/db/leads"
 import { fetchActivities } from "@/lib/db/activities"
 import { fetchTasks } from "@/lib/db/tasks"
@@ -56,10 +56,11 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     (profile as { auto_issue_applications?: boolean } | null)?.auto_issue_applications ?? true
   const avatarUrl = (profile as { avatar_url?: string | null } | null)?.avatar_url?.trim() || null
 
-  const [flows, stages, clients, leads, activities, tasks, customSources, dashboardOrgs, agencyBookOrgs] = await Promise.all([
+  const [flows, stages, ownClients, agencyBookClients, leads, activities, tasks, customSources, dashboardOrgs, agencyBookOrgs] = await Promise.all([
     fetchFlows(agentId),
     fetchStages(agentId),
     fetchClients(agentId),
+    fetchAgencyBookClients(agentId),
     fetchLeads(agentId),
     fetchActivities(agentId),
     fetchTasks(agentId),
@@ -68,10 +69,16 @@ export async function fetchCRMData(): Promise<HydratePayload | null> {
     getUserAgencyBookOrgs(agentId),
   ])
 
+  const ownIds = new Set(ownClients.map((c) => c.id))
+  const mergedClients = [
+    ...ownClients,
+    ...agencyBookClients.filter((c) => !ownIds.has(c.id)),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
   return {
     flows,
     stages,
-    clients,
+    clients: mergedClients,
     leads,
     activities,
     tasks,

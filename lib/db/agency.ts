@@ -149,11 +149,13 @@ export async function getAgencyAgents(
           .in("organization_id", targetOrgIds)
           .eq("status", "active")
       : { data: [] }
-  const seen = new Set((producingMembers ?? []).map((m) => m.user_id))
+  // Include each (user, org) pair so agents appear under every org they belong to (e.g. owner of sub-agency shows under that sub-agency)
+  const seen = new Set((producingMembers ?? []).map((m) => `${m.user_id}:${m.organization_id}`))
   const members = [...(producingMembers ?? [])]
   for (const m of ownerMembers ?? []) {
-    if (!seen.has(m.user_id)) {
-      seen.add(m.user_id)
+    const key = `${m.user_id}:${m.organization_id}`
+    if (!seen.has(key)) {
+      seen.add(key)
       members.push(m)
     }
   }
@@ -333,37 +335,236 @@ export interface AgencyMemberRow {
   hasDashboardAccess: boolean
   status: string
   acceptedAt: string | null
+  /** When true, this member owns a sub-agency under this org (shown for billing/management) */
+  isSubAgencyOwner?: boolean
+  /** Name of their sub-agency, when isSubAgencyOwner is true */
+  subAgencyName?: string
+  /** Org this member belongs to (for root's full-tree view; used for remove/transfer) */
+  organizationId?: string
+  /** Org name (for root's full-tree view when member is in a nested agency) */
+  organizationName?: string
 }
 
 export async function getAgencyMembers(orgId: string): Promise<AgencyMemberRow[]> {
   const supabase = createServiceRoleClient()
+  const rootOrgId = await getRootOrgId(orgId)
+  const isTopline = orgId === rootOrgId
 
+  if (isTopline) {
+    // Top-line: see ALL members in the full downline
+    const { data: downlineIds } = await supabase.rpc("get_downline_org_ids", { root_org_id: orgId })
+    const orgIds = (downlineIds ?? []) as string[]
+    if (orgIds.length === 0) return []
+
+    const { data: members } = await supabase
+      .from("organization_members")
+      .select("user_id, role, has_dashboard_access, status, accepted_at, organization_id")
+      .in("organization_id", orgIds)
+
+    if (!members?.length) return []
+
+    const { data: orgs } = await supabase.from("organizations").select("id, name, owner_id").in("id", orgIds)
+    const orgMap = new Map((orgs ?? []).map((o) => [o.id, { name: o.name, ownerId: o.owner_id as string | null }]))
+    const userIds = [...new Set(members.map((m) => m.user_id))]
+
+    const { data: profiles } = await supabase.from("profiles").select("id, display_name").in("id", userIds)
+    const authResults = await Promise.all(userIds.map((id) => supabase.auth.admin.getUserById(id)))
+    const emailMap = new Map(
+      authResults
+        .filter((r) => r.data?.user)
+        .map((r) => [r.data!.user!.id, r.data!.user!.email ?? ""])
+    )
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? ""]))
+
+    const result: AgencyMemberRow[] = members.map((m) => {
+      const orgInfo = orgMap.get(m.organization_id)
+      const isSubAgencyOwner = orgInfo?.ownerId === m.user_id && m.organization_id !== orgId
+      return {
+        userId: m.user_id,
+        displayName: profileMap.get(m.user_id) ?? emailMap.get(m.user_id) ?? "Unknown",
+        email: emailMap.get(m.user_id) ?? "",
+        role: m.role,
+        hasDashboardAccess: m.has_dashboard_access,
+        status: m.status,
+        acceptedAt: m.accepted_at,
+        organizationId: m.organization_id,
+        organizationName: orgInfo?.name,
+        ...(isSubAgencyOwner ? { isSubAgencyOwner: true as const, subAgencyName: orgInfo?.name ?? "Sub-Agency" } : {}),
+      }
+    })
+
+    result.sort((a, b) => a.displayName.localeCompare(b.displayName))
+    return result
+  }
+
+  // Sub-agency: only direct members + owners of direct children
   const { data: members } = await supabase
     .from("organization_members")
     .select("user_id, role, has_dashboard_access, status, accepted_at")
     .eq("organization_id", orgId)
 
-  if (!members?.length) return []
+  const { data: directChildOrgs } = await supabase
+    .from("organizations")
+    .select("id, name, owner_id")
+    .eq("parent_organization_id", orgId)
 
-  const userIds = [...new Set(members.map((m) => m.user_id))]
-  const { data: profiles } = await supabase.from("profiles").select("id, display_name").in("id", userIds)
-  const authResults = await Promise.all(userIds.map((id) => supabase.auth.admin.getUserById(id)))
+  const subAgencyOwners =
+    (directChildOrgs ?? [])
+      .filter((s) => s.owner_id)
+      .map((s) => ({
+        user_id: s.owner_id as string,
+        subAgencyName: s.name,
+      }))
+
+  const directMemberIds = new Set((members ?? []).map((m) => m.user_id))
+  const subOwnerIds = subAgencyOwners
+    .map((s) => s.user_id)
+    .filter((id) => !directMemberIds.has(id))
+
+  const allUserIds = [...new Set([...directMemberIds, ...subOwnerIds])]
+  if (allUserIds.length === 0) return []
+
+  const { data: profiles } = await supabase.from("profiles").select("id, display_name").in("id", allUserIds)
+  const authResults = await Promise.all(allUserIds.map((id) => supabase.auth.admin.getUserById(id)))
   const emailMap = new Map(
     authResults
       .filter((r) => r.data?.user)
       .map((r) => [r.data!.user!.id, r.data!.user!.email ?? ""])
   )
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? ""]))
+  const subOwnerByUserId = new Map(subAgencyOwners.map((s) => [s.user_id, s.subAgencyName]))
 
-  return (members ?? []).map((m) => ({
-    userId: m.user_id,
-    displayName: profileMap.get(m.user_id) ?? emailMap.get(m.user_id) ?? "Unknown",
-    email: emailMap.get(m.user_id) ?? "",
-    role: m.role,
-    hasDashboardAccess: m.has_dashboard_access,
-    status: m.status,
-    acceptedAt: m.accepted_at,
-  }))
+  const result: AgencyMemberRow[] = [
+    ...(members ?? []).map((m) => {
+      const subAgency = subOwnerByUserId.get(m.user_id)
+      return {
+        userId: m.user_id,
+        displayName: profileMap.get(m.user_id) ?? emailMap.get(m.user_id) ?? "Unknown",
+        email: emailMap.get(m.user_id) ?? "",
+        role: m.role,
+        hasDashboardAccess: m.has_dashboard_access,
+        status: m.status,
+        acceptedAt: m.accepted_at,
+        organizationId: orgId,
+        ...(subAgency && { isSubAgencyOwner: true, subAgencyName: subAgency }),
+      }
+    }),
+    ...subOwnerIds.map((userId) => {
+      const subAgency = subOwnerByUserId.get(userId)
+      return {
+        userId,
+        displayName: profileMap.get(userId) ?? emailMap.get(userId) ?? "Unknown",
+        email: emailMap.get(userId) ?? "",
+        role: "agency",
+        hasDashboardAccess: true,
+        status: "active",
+        acceptedAt: null,
+        isSubAgencyOwner: true,
+        subAgencyName: subAgency ?? "Sub-Agency",
+        organizationId: orgId,
+      }
+    }),
+  ]
+
+  result.sort((a, b) => a.displayName.localeCompare(b.displayName))
+  return result
+}
+
+
+export async function getDirectChildOrgs(parentOrgId: string): Promise<{ id: string; name: string }[]> {
+  const supabase = createServiceRoleClient()
+  const { data } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .eq("parent_organization_id", parentOrgId)
+    .order("name")
+  return (data ?? []) as { id: string; name: string }[]
+}
+
+/** Get the root (top-level) organization ID by walking up parent_organization_id */
+export async function getRootOrgId(orgId: string): Promise<string> {
+  const supabase = createServiceRoleClient()
+  let currentId: string | null = orgId
+  while (currentId) {
+    const { data } = await supabase
+      .from("organizations")
+      .select("parent_organization_id")
+      .eq("id", currentId)
+      .single()
+    const parentId = data?.parent_organization_id as string | null
+    if (!parentId) return currentId
+    currentId = parentId
+  }
+  return orgId
+}
+
+export interface OrgWithDepth {
+  id: string
+  name: string
+  depth: number
+}
+
+/** Get root org + all descendant orgs (for parent picker when creating sub-agency) */
+export async function getValidParentOrgsForSubAgency(rootOrgId: string): Promise<OrgWithDepth[]> {
+  const supabase = createServiceRoleClient()
+  const { data: downlineIds } = await supabase.rpc("get_downline_org_ids", { root_org_id: rootOrgId })
+  const ids = (downlineIds ?? []) as string[]
+  if (ids.length === 0) return []
+
+  const { data: orgs } = await supabase
+    .from("organizations")
+    .select("id, name, parent_organization_id")
+    .in("id", ids)
+
+  const byId = new Map((orgs ?? []).map((o) => [o.id, { ...o, parent_organization_id: o.parent_organization_id as string | null }]))
+  const result: OrgWithDepth[] = []
+
+  function addWithDepth(id: string, depth: number) {
+    const org = byId.get(id)
+    if (!org) return
+    result.push({ id: org.id, name: org.name, depth })
+    const children = [...byId.values()].filter((c) => c.parent_organization_id === id)
+    children.sort((a, b) => a.name.localeCompare(b.name))
+    for (const child of children) addWithDepth(child.id, depth + 1)
+  }
+  addWithDepth(rootOrgId, 0)
+  return result
+}
+
+export interface AgencyTreeNode {
+  id: string
+  name: string
+  children: AgencyTreeNode[]
+}
+
+/** Get full hierarchy tree: root -> children -> grandchildren for display */
+export async function getAgencyHierarchyTree(rootOrgId: string): Promise<AgencyTreeNode[]> {
+  const supabase = createServiceRoleClient()
+  const { data: downlineIds } = await supabase.rpc("get_downline_org_ids", { root_org_id: rootOrgId })
+  const ids = (downlineIds ?? []) as string[]
+  if (ids.length === 0) return []
+
+  const { data: orgs } = await supabase
+    .from("organizations")
+    .select("id, name, parent_organization_id")
+    .in("id", ids)
+
+  const byId = new Map(
+    (orgs ?? []).map((o) => [o.id, { id: o.id, name: o.name, parentId: o.parent_organization_id as string | null }])
+  )
+
+  function buildNode(id: string): AgencyTreeNode {
+    const org = byId.get(id)
+    const children = [...byId.values()]
+      .filter((o) => o.parentId === id)
+      .map((o) => buildNode(o.id))
+    return {
+      id,
+      name: org?.name ?? "Unknown",
+      children: children.sort((a, b) => a.name.localeCompare(b.name)),
+    }
+  }
+  return [buildNode(rootOrgId)]
 }
 
 export async function isAgentInDownline(orgId: string, agentId: string): Promise<boolean> {

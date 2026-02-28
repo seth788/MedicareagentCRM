@@ -2,7 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { getInviteByToken, isUserMemberOfOrg } from "@/lib/db/organization-invites"
+import { getInviteByToken, isUserMemberOfOrg, markInviteOpened } from "@/lib/db/organization-invites"
 import { ForceLightTheme } from "@/components/force-light-theme"
 import { InviteAcceptForm } from "./invite-accept-form"
 
@@ -20,6 +20,10 @@ export default async function InvitePage({
   const { token } = await params
   const { from_login } = await searchParams
   const inviteData = await getInviteByToken(token)
+
+  if (inviteData && inviteData.status === "pending") {
+    await markInviteOpened(token)
+  }
 
   if (!inviteData) {
     return (
@@ -53,7 +57,11 @@ export default async function InvitePage({
     redirect(`/auth/signout?next=${encodeURIComponent(`/invite/${token}`)}`)
   }
 
-  const isMember = user ? await isUserMemberOfOrg(user.id, inviteData.organizationId) : false
+  const isSubagencyCreation = inviteData.isSubagencyCreation
+  const isMember =
+    !isSubagencyCreation && user
+      ? await isUserMemberOfOrg(user.id, inviteData.organizationId)
+      : false
 
   if (!user) {
     const loginUrl = `/login?next=${encodeURIComponent(`/invite/${token}`)}`
@@ -112,6 +120,10 @@ export default async function InvitePage({
     )
   }
 
+  const needsAgentToNameSubagency =
+    isSubagencyCreation && !inviteData.subagencyName?.trim()
+  const needsAgencyToNameOrg = inviteData.role === "agency"
+
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4">
       <ForceLightTheme />
@@ -119,11 +131,39 @@ export default async function InvitePage({
         <Image src="/logo.svg" alt="AdvantaCRM" width={140} height={36} className="h-9 w-auto" priority />
       </div>
       <div className="w-full max-w-md rounded-lg border bg-card p-6 text-center shadow-sm">
-        <h1 className="text-xl font-semibold">You&apos;ve been invited to join</h1>
+        <h1 className="text-xl font-semibold">
+          {isSubagencyCreation ? "Create your subagency" : needsAgencyToNameOrg ? "Create your agency" : "You've been invited to join"}
+        </h1>
         <p className="mt-2 text-muted-foreground">
-          <strong>{inviteData.organizationName}</strong> as a {roleLabel(inviteData.role)}.
+          {isSubagencyCreation ? (
+            needsAgentToNameSubagency ? (
+              <>
+                Your request has been approved. Name your subagency and create it under{" "}
+                <strong>{inviteData.targetOrganizationName ?? inviteData.organizationName}</strong>.
+              </>
+            ) : (
+              <>
+                Your request has been approved. Create <strong>{inviteData.subagencyName}</strong> under{" "}
+                <strong>{inviteData.targetOrganizationName ?? inviteData.organizationName}</strong>.
+              </>
+            )
+          ) : needsAgencyToNameOrg ? (
+            <>
+              Create your agency under <strong>{inviteData.organizationName}</strong>. Name your agency below.
+            </>
+          ) : (
+            <>
+              <strong>{inviteData.organizationName}</strong> as a {roleLabel(inviteData.role)}.
+            </>
+          )}
         </p>
-        <InviteAcceptForm token={token} organizationId={inviteData.organizationId} />
+        <InviteAcceptForm
+          token={token}
+          organizationId={inviteData.organizationId}
+          isSubagencyCreation={isSubagencyCreation}
+          needsAgentToNameSubagency={needsAgentToNameSubagency}
+          needsAgencyToNameOrg={needsAgencyToNameOrg}
+        />
       </div>
     </div>
   )

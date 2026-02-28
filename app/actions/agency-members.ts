@@ -24,6 +24,37 @@ async function requireDashboardAccess(organizationId: string) {
   return { supabase, userId: user.id, isOwner: member.role === "owner" }
 }
 
+/** Top-line can manage downline; sub-agency owners can only manage their own org */
+async function requireCanManageOrg(organizationId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+
+  const { data: member } = await supabase
+    .from("organization_members")
+    .select("id, role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", user.id)
+    .eq("has_dashboard_access", true)
+    .eq("status", "active")
+    .single()
+
+  if (member && member.role === "owner") {
+    return { userId: user.id, canManage: true }
+  }
+
+  const { data: canInvite } = await supabase.rpc("can_invite_to_organization_rpc", {
+    p_org_id: organizationId,
+  })
+  if (canInvite) {
+    return { userId: user.id, canManage: true }
+  }
+
+  throw new Error("You do not have permission to manage this agency")
+}
+
 async function isOrgOwner(organizationId: string, userId: string) {
   const supabase = await createClient()
   const { data: org } = await supabase
@@ -39,8 +70,7 @@ export async function removeMember(
   targetUserId: string
 ): Promise<{ error?: string }> {
   try {
-    const { userId, isOwner } = await requireDashboardAccess(organizationId)
-    if (!isOwner) return { error: "Only the owner can remove members" }
+    const { userId } = await requireCanManageOrg(organizationId)
 
     const serviceSupabase = createServiceRoleClient()
     const { data: org } = await serviceSupabase
@@ -51,7 +81,7 @@ export async function removeMember(
 
     const { error } = await serviceSupabase
       .from("organization_members")
-      .update({ status: "inactive" })
+      .delete()
       .eq("organization_id", organizationId)
       .eq("user_id", targetUserId)
 
@@ -84,8 +114,7 @@ export async function updateMemberDashboardAccess(
   hasDashboardAccess: boolean
 ): Promise<{ error?: string }> {
   try {
-    const { userId, isOwner } = await requireDashboardAccess(organizationId)
-    if (!isOwner) return { error: "Only the owner can change dashboard access" }
+    const { userId } = await requireCanManageOrg(organizationId)
 
     const serviceSupabase = createServiceRoleClient()
     const { error } = await serviceSupabase
@@ -135,8 +164,7 @@ export async function updateMemberRole(
   newRole: string
 ): Promise<{ error?: string }> {
   try {
-    const { isOwner } = await requireDashboardAccess(organizationId)
-    if (!isOwner) return { error: "Only the owner can change roles" }
+    await requireCanManageOrg(organizationId)
 
     const validRoles = ["agent", "loa_agent", "community_agent", "agency", "staff"]
     if (!validRoles.includes(newRole)) return { error: "Invalid role" }
@@ -144,7 +172,7 @@ export async function updateMemberRole(
     const serviceSupabase = createServiceRoleClient()
     const rolePerms: Record<string, { has_dashboard_access: boolean; can_view_agency_book: boolean; agency_can_view_book: boolean; is_producing: boolean }> = {
       staff: { has_dashboard_access: true, can_view_agency_book: true, agency_can_view_book: true, is_producing: false },
-      agent: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: true, is_producing: true },
+      agent: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: false, is_producing: true },
       loa_agent: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: true, is_producing: true },
       community_agent: { has_dashboard_access: false, can_view_agency_book: true, agency_can_view_book: true, is_producing: true },
       agency: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: true, is_producing: true },
@@ -204,8 +232,7 @@ export async function reactivateMember(
   targetUserId: string
 ): Promise<{ error?: string }> {
   try {
-    const { isOwner } = await requireDashboardAccess(organizationId)
-    if (!isOwner) return { error: "Only the owner can reactivate members" }
+    await requireCanManageOrg(organizationId)
 
     const serviceSupabase = createServiceRoleClient()
     const { error } = await serviceSupabase
@@ -238,8 +265,7 @@ export async function transferAgent(
   targetSubOrgId: string
 ): Promise<{ error?: string }> {
   try {
-    const { isOwner } = await requireDashboardAccess(organizationId)
-    if (!isOwner) return { error: "Only the owner can transfer agents" }
+    await requireCanManageOrg(organizationId)
 
     const serviceSupabase = createServiceRoleClient()
     const { data: currentMember } = await serviceSupabase

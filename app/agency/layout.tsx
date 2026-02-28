@@ -2,8 +2,8 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { getUserDashboardOrgs } from "@/lib/db/organizations"
-import { AgencySidebar } from "@/components/agency/agency-sidebar"
-import { Toaster } from "@/components/ui/sonner"
+import { getOrCreateProfile } from "@/lib/db/profiles"
+import { AgencyLayoutClient } from "@/components/agency/agency-layout-client"
 
 export default async function AgencyLayout({
   children,
@@ -16,16 +16,30 @@ export default async function AgencyLayout({
   } = await supabase.auth.getUser()
   if (!user) redirect("/login?next=/agency")
 
-  const dashboardOrgs = await getUserDashboardOrgs(user.id)
+  const [dashboardOrgs, profile] = await Promise.all([
+    getUserDashboardOrgs(user.id),
+    getOrCreateProfile(
+      user.id,
+      (user.user_metadata?.full_name as string) ?? user.email ?? undefined
+    ),
+  ])
   if (dashboardOrgs.length === 0) redirect("/dashboard")
 
+  const displayName =
+    (profile?.display_name as string)?.trim() ||
+    (user.user_metadata?.full_name as string)?.trim() ||
+    user.email ||
+    "Agent"
+  const avatarUrl = (profile as { avatar_url?: string | null } | null)?.avatar_url?.trim() || null
+
   return (
-    <div className="flex min-h-svh">
-      <Suspense fallback={<div className="w-56 border-r bg-card" />}>
-        <AgencySidebar orgs={dashboardOrgs} />
-      </Suspense>
-      <main className="flex-1 overflow-auto">{children}</main>
-      <Toaster position="bottom-right" />
-    </div>
+    <Suspense fallback={<div className="flex min-h-svh w-full" />}>
+      <AgencyLayoutClient
+        orgs={dashboardOrgs}
+        user={{ displayName, email: user.email ?? "", avatarUrl }}
+      >
+        {children}
+      </AgencyLayoutClient>
+    </Suspense>
   )
 }

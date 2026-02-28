@@ -64,6 +64,7 @@ import {
   LiverIcon,
   Loading01Icon,
   Location03Icon,
+  Logout02Icon,
   LungsIcon,
   Mail01Icon,
   Mailbox01Icon,
@@ -194,6 +195,7 @@ export const CalendarClock = createIcon(Calendar01Icon, "CalendarClock")
 export const CheckCircle2 = createIcon(CheckmarkCircle02Icon, "CheckCircle2")
 export const Clock = createIcon(Clock01Icon, "Clock")
 export const Globe = createIcon(GlobeIcon, "Globe")
+export const LogOut = createIcon(Logout02Icon, "LogOut")
 export const UserMinus = createIcon(UserMinus01Icon, "UserMinus")
 export const Share05 = createIcon(Share05Icon, "Share05")
 

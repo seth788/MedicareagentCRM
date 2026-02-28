@@ -32,6 +32,10 @@ export interface NoteEntry {
   createdAt: string
   /** Set when the note was last edited; omitted if never edited. */
   updatedAt?: string
+  /** User id of the agent who wrote the note. */
+  createdBy?: string
+  /** Display name of the agent who wrote the note. */
+  createdByName?: string
 }
 
 export interface Lead {
@@ -230,6 +234,10 @@ export interface Client {
   imageUrl?: string
   createdAt: string
   updatedAt: string
+  /** When set, client belongs to another agent (agency book view). */
+  agentId?: string
+  /** Display name of owning agent when client belongs to another agent. */
+  agentDisplayName?: string
 }
 
 export type ActivityType = "call" | "email" | "text" | "appointment" | "note" | "coverage" | "flow"

@@ -253,6 +253,11 @@ export function ClientProfileHeader({
             <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               {client.nickname ? `${client.firstName} "${client.nickname}" ${client.lastName}` : `${client.firstName} ${client.lastName}`}
             </h2>
+            {client.agentDisplayName && (
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+                {client.agentDisplayName}
+              </Badge>
+            )}
             {mounted && (isFuture ? (
               <Badge className="border-primary/25 bg-primary/10 text-primary font-semibold" variant="outline">
                 T65 in {days}d

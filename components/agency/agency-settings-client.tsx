@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Plus } from "@/components/icons"
 
 export function AgencySettingsClient({
   organizationId,
@@ -112,12 +113,24 @@ export function AgencySettingsClient({
         </CardContent>
       </Card>
 
-      {subAgencies.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Sub-Agencies</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Sub-Agencies</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Create sub-agencies under your organization. You can choose any agency in your hierarchy as the direct
+            upline.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isOwner && (
+            <Button asChild variant="outline" size="sm" className="w-fit gap-2">
+              <Link href={`/organization/create?org=${organizationId}`}>
+                <Plus className="h-4 w-4" />
+                Create Sub-Agency
+              </Link>
+            </Button>
+          )}
+          {subAgencies.length > 0 ? (
             <div className="space-y-2">
               {subAgencies.map((s) => (
                 <Link
@@ -130,9 +143,11 @@ export function AgencySettingsClient({
                 </Link>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-muted-foreground">No sub-agencies yet.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {isOwner && (
         <Card className="border-destructive/50">

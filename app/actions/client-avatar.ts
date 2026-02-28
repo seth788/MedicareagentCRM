@@ -36,18 +36,17 @@ export async function uploadClientAvatar(
     if (!ALLOWED_TYPES.includes(file.type))
       return { error: "Invalid file type. Only JPEG, PNG, and WebP are allowed." }
 
-    // Verify client belongs to agent
+    // Verify user can manage this client (own client or agency book access)
     const { data: clientRow } = await supabase
       .from("clients")
-      .select("id")
+      .select("id, agent_id")
       .eq("id", clientId)
-      .eq("agent_id", user.id)
       .single()
 
     if (!clientRow) return { error: "Client not found" }
 
     const ext = getExtFromMime(file.type)
-    const path = `${user.id}/${clientId}/avatar.${ext}`
+    const path = `${clientRow.agent_id}/${clientId}/avatar.${ext}`
 
     // Use service role for upload - bypasses storage RLS (auth/ownership validated above)
     let storageClient

@@ -53,18 +53,39 @@ export async function signUp(formData: FormData) {
   if (!email || !password) {
     return { error: "Email and password are required." }
   }
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: fullName ? { data: { full_name: fullName } } : undefined,
-  })
-  if (error) {
-    return { error: error.message }
-  }
+
   let next = (formData.get("next") as string)?.trim()
   if (next && next.startsWith("/") && next.startsWith("/invite/")) {
     next = `${next}${next.includes("?") ? "&" : "?"}from_login=1`
   }
+
+  const h = await headers()
+  const host = h.get("host") ?? "localhost:3000"
+  const proto = h.get("x-forwarded-proto") === "https" ? "https" : "http"
+  const origin = `${proto}://${host}`
+  const emailRedirectTo =
+    next && next.startsWith("/")
+      ? `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+      : undefined
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      ...(fullName ? { data: { full_name: fullName } } : {}),
+      ...(emailRedirectTo ? { emailRedirectTo } : {}),
+    },
+  })
+  if (error) {
+    return { error: error.message }
+  }
+
+  // No session = email confirmation required; direct user to verify-email page
+  if (!data.session) {
+    const nextParam = next && next.startsWith("/") ? `?next=${encodeURIComponent(next)}` : ""
+    redirect(`/signup/verify-email${nextParam}`)
+  }
+
   redirect(next && next.startsWith("/") ? next : "/dashboard")
 }
 

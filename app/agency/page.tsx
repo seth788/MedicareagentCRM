@@ -2,7 +2,9 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { getUserDashboardOrgs } from "@/lib/db/organizations"
-import { getAgencyDashboardMetrics } from "@/lib/db/agency"
+import { getAgencyDashboardMetrics, getValidParentOrgsForSubAgency } from "@/lib/db/agency"
+import { getPendingSubagencyRequests } from "@/app/actions/subagency-requests-admin"
+import { SubagencyRequestsCard } from "@/components/agency/subagency-requests-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, UserPlus, FileText, Calendar } from "@/components/icons"
 
@@ -22,9 +24,28 @@ export default async function AgencyDashboardPage({
   const effectiveOrgId = orgId && dashboardOrgs.some((o) => o.id === orgId) ? orgId : dashboardOrgs[0]?.id
   if (!effectiveOrgId) redirect("/dashboard")
 
-  const { metrics, subAgencies } = await getAgencyDashboardMetrics(effectiveOrgId)
+  const [
+    { metrics, subAgencies },
+    currentOrgData,
+    pendingRequests,
+    parentOrgs,
+  ] = await Promise.all([
+    getAgencyDashboardMetrics(effectiveOrgId),
+    (async () => {
+      const supabase = await createClient()
+      const { data } = await supabase
+        .from("organizations")
+        .select("id, parent_organization_id")
+        .eq("id", effectiveOrgId)
+        .single()
+      return data
+    })(),
+    getPendingSubagencyRequests(effectiveOrgId),
+    getValidParentOrgsForSubAgency(effectiveOrgId),
+  ])
   const currentOrg = dashboardOrgs.find((o) => o.id === effectiveOrgId)
   const orgParam = `?org=${effectiveOrgId}`
+  const isRootOrg = !currentOrgData?.parent_organization_id
 
   const kpis = [
     { label: "Total Agents", value: metrics.totalAgents, icon: Users },
@@ -76,6 +97,14 @@ export default async function AgencyDashboardPage({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {isRootOrg && pendingRequests.length > 0 && (
+        <SubagencyRequestsCard
+          requests={pendingRequests}
+          rootOrgId={effectiveOrgId}
+          parentOrgs={parentOrgs}
+        />
       )}
     </div>
   )

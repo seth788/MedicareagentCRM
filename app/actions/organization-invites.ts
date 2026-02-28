@@ -28,6 +28,22 @@ async function requireDashboardAccess(organizationId: string) {
   return { supabase, userId: user.id }
 }
 
+async function requireCanInviteToOrg(organizationId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+
+  const { data: canInvite, error } = await supabase.rpc("can_invite_to_organization_rpc", {
+    p_org_id: organizationId,
+  })
+  if (error || !canInvite) {
+    throw new Error("You do not have permission to invite to that agency")
+  }
+  return { supabase, userId: user.id }
+}
+
 async function logAudit(
   supabase: Awaited<ReturnType<typeof createClient>>,
   params: {
@@ -47,40 +63,62 @@ async function logAudit(
   })
 }
 
-export async function createInviteLink(
+export async function createInviteWithEmail(
   organizationId: string,
-  role: OrgInviteRole
-): Promise<{ error?: string; url?: string }> {
+  role: OrgInviteRole,
+  email: string
+): Promise<{ error?: string }> {
   try {
     if (!ORG_ROLES.includes(role)) {
       return { error: "Invalid role" }
     }
-    const { supabase, userId } = await requireDashboardAccess(organizationId)
+    const emailTrimmed = (email || "").trim().toLowerCase()
+    if (!emailTrimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+      return { error: "A valid email address is required" }
+    }
+    const { userId } = await requireCanInviteToOrg(organizationId)
 
-    const { data: existing } = await supabase
+    const serviceSupabase = (await import("@/lib/supabase/server")).createServiceRoleClient()
+    const token = randomBytes(32).toString("base64url")
+    const { data: invite, error } = await serviceSupabase
       .from("organization_invites")
-      .select("invite_token")
-      .eq("organization_id", organizationId)
-      .eq("role", role)
-      .maybeSingle()
-
-    let token: string
-    if (existing?.invite_token) {
-      token = existing.invite_token
-    } else {
-      token = randomBytes(32).toString("base64url")
-      const { error } = await supabase.from("organization_invites").insert({
+      .insert({
         organization_id: organizationId,
         role,
         invite_token: token,
+        invite_email: emailTrimmed,
         created_by: userId,
+        status: "pending",
       })
-      if (error) return { error: error.message }
-    }
+      .select("id")
+      .single()
+
+    if (error) return { error: error.message }
+    if (!invite) return { error: "Failed to create invite" }
+
+    const { data: org } = await serviceSupabase
+      .from("organizations")
+      .select("name")
+      .eq("id", organizationId)
+      .single()
 
     const baseUrl = getAppUrl()
-    const url = `${baseUrl}/invite/${token}`
-    return { url }
+    const inviteUrl = `${baseUrl}/invite/${token}`
+    const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+
+    const { sendOrganizationInvite } = await import("@/lib/emails/organization")
+    const sendResult = await sendOrganizationInvite({
+      toEmail: emailTrimmed,
+      orgName: org?.name ?? "the agency",
+      role: roleLabel,
+      inviteUrl,
+    })
+
+    if (!sendResult.ok) {
+      return { error: sendResult.error }
+    }
+
+    return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to create invite" }
   }
@@ -88,46 +126,25 @@ export async function createInviteLink(
 
 export async function getOrgInviteLinks(organizationId: string) {
   try {
-    const { supabase, userId } = await requireDashboardAccess(organizationId)
-    const baseUrl = getAppUrl()
+    await requireDashboardAccess(organizationId)
+    const supabase = await createClient()
 
-    let { data: invites, error } = await supabase
+    const { data: invites, error } = await supabase
       .from("organization_invites")
-      .select("id, role, invite_token")
+      .select("id, role, invite_email, status, created_at")
       .eq("organization_id", organizationId)
+      .in("status", ["pending", "opened"])
+      .order("created_at", { ascending: false })
 
     if (error) return { error: error.message, invites: [] }
 
-    const existingRoles = new Set((invites ?? []).map((i) => i.role))
-    const missingRoles = ORG_ROLES.filter((r) => !existingRoles.has(r))
-
-    if (missingRoles.length > 0) {
-      const { randomBytes } = await import("crypto")
-      for (const role of missingRoles) {
-        const token = randomBytes(32).toString("base64url")
-        const { data: inserted } = await supabase
-          .from("organization_invites")
-          .insert({
-            organization_id: organizationId,
-            role,
-            invite_token: token,
-            created_by: userId,
-          })
-          .select("id, role, invite_token")
-          .single()
-        if (inserted) invites = [...(invites ?? []), inserted]
-      }
-    }
-
-    const roleOrder = ORG_ROLES
-    const sorted = (invites ?? []).sort(
-      (a, b) => roleOrder.indexOf(a.role as OrgInviteRole) - roleOrder.indexOf(b.role as OrgInviteRole)
-    )
-
-    const result = sorted.map((inv) => ({
+    const result = (invites ?? []).map((inv) => ({
       id: inv.id,
       role: inv.role,
-      url: `${baseUrl}/invite/${inv.invite_token}`,
+      email: inv.invite_email ?? "",
+      status: inv.status,
+      createdAt: inv.created_at,
+      organizationId: organizationId,
     }))
 
     return { invites: result }
@@ -136,18 +153,91 @@ export async function getOrgInviteLinks(organizationId: string) {
   }
 }
 
+/** Fetches pending invites for org and all its descendants. Use when displaying members table so invites to subagencies appear. */
+export async function getOrgInviteLinksForTree(organizationId: string) {
+  try {
+    await requireDashboardAccess(organizationId)
+    const serviceSupabase = (await import("@/lib/supabase/server")).createServiceRoleClient()
+    const { data: downlineIds } = await serviceSupabase.rpc("get_downline_org_ids", {
+      root_org_id: organizationId,
+    })
+    const orgIds = (downlineIds ?? []) as string[]
+    if (orgIds.length === 0) return { invites: [] }
+
+    const { data: invites, error } = await serviceSupabase
+      .from("organization_invites")
+      .select("id, role, invite_email, status, created_at, organization_id")
+      .in("organization_id", orgIds)
+      .in("status", ["pending", "opened"])
+      .order("created_at", { ascending: false })
+
+    if (error) return { error: error.message, invites: [] }
+
+    const orgIdsToFetch = [...new Set((invites ?? []).map((i) => i.organization_id).filter(Boolean))]
+    const { data: orgs } =
+      orgIdsToFetch.length > 0
+        ? await serviceSupabase.from("organizations").select("id, name").in("id", orgIdsToFetch)
+        : { data: [] }
+    const orgMap = new Map((orgs ?? []).map((o) => [o.id, o.name]))
+
+    const result = (invites ?? []).map((inv) => ({
+      id: inv.id,
+      role: inv.role,
+      email: inv.invite_email ?? "",
+      status: inv.status,
+      createdAt: inv.created_at,
+      organizationId: inv.organization_id,
+      organizationName: orgMap.get(inv.organization_id) ?? "",
+    }))
+
+    return { invites: result }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to fetch invites", invites: [] }
+  }
+}
+
+export async function revokeInvite(
+  inviteOrganizationId: string,
+  inviteId: string
+): Promise<{ error?: string }> {
+  try {
+    await requireCanInviteToOrg(inviteOrganizationId)
+    const serviceSupabase = (await import("@/lib/supabase/server")).createServiceRoleClient()
+    const { error } = await serviceSupabase
+      .from("organization_invites")
+      .update({ status: "revoked" })
+      .eq("id", inviteId)
+      .eq("organization_id", inviteOrganizationId)
+      .in("status", ["pending", "opened"])
+
+    if (error) return { error: error.message }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to revoke invite" }
+  }
+}
+
 const ROLE_PERMISSIONS: Record<
   OrgInviteRole,
   { has_dashboard_access: boolean; can_view_agency_book: boolean; agency_can_view_book: boolean; is_producing: boolean }
 > = {
   staff: { has_dashboard_access: true, can_view_agency_book: true, agency_can_view_book: true, is_producing: false },
-  agent: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: true, is_producing: true },
+  agent: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: false, is_producing: true },
   loa_agent: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: true, is_producing: true },
   community_agent: { has_dashboard_access: false, can_view_agency_book: true, agency_can_view_book: true, is_producing: true },
   agency: { has_dashboard_access: false, can_view_agency_book: false, agency_can_view_book: true, is_producing: true },
 }
 
-export async function acceptInvite(token: string): Promise<{ error?: string; setupAgency?: boolean; orgName?: string }> {
+export async function acceptInvite(
+  token: string,
+  subagencyNameFromAgent?: string,
+  agencyNameFromAgent?: string
+): Promise<{
+  error?: string
+  setupAgency?: boolean
+  orgName?: string
+  createdSubagencyId?: string
+}> {
   const supabase = await createClient()
   const serviceSupabase = (await import("@/lib/supabase/server")).createServiceRoleClient()
   const {
@@ -157,17 +247,166 @@ export async function acceptInvite(token: string): Promise<{ error?: string; set
 
   const { data: invite, error: inviteError } = await serviceSupabase
     .from("organization_invites")
-    .select("id, organization_id, role, status, expires_at, max_uses, times_used")
+    .select("id, organization_id, role, status, expires_at, invite_type, target_organization_id, subagency_name")
     .eq("invite_token", token)
     .single()
 
   if (inviteError || !invite) return { error: "This invite link is no longer valid." }
-  if (invite.status !== "active") return { error: "This invite link is no longer valid." }
+  if (!["pending", "opened"].includes(invite.status)) return { error: "This invite link is no longer valid." }
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { error: "This invite link is no longer valid." }
-  if (invite.max_uses != null && invite.times_used >= invite.max_uses) return { error: "This invite link is no longer valid." }
+
+  const isSubagencyCreation = invite.invite_type === "subagency_creation"
+  const targetOrgId = invite.target_organization_id as string | null
+  const subagencyName =
+    (subagencyNameFromAgent?.trim()) ||
+    (invite.subagency_name as string)?.trim()
+
+  if (isSubagencyCreation) {
+    if (!targetOrgId) return { error: "Invalid subagency invite: missing placement." }
+    if (!subagencyName) return { error: "Please enter a name for your subagency." }
+    const { getUserMemberOrgs } = await import("@/lib/db/organizations")
+    const memberOrgs = await getUserMemberOrgs(user.id)
+
+    const { data: newOrg, error: orgError } = await serviceSupabase
+      .from("organizations")
+      .insert({
+        name: subagencyName,
+        organization_type: "sub_agency",
+        owner_id: user.id,
+        parent_organization_id: targetOrgId,
+      })
+      .select("id, name")
+      .single()
+
+    if (orgError) return { error: orgError.message }
+    if (!newOrg) return { error: "Failed to create subagency" }
+
+    await serviceSupabase.from("organization_members").insert({
+      organization_id: newOrg.id,
+      user_id: user.id,
+      role: "owner",
+      has_dashboard_access: true,
+      can_view_agency_book: true,
+      is_producing: false,
+      status: "active",
+      accepted_at: new Date().toISOString(),
+    })
+
+    if (memberOrgs.length > 0) {
+      await serviceSupabase
+        .from("organization_members")
+        .delete()
+        .eq("user_id", user.id)
+        .in("organization_id", memberOrgs.map((o) => o.id))
+    }
+
+    await serviceSupabase.from("organization_invites").update({ status: "accepted" }).eq("id", invite.id)
+
+    await serviceSupabase
+      .from("subagency_creation_requests")
+      .update({ created_subagency_id: newOrg.id })
+      .eq("invite_id", invite.id)
+
+    await serviceSupabase.from("organization_audit_log").insert({
+      organization_id: newOrg.id,
+      action: "sub_agency_created",
+      performed_by: user.id,
+      details: { parent_org_id: targetOrgId },
+    })
+
+    const { data: parentOrg } = await serviceSupabase.from("organizations").select("name, owner_id").eq("id", targetOrgId).single()
+    if (parentOrg?.owner_id) {
+      try {
+        const { data: ownerUser } = await serviceSupabase.auth.admin.getUserById(parentOrg.owner_id)
+        if (ownerUser?.user?.email) {
+          const { sendSubAgencyCreated } = await import("@/lib/emails/organization")
+          await sendSubAgencyCreated({
+            toEmail: ownerUser.user.email,
+            parentOrgName: parentOrg.name,
+            subAgencyName: newOrg.name,
+          })
+        }
+      } catch {
+        // Don't block subagency creation if email fails
+      }
+    }
+
+    return { createdSubagencyId: newOrg.id }
+  }
 
   const role = invite.role as OrgInviteRole
   if (!ORG_ROLES.includes(role)) return { error: "Invalid invite" }
+
+  // Agency invite: create their sub-agency with the name they provide (like subagency creation)
+  if (role === "agency") {
+    const agencyName = (agencyNameFromAgent?.trim()) || ""
+    if (!agencyName) return { error: "Please enter a name for your agency." }
+
+    const { getUserMemberOrgs } = await import("@/lib/db/organizations")
+    const memberOrgs = await getUserMemberOrgs(user.id)
+    const parentOrgId = invite.organization_id
+
+    const { data: newOrg, error: orgError } = await serviceSupabase
+      .from("organizations")
+      .insert({
+        name: agencyName,
+        organization_type: "sub_agency",
+        owner_id: user.id,
+        parent_organization_id: parentOrgId,
+      })
+      .select("id, name")
+      .single()
+
+    if (orgError) return { error: orgError.message }
+    if (!newOrg) return { error: "Failed to create agency" }
+
+    await serviceSupabase.from("organization_members").insert({
+      organization_id: newOrg.id,
+      user_id: user.id,
+      role: "owner",
+      has_dashboard_access: true,
+      can_view_agency_book: true,
+      is_producing: false,
+      status: "active",
+      accepted_at: new Date().toISOString(),
+    })
+
+    if (memberOrgs.length > 0) {
+      await serviceSupabase
+        .from("organization_members")
+        .delete()
+        .eq("user_id", user.id)
+        .in("organization_id", memberOrgs.map((o) => o.id))
+    }
+
+    await serviceSupabase.from("organization_invites").update({ status: "accepted" }).eq("id", invite.id)
+
+    await serviceSupabase.from("organization_audit_log").insert({
+      organization_id: newOrg.id,
+      action: "sub_agency_created",
+      performed_by: user.id,
+      details: { parent_org_id: parentOrgId },
+    })
+
+    const { data: parentOrg } = await serviceSupabase.from("organizations").select("name, owner_id").eq("id", parentOrgId).single()
+    if (parentOrg?.owner_id) {
+      try {
+        const { data: ownerUser } = await serviceSupabase.auth.admin.getUserById(parentOrg.owner_id)
+        if (ownerUser?.user?.email) {
+          const { sendSubAgencyCreated } = await import("@/lib/emails/organization")
+          await sendSubAgencyCreated({
+            toEmail: ownerUser.user.email,
+            parentOrgName: parentOrg.name,
+            subAgencyName: newOrg.name,
+          })
+        }
+      } catch {
+        // Don't block if email fails
+      }
+    }
+
+    return { createdSubagencyId: newOrg.id }
+  }
 
   const { data: existing } = await serviceSupabase
     .from("organization_members")
@@ -197,7 +436,7 @@ export async function acceptInvite(token: string): Promise<{ error?: string; set
 
   await serviceSupabase
     .from("organization_invites")
-    .update({ times_used: invite.times_used + 1 })
+    .update({ status: "accepted" })
     .eq("id", invite.id)
 
   const { data: org } = await serviceSupabase

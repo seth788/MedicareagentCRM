@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getUserDashboardOrgs } from "@/lib/db/organizations"
-import { getAgencyMembers } from "@/lib/db/agency"
+import { getAgencyMembers, getValidParentOrgsForSubAgency } from "@/lib/db/agency"
 import { createServiceRoleClient } from "@/lib/supabase/server"
+import { getOrgInviteLinksForTree } from "@/app/actions/organization-invites"
+import { getPendingSubagencyRequests } from "@/app/actions/subagency-requests-admin"
 import { MembersPageClient } from "@/components/agency/members-page-client"
+import { SubagencyRequestsCard } from "@/components/agency/subagency-requests-card"
 
 export default async function AgencyMembersPage({
   searchParams,
@@ -29,33 +32,60 @@ export default async function AgencyMembersPage({
     .single()
   const isOwner = org?.owner_id === user.id
 
-  const members = await getAgencyMembers(effectiveOrgId)
-  const currentOrg = dashboardOrgs.find((o) => o.id === effectiveOrgId)
+  const rootOrgId = await (async () => {
+    const { getRootOrgId } = await import("@/lib/db/agency")
+    return getRootOrgId(effectiveOrgId)
+  })()
+  const isRootOrg = effectiveOrgId === rootOrgId
 
-  const { data: childOrgs } = await serviceSupabase.rpc("get_downline_org_ids", {
-    root_org_id: effectiveOrgId,
-  })
+  const [members, inviteResult, childOrgsResult, pendingRequests, parentOrgs] = await Promise.all([
+    getAgencyMembers(effectiveOrgId),
+    getOrgInviteLinksForTree(effectiveOrgId),
+    serviceSupabase.rpc("get_downline_org_ids", { root_org_id: effectiveOrgId }),
+    isRootOrg ? getPendingSubagencyRequests(rootOrgId) : [],
+    isRootOrg ? getValidParentOrgsForSubAgency(rootOrgId) : [],
+  ])
+
+  const currentOrg = dashboardOrgs.find((o) => o.id === effectiveOrgId)
+  const { invites = [] } = inviteResult
+  const { data: childOrgs } = childOrgsResult
   const childIds = ((childOrgs ?? []) as string[]).filter((id) => id !== effectiveOrgId)
   const { data: subOrgs } =
     childIds.length > 0
       ? await serviceSupabase.from("organizations").select("id, name").in("id", childIds)
       : { data: [] }
 
+  // Orgs the user can invite to: current org + its descendants
+  const targetOrgsForInvite: { id: string; name: string }[] = [
+    { id: effectiveOrgId, name: currentOrg?.name ?? "Current agency" },
+    ...(subOrgs ?? []),
+  ]
+
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Members</h1>
         <p className="text-muted-foreground">
-          Manage members of {currentOrg?.name ?? "your agency"}
+          Manage members of {currentOrg?.name ?? "your agency"}. Sub-agency owners appear here for billing and management.
         </p>
       </div>
+
+      {isRootOrg && (pendingRequests?.length ?? 0) > 0 && (
+        <SubagencyRequestsCard
+          requests={pendingRequests ?? []}
+          rootOrgId={rootOrgId}
+          parentOrgs={parentOrgs ?? []}
+        />
+      )}
 
       <MembersPageClient
         organizationId={effectiveOrgId}
         members={members}
+        invites={invites}
         isOwner={!!isOwner}
         currentUserId={user.id}
         subOrgs={subOrgs ?? []}
+        targetOrgsForInvite={targetOrgsForInvite}
       />
     </div>
   )

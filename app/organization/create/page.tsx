@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
+import { getUserMemberOrgs, getUserMemberOrgsWithRoles, ROLES_CAN_CREATE_AGENCY } from "@/lib/db/organizations"
 import { createOrganization } from "@/app/actions/organization-create"
 import { ForceLightTheme } from "@/components/force-light-theme"
 import { Button } from "@/components/ui/button"
@@ -12,7 +13,7 @@ import { Label } from "@/components/ui/label"
 export default async function CreateOrganizationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ parent_org_id?: string }>
+  searchParams: Promise<{ parent_org_id?: string; org?: string }>
 }) {
   const supabase = await createClient()
   const {
@@ -20,9 +21,74 @@ export default async function CreateOrganizationPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/login?next=/organization/create")
 
-  const { parent_org_id } = await searchParams
-  const isSubAgency = !!parent_org_id
+  const memberOrgs = await getUserMemberOrgs(user.id)
+  const memberOrgsWithRoles = await getUserMemberOrgsWithRoles(user.id)
+  const { parent_org_id, org: currentOrgId } = await searchParams
 
+  // Only plain agents (and agency/owner) can create agencies. LOA and community agents cannot.
+  const canCreateAgency = memberOrgsWithRoles.length === 0 || memberOrgsWithRoles.some((m) => ROLES_CAN_CREATE_AGENCY.includes(m.role as (typeof ROLES_CAN_CREATE_AGENCY)[number]))
+
+  if (!canCreateAgency) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4">
+        <ForceLightTheme />
+        <div className="mb-8 flex items-center justify-center">
+          <Link href="/dashboard">
+            <Image src="/logo.svg" alt="AdvantaCRM" width={140} height={36} className="h-9 w-auto" priority />
+          </Link>
+        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Cannot create agency</CardTitle>
+            <CardDescription>
+              LOA and community agents cannot create agencies. Only agents with full producing status can create or own sub-agencies. Contact your agency owner if you need to create an agency.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard">Back to Dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Affiliated agents must use Request Subagency flow — only top-line approves and places
+  const userHasAgency = memberOrgs.length > 0
+  const isFromInvite = !!parent_org_id
+  const isSubAgency = userHasAgency || isFromInvite
+
+  if (userHasAgency && !isFromInvite) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4">
+        <ForceLightTheme />
+        <div className="mb-8 flex items-center justify-center">
+          <Link href="/dashboard">
+            <Image src="/logo.svg" alt="AdvantaCRM" width={140} height={36} className="h-9 w-auto" priority />
+          </Link>
+        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Subagency creation</CardTitle>
+            <CardDescription>
+              To create a subagency, submit a request to your top-line agency. They will review and approve placement in the organization tree.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Button asChild className="w-full">
+              <Link href="/organization/subagency-request">Request Subagency</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/dashboard">Back to Dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // From invite (parent pre-selected) or user has no agency (top-level creation)
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4">
       <ForceLightTheme />

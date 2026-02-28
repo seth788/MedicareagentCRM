@@ -51,12 +51,14 @@ export default function ClientsPageInner() {
           const city = addr?.city?.toLowerCase() ?? ""
           const phone = getPreferredOrFirstPhone(c)?.number ?? ""
           const email = getPreferredOrFirstEmail(c)?.value ?? ""
+          const agentName = c.agentDisplayName?.toLowerCase() ?? ""
           return (
             c.firstName.toLowerCase().includes(q) ||
             c.lastName.toLowerCase().includes(q) ||
             email.toLowerCase().includes(q) ||
             phone.includes(q) ||
-            city.includes(q)
+            city.includes(q) ||
+            agentName.includes(q)
           )
         }
       )
@@ -167,6 +169,11 @@ export default function ClientsPageInner() {
                         </span>
                       )}
                       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {client.agentDisplayName && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+                            {client.agentDisplayName}
+                          </Badge>
+                        )}
                         {location && (
                           <span className="text-xs text-muted-foreground">{location}</span>
                         )}
@@ -237,13 +244,20 @@ export default function ClientsPageInner() {
                         onClick={() => router.push(`/clients/${client.id}`)}
                       >
                         <TableCell>
-                          <Link
-                            href={`/clients/${client.id}`}
-                            className="block font-medium text-foreground hover:underline whitespace-nowrap"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {client.firstName} {client.lastName}
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/clients/${client.id}`}
+                              className="font-medium text-foreground hover:underline whitespace-nowrap"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {client.firstName} {client.lastName}
+                            </Link>
+                            {client.agentDisplayName && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 shrink-0">
+                                {client.agentDisplayName}
+                              </Badge>
+                            )}
+                          </div>
                           {/* Show coverage inline on md when Coverage column is hidden */}
                           {(client.coverages?.length ?? 0) > 0 && (
                             <span className="mt-0.5 block lg:hidden">
