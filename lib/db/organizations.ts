@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 export interface DashboardOrg {
   id: string
   name: string
+  logoUrl?: string | null
 }
 
 export async function getUserDashboardOrgs(userId: string): Promise<DashboardOrg[]> {
@@ -22,7 +23,23 @@ export async function getUserDashboardOrgs(userId: string): Promise<DashboardOrg
     .select("id, name")
     .in("id", orgIds)
 
-  return (orgs ?? []).map((o) => ({ id: o.id, name: o.name }))
+  if (!orgs?.length) return []
+
+  // Get effective logo for each org (walks up ancestry: first org with logo + show_logo_to_downline)
+  const logoResults = await Promise.all(
+    orgIds.map((orgId) => supabase.rpc("get_effective_logo_url", { p_org_id: orgId }))
+  )
+  const logoMap = new Map<string, string | null>()
+  orgIds.forEach((id, i) => {
+    const res = logoResults[i]
+    logoMap.set(id, (res.data as string | null) ?? null)
+  })
+
+  return orgs.map((o) => ({
+    id: o.id,
+    name: o.name,
+    logoUrl: logoMap.get(o.id) ?? null,
+  }))
 }
 
 export interface MemberOrgWithRole {

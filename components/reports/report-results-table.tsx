@@ -25,6 +25,7 @@ export function ReportResultsTable({ rows, selectedIds, onSelectionChange }: Rep
   const showEmailCol = rows.some((r) => r.email != null || r.emailSingle != null)
   const showPhoneCol = rows.some((r) => r.phone != null || r.phoneSingle != null)
   const showCoverageCol = rows.some((r) => (r.planTypes?.length ?? 0) > 0)
+  const showAgencyCol = rows.some((r) => r.agency != null && r.agency !== "")
 
   const toggleAll = (checked: boolean) => {
     if (checked) {
@@ -65,6 +66,7 @@ export function ReportResultsTable({ rows, selectedIds, onSelectionChange }: Rep
             <TableHead className="hidden xl:table-cell">Nickname</TableHead>
             <TableHead>Gender</TableHead>
             <TableHead>Source</TableHead>
+            {showAgencyCol && <TableHead>Agency</TableHead>}
             {showAddressCol && <TableHead>Address</TableHead>}
             {showEmailCol && <TableHead>Email</TableHead>}
             {showPhoneCol && <TableHead>Phone</TableHead>}
@@ -117,9 +119,12 @@ export function ReportResultsTable({ rows, selectedIds, onSelectionChange }: Rep
                   <TableCell className="hidden lg:table-cell">{row.middleName || "—"}</TableCell>
                   <TableCell className="hidden md:table-cell">{row.suffix || "—"}</TableCell>
                   <TableCell className="hidden xl:table-cell">{row.nickname || "—"}</TableCell>
-                  <TableCell>{row.gender || "—"}</TableCell>
-                  <TableCell className="max-w-[120px] truncate">{row.source || "—"}</TableCell>
-                  {showAddressCol && (
+                    <TableCell>{row.gender || "—"}</TableCell>
+                    <TableCell className="max-w-[120px] truncate">{row.source || "—"}</TableCell>
+                    {showAgencyCol && (
+                      <TableCell className="max-w-[140px] truncate">{row.agency || "—"}</TableCell>
+                    )}
+                    {showAddressCol && (
                     <TableCell className="max-w-[180px] truncate" title={addr}>
                       {addr || "—"}
                       {showPreferredAddr && (

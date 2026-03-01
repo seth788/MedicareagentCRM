@@ -839,10 +839,13 @@ function AddCoverageForm({
                   return
                 }
                 const plan = plans.find((p) => p.id === v)
+                const displayName = plan?.contractId
+                  ? `${plan.planName} (${plan.contractId})`
+                  : (plan?.planName ?? "")
                 setForm((f) => ({
                   ...f,
                   planId: v,
-                  planName: plan?.planName ?? "",
+                  planName: displayName,
                 }))
               }}
               disabled={!form.carrier.trim() || loadingPlans}
@@ -1531,8 +1534,11 @@ function InlineCoverageForm({
                           return
                         }
                         const plan = editPlans.find((p) => p.id === v)
+                        const displayName = plan?.contractId
+                          ? `${plan.planName} (${plan.contractId})`
+                          : (plan?.planName ?? "")
                         setChangePlanId(v)
-                        setChangePlanName(plan?.planName ?? "")
+                        setChangePlanName(displayName)
                       }}
                       disabled={!changeCarrier.trim() || editLoadingPlans}
                     >

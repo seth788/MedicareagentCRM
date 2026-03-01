@@ -42,7 +42,7 @@ export default async function AgencyAgentsPage({
   const hasContent = agents.length > 0 || hierarchyTree.length > 0
 
   return (
-    <div className="p-6">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Hierarchy</h1>

@@ -7,6 +7,7 @@ import {
 } from "@/lib/coverage-options"
 
 export type ReportFilterField =
+  | "client_agency"
   | "client_status"
   | "client_source"
   | "client_gender"
@@ -41,6 +42,9 @@ export interface ReportFilter {
   value: string
   /** For date_range filters: "to" date when using BETWEEN. */
   valueTo?: string
+  /** For client_agency in agency reports: policy effective date range (enables policy-level sales view). */
+  policyDateFrom?: string
+  policyDateTo?: string
   label: string
 }
 
@@ -138,8 +142,15 @@ function formatDateForDisplay(val: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
 }
 
-export function getFilterLabel(field: ReportFilterField, value: string, valueTo?: string): string {
-  const def = FILTER_FIELD_DEFINITIONS.find((d) => d.field === field)
+export function getFilterLabel(
+  field: ReportFilterField,
+  value: string,
+  valueTo?: string,
+  definitions = FILTER_FIELD_DEFINITIONS
+): string {
+  const def =
+    definitions.find((d) => d.field === field) ??
+    FILTER_FIELD_DEFINITIONS.find((d) => d.field === field)
   if (!def) return `${field}: ${value}`
   if (def.type === "date_range") {
     const from = formatDateForDisplay(value)
@@ -161,8 +172,14 @@ export function getFilterLabel(field: ReportFilterField, value: string, valueTo?
 }
 
 /** Returns display label for a single value (e.g. for multiselect chip). */
-export function getValueLabel(field: ReportFilterField, value: string): string {
-  const def = FILTER_FIELD_DEFINITIONS.find((d) => d.field === field)
+export function getValueLabel(
+  field: ReportFilterField,
+  value: string,
+  definitions = FILTER_FIELD_DEFINITIONS
+): string {
+  const def =
+    definitions.find((d) => d.field === field) ??
+    FILTER_FIELD_DEFINITIONS.find((d) => d.field === field)
   if (!def?.options) return value
   return def.options.find((o) => o.value === value)?.label ?? value
 }
@@ -222,18 +239,21 @@ export const QUICK_REPORT_PRESETS: QuickReportPreset[] = [
 
 /** Builds ReportFilter[] from a QuickReportPreset or saved report (same shape). */
 export function presetToFilters(
-  preset: { id: string; filters: Omit<ReportFilter, "id" | "label">[] }
+  preset: { id: string; filters: Omit<ReportFilter, "id" | "label">[] },
+  definitions = FILTER_FIELD_DEFINITIONS
 ): ReportFilter[] {
   return preset.filters.map((f, i) => ({
     id: `${preset.id}-${i}`,
     field: f.field,
     value: f.value,
     valueTo: f.valueTo,
-    label: getFilterLabel(f.field, f.value, f.valueTo),
+    policyDateFrom: f.policyDateFrom,
+    policyDateTo: f.policyDateTo,
+    label: getFilterLabel(f.field, f.value, f.valueTo, definitions),
   }))
 }
 
-/** Serializes ReportFilter[] to stored format (field, value, valueTo). */
+/** Serializes ReportFilter[] to stored format (field, value, valueTo, policyDateFrom, policyDateTo). */
 export function filtersToStoredFormat(
   filters: ReportFilter[]
 ): Omit<ReportFilter, "id" | "label">[] {
@@ -241,6 +261,8 @@ export function filtersToStoredFormat(
     field: f.field,
     value: f.value,
     valueTo: f.valueTo,
+    policyDateFrom: f.policyDateFrom,
+    policyDateTo: f.policyDateTo,
   }))
 }
 
@@ -258,6 +280,12 @@ function addressMatches(
     const raw = (a[field] ?? "").toLowerCase().trim()
     return raw && selectedSet.has(raw)
   })
+}
+
+/** Extracts unique agency names from agencyByClientId map (sorted). */
+export function getAgencyOptionsFromMap(agencyByClientId: Record<string, string>): string[] {
+  const set = new Set(Object.values(agencyByClientId).filter(Boolean))
+  return [...set].sort((a, b) => a.localeCompare(b))
 }
 
 /** Extracts unique carrier/company names from all client coverages (sorted). */
@@ -377,12 +405,25 @@ export function getCountyOptionsFromClients(clients: Client[]): string[] {
 }
 
 /** Applies filters to clients; returns filtered list. All conditions are ANDed. */
-export function applyFilters(clients: Client[], filters: ReportFilter[]): Client[] {
+export function applyFilters(
+  clients: Client[],
+  filters: ReportFilter[],
+  agencyByClientId?: Record<string, string>
+): Client[] {
   if (!filters.length) return clients
 
   return clients.filter((client) => {
     for (const f of filters) {
       switch (f.field) {
+        case "client_agency": {
+          if (!agencyByClientId) break
+          const selected = parseMultiselectValue(f.value ?? "")
+          if (!selected.length) break
+          const agencyName = (agencyByClientId[client.id] ?? "").trim()
+          const selectedSet = new Set(selected.map((s) => s.trim().toLowerCase()).filter(Boolean))
+          if (!agencyName || !selectedSet.has(agencyName.toLowerCase())) return false
+          break
+        }
         case "client_status": {
           const selected = parseMultiselectValue(f.value ?? "")
           if (!selected.length) break
@@ -541,6 +582,7 @@ export function applyFilters(clients: Client[], filters: ReportFilter[]): Client
             "coverage_plan_type",
             "coverage_status",
             "coverage_carrier",
+            "coverage_plan_name",
             "coverage_written_as",
             "coverage_election_period",
           ].includes(f.field)
@@ -569,9 +611,9 @@ export function applyFilters(clients: Client[], filters: ReportFilter[]): Client
               return carrier && selectedSet.has(carrier)
             }
             if (f.field === "coverage_plan_name") {
-              const planName = (c.planName ?? "").toLowerCase()
-              const v = (f.value ?? "").toLowerCase().trim()
-              return v && planName.includes(v)
+              const planName = (c.planName ?? "").trim()
+              const selectedSet = new Set(selected!.map((s) => s.trim()).filter(Boolean))
+              return planName && selectedSet.has(planName)
             }
             if (f.field === "coverage_contract_number") {
               const num = (c.memberPolicyNumber ?? "").toLowerCase()

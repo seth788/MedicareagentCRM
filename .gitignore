@@ -8,4 +8,5 @@ node_modules/
 .pnpm-store/
 .next/
 .env*.local
+.env.example
 .DS_Store

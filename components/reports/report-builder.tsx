@@ -49,12 +49,27 @@ const GROUP_LABELS: Record<FilterGroup, string> = {
   policy: "Policy",
 }
 
+type FilterDef = {
+  field: ReportFilterField
+  label: string
+  type: "text" | "date_range" | "multiselect"
+  group?: string
+  options?: readonly { value: string; label: string }[]
+  tip?: string
+}
+
 interface ReportBuilderProps {
   filters: ReportFilter[]
   onFiltersChange: (filters: ReportFilter[]) => void
   onRunReport: () => void
   onReportSaved?: () => void
   runReportDisabled?: boolean
+  /** When set, only these filter fields are shown (for CRM). */
+  allowedFields?: ReportFilterField[]
+  /** When set, replaces FILTER_FIELD_DEFINITIONS entirely (for agency). */
+  filterDefinitions?: FilterDef[]
+  /** When set (agency), saves to org-scoped reports instead of personal. */
+  organizationId?: string
   pharmacyOptions?: string[]
   rxOptions?: string[]
   sourceOptions?: string[]
@@ -65,6 +80,8 @@ interface ReportBuilderProps {
   zipOptions?: string[]
   countyOptions?: string[]
   carrierOptions?: string[]
+  agencyOptions?: string[]
+  planNameOptions?: string[]
 }
 
 export function ReportBuilder({
@@ -73,6 +90,9 @@ export function ReportBuilder({
   onRunReport,
   onReportSaved,
   runReportDisabled = false,
+  allowedFields,
+  filterDefinitions,
+  organizationId,
   pharmacyOptions = [],
   rxOptions = [],
   sourceOptions = [],
@@ -83,6 +103,8 @@ export function ReportBuilder({
   zipOptions = [],
   countyOptions = [],
   carrierOptions = [],
+  agencyOptions = [],
+  planNameOptions = [],
 }: ReportBuilderProps) {
   const [addField, setAddField] = useState<ReportFilterField | "">("")
   const [addValue, setAddValue] = useState("")
@@ -93,18 +115,23 @@ export function ReportBuilder({
   const [saveName, setSaveName] = useState("")
   const [saving, setSaving] = useState(false)
 
-  const defs = FILTER_FIELD_DEFINITIONS
+  const defs = filterDefinitions ?? FILTER_FIELD_DEFINITIONS
   const groupedDefs = useMemo(() => {
+    const filtered =
+      filterDefinitions || !allowedFields
+        ? defs
+        : defs.filter((d) => allowedFields.includes(d.field))
     const groups = new Map<FilterGroup, typeof defs>()
-    for (const d of defs) {
+    for (const d of filtered) {
       const g = d.group ?? "individual"
       if (!groups.has(g)) groups.set(g, [])
       groups.get(g)!.push(d)
     }
     return groups
-  }, [])
+  }, [allowedFields])
 
   const clientDataOptions: Partial<Record<ReportFilterField, string[]>> = {
+    client_agency: agencyOptions,
     pharmacy_name: pharmacyOptions,
     rx_name: rxOptions,
     client_source: sourceOptions,
@@ -115,6 +142,7 @@ export function ReportBuilder({
     address_zip: zipOptions,
     address_county: countyOptions,
     coverage_carrier: carrierOptions,
+    coverage_plan_name: planNameOptions,
   }
 
   function getOptionsForField(field: ReportFilterField) {
@@ -134,7 +162,7 @@ export function ReportBuilder({
   function updateFilterValue(id: string, value: string, valueTo?: string) {
     const f = filters.find((x) => x.id === id)
     if (!f) return
-    const label = getFilterLabel(f.field, value, valueTo)
+    const label = getFilterLabel(f.field, value, valueTo, defs)
     updateFilter(id, { value, valueTo, label })
   }
 
@@ -165,7 +193,7 @@ export function ReportBuilder({
       const to = addValueTo
       if (!from && !to) return false
       const id = `filter-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-      const label = getFilterLabel(addField, from, to)
+      const label = getFilterLabel(addField, from, to, defs)
       onFiltersChange([
         ...filters,
         { id, field: addField, value: from, valueTo: to || undefined, label },
@@ -181,7 +209,7 @@ export function ReportBuilder({
       const selected = parseMultiselectValue(addValue)
       if (!selected.length) return false
       const id = `filter-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-      const label = getFilterLabel(addField, addValue)
+      const label = getFilterLabel(addField, addValue, undefined, defs)
       onFiltersChange([...filters, { id, field: addField, value: addValue, label }])
       setAddField("")
       setAddValue("")
@@ -193,7 +221,7 @@ export function ReportBuilder({
     const value = addValue.trim()
     if (!value) return false
     const id = `filter-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-    const label = getFilterLabel(addField, value)
+    const label = getFilterLabel(addField, value, undefined, defs)
     onFiltersChange([...filters, { id, field: addField, value, label }])
     setAddField("")
     setAddValue("")
@@ -246,6 +274,7 @@ export function ReportBuilder({
         body: JSON.stringify({
           name,
           filters: filtersToStoredFormat(filters),
+          ...(organizationId && { organizationId }),
         }),
       })
       if (!res.ok) {
@@ -291,7 +320,7 @@ export function ReportBuilder({
         <SelectValue placeholder="Select..." />
       </SelectTrigger>
         <SelectContent>
-        <SelectItem value="__none__">Select...</SelectItem>
+        {!filterDefinitions && <SelectItem value="__none__">Select...</SelectItem>}
         {(["individual", "address", "provider", "pharmacy", "rx", "policy"] as const).map(
           (group) =>
             groupedDefs.get(group)?.length ? (
@@ -336,7 +365,7 @@ export function ReportBuilder({
       ...options,
       ...selectedNotInOptions.map((value) => ({
         value,
-        label: getValueLabel(filter.field, value),
+        label: getValueLabel(filter.field, value, defs),
       })),
     ]
     const searchLower = search.trim().toLowerCase()
@@ -355,10 +384,10 @@ export function ReportBuilder({
             key={val}
             className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs"
           >
-            {getValueLabel(filter.field, val)}
+            {getValueLabel(filter.field, val, defs)}
             <button
               type="button"
-              aria-label={`Remove ${getValueLabel(filter.field, val)}`}
+              aria-label={`Remove ${getValueLabel(filter.field, val, defs)}`}
               onClick={() => removeRefineChip(filter.id, val)}
               className="rounded p-0.5 hover:bg-muted-foreground/20"
             >
@@ -441,9 +470,44 @@ export function ReportBuilder({
                 {filterSelect(filter.field, (v) => updateFilterField(filter.id, v))}
               </div>
 
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 {def.type === "multiselect" ? (
-                  <RefineMultiselect filter={filter} options={options} />
+                  <>
+                    <RefineMultiselect filter={filter} options={options} />
+                    {filterDefinitions && (
+                      <div className="flex flex-wrap items-center gap-4 border-l pl-4">
+                        <span className="text-xs text-muted-foreground">Policy effective date:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">From</span>
+                          <DatePicker
+                            value={filter.policyDateFrom ?? ""}
+                            onChange={(v) =>
+                              updateFilter(filter.id, {
+                                policyDateFrom: v || undefined,
+                                policyDateTo: filter.policyDateTo,
+                              })
+                            }
+                            placeholder="Pick date"
+                            className="w-[130px]"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">To</span>
+                          <DatePicker
+                            value={filter.policyDateTo ?? ""}
+                            onChange={(v) =>
+                              updateFilter(filter.id, {
+                                policyDateFrom: filter.policyDateFrom,
+                                policyDateTo: v || undefined,
+                              })
+                            }
+                            placeholder="Pick date"
+                            className="w-[130px]"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : def.type === "date_range" ? (
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -552,7 +616,7 @@ export function ReportBuilder({
                     <span className="truncate">
                       {addRowMultiselectSelected.length
                         ? addRowMultiselectSelected
-                            .map((v) => getValueLabel(addField, v))
+                            .map((v) => getValueLabel(addField, v, defs))
                             .join(", ")
                         : "Select..."}
                     </span>

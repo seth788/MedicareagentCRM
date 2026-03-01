@@ -27,6 +27,8 @@ export interface ReportRow {
   planTypes?: string[]
   carriers?: string[]
   effectiveDates?: string[]
+  /** Agency name (for agency reports). */
+  agency?: string
 }
 
 /** Whether to show the "Preferred" contact columns (only when multiple exist). */
@@ -106,9 +108,19 @@ export function clientToReportRow(client: Client): ReportRow {
 }
 
 /** Filters clients and converts to ReportRows. Uses in-memory filter. */
-export function getReportRows(clients: Client[], filters: ReportFilter[]): ReportRow[] {
-  const filtered = applyFilters(clients, filters)
-  return filtered.map(clientToReportRow)
+export function getReportRows(
+  clients: Client[],
+  filters: ReportFilter[],
+  agencyByClientId?: Record<string, string>
+): ReportRow[] {
+  const filtered = applyFilters(clients, filters, agencyByClientId)
+  return filtered.map((client) => {
+    const row = clientToReportRow(client)
+    if (agencyByClientId?.[client.id]) {
+      row.agency = agencyByClientId[client.id]
+    }
+    return row
+  })
 }
 
 /** Escapes a CSV cell (quotes and doubles internal quotes). */
@@ -128,6 +140,7 @@ export function reportRowsToCsv(rows: ReportRow[]): string {
   const showEmail = rows.some((r) => r.email != null || r.emailSingle != null)
   const showPhone = rows.some((r) => r.phone != null || r.phoneSingle != null)
   const showCoverage = rows.some((r) => (r.planTypes?.length ?? 0) > 0)
+  const showAgency = rows.some((r) => r.agency != null && r.agency !== "")
 
   const headers = [
     "ID",
@@ -140,6 +153,7 @@ export function reportRowsToCsv(rows: ReportRow[]): string {
     "Gender",
     "Source",
   ]
+  if (showAgency) headers.push("Agency")
   if (showAddress) headers.push("Address")
   if (showEmail) headers.push("Email")
   if (showPhone) headers.push("Phone")
@@ -164,6 +178,7 @@ export function reportRowsToCsv(rows: ReportRow[]): string {
       row.gender,
       row.source,
     ]
+    if (showAgency) cells.push(row.agency ?? "")
     if (showAddress) cells.push(addr)
     if (showEmail) cells.push(email)
     if (showPhone) cells.push(phone)

@@ -55,7 +55,7 @@ export function AgencySidebar({
   orgs,
   user,
 }: {
-  orgs: { id: string; name: string }[]
+  orgs: { id: string; name: string; logoUrl?: string | null }[]
   user: { displayName: string; email: string; avatarUrl: string | null }
 }) {
   const pathname = usePathname()
@@ -67,15 +67,20 @@ export function AgencySidebar({
   return (
     <Sidebar>
       <SidebarHeader className="px-3 py-4 sm:px-4 sm:py-5">
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="text-muted-foreground hover:text-foreground shrink-0">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <span className="truncate block text-sm font-medium">{currentOrg?.name ?? "Agency"}</span>
-            <span className="text-xs text-muted-foreground">Agency Dashboard</span>
-          </div>
-        </div>
+        <Link href={`/agency${orgParam}`} className="flex min-w-0 items-center gap-2.5">
+          {currentOrg?.logoUrl ? (
+              <img
+                src={currentOrg.logoUrl}
+                alt={currentOrg?.name ?? "Agency"}
+                className="h-9 max-w-[140px] object-contain object-left"
+              />
+            ) : (
+              <div className="min-w-0 flex-1">
+                <span className="truncate block text-sm font-medium">{currentOrg?.name ?? "Agency"}</span>
+                <span className="text-xs text-muted-foreground">Agency Dashboard</span>
+              </div>
+            )}
+        </Link>
       </SidebarHeader>
       {orgs.length > 1 && (
         <div className="px-3 pb-2">

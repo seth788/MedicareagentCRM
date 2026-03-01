@@ -62,6 +62,7 @@ export function AppSidebar() {
   const { setOpenMobile } = useSidebar()
   const { currentAgent, currentAgentEmail, currentAgentAvatarUrl, dashboardOrgs } = useCRMStore()
   const hasAgencyAccess = dashboardOrgs.length > 0
+  const effectiveLogoUrl = hasAgencyAccess ? (dashboardOrgs[0]?.logoUrl ?? null) : null
 
   // Auto-close mobile sidebar on route change
   useEffect(() => {
@@ -73,23 +74,33 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="px-3 py-4 sm:px-4 sm:py-5">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <Image
-            src="/logo.svg"
-            alt="AdvantaCRM"
-            width={112}
-            height={29}
-            className="h-7 w-auto dark:hidden"
-            priority
-          />
-          <Image
-            src="/logo-dark.svg"
-            alt="AdvantaCRM"
-            width={112}
-            height={29}
-            className="hidden h-7 w-auto dark:block"
-            priority
-          />
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
+          {effectiveLogoUrl ? (
+            <img
+              src={effectiveLogoUrl}
+              alt={dashboardOrgs[0]?.name ?? "Agency"}
+              className="h-9 max-w-[140px] object-contain object-left"
+            />
+          ) : (
+            <>
+              <Image
+                src="/logo.svg"
+                alt="AdvantaCRM"
+                width={140}
+                height={36}
+                className="h-9 w-auto dark:hidden"
+                priority
+              />
+              <Image
+                src="/logo-dark.svg"
+                alt="AdvantaCRM"
+                width={140}
+                height={36}
+                className="hidden h-9 w-auto dark:block"
+                priority
+              />
+            </>
+          )}
         </Link>
       </SidebarHeader>
       <SidebarSeparator />

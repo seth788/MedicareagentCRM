@@ -5,6 +5,8 @@ export interface SavedReportFilter {
   field: ReportFilterField
   value: string
   valueTo?: string
+  policyDateFrom?: string
+  policyDateTo?: string
 }
 
 export interface SavedReport {
@@ -13,16 +15,26 @@ export interface SavedReport {
   name: string
   filters: SavedReportFilter[]
   created_at: string
+  organization_id?: string | null
 }
 
-export async function fetchSavedReports(agentId: string): Promise<SavedReport[]> {
+/** Fetch saved reports. When orgId is null, returns personal/CRM reports. When orgId is set, returns agency reports for that org. */
+export async function fetchSavedReports(
+  agentId: string,
+  orgId?: string | null
+): Promise<SavedReport[]> {
   const { createClient } = await import("@/lib/supabase/server")
   const supabase = await createClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from("saved_reports")
-    .select("id, agent_id, name, filters, created_at")
+    .select("id, agent_id, name, filters, created_at, organization_id")
     .eq("agent_id", agentId)
-    .order("created_at", { ascending: false })
+  if (orgId == null) {
+    query = query.is("organization_id", null)
+  } else {
+    query = query.eq("organization_id", orgId)
+  }
+  const { data, error } = await query.order("created_at", { ascending: false })
   if (error) throw error
   return (data ?? []).map((r) => ({
     id: r.id,
@@ -30,24 +42,32 @@ export async function fetchSavedReports(agentId: string): Promise<SavedReport[]>
     name: r.name,
     filters: Array.isArray(r.filters) ? r.filters : [],
     created_at: r.created_at,
+    organization_id: r.organization_id ?? undefined,
   }))
 }
 
 export async function insertSavedReport(
   agentId: string,
   name: string,
-  filters: SavedReportFilter[]
+  filters: SavedReportFilter[],
+  organizationId?: string | null
 ): Promise<SavedReport> {
   const { createClient } = await import("@/lib/supabase/server")
   const supabase = await createClient()
+  const insertRow: Record<string, unknown> = {
+    agent_id: agentId,
+    name: name.trim(),
+    filters: filters,
+  }
+  if (organizationId != null) {
+    insertRow.organization_id = organizationId
+  } else {
+    insertRow.organization_id = null
+  }
   const { data, error } = await supabase
     .from("saved_reports")
-    .insert({
-      agent_id: agentId,
-      name: name.trim(),
-      filters: filters,
-    })
-    .select("id, agent_id, name, filters, created_at")
+    .insert(insertRow)
+    .select("id, agent_id, name, filters, created_at, organization_id")
     .single()
   if (error) throw error
   return {
@@ -56,6 +76,7 @@ export async function insertSavedReport(
     name: data.name,
     filters: Array.isArray(data.filters) ? data.filters : [],
     created_at: data.created_at,
+    organization_id: data.organization_id ?? undefined,
   }
 }
 
@@ -65,6 +86,7 @@ export async function deleteSavedReport(
 ): Promise<void> {
   const { createClient } = await import("@/lib/supabase/server")
   const supabase = await createClient()
+  // RLS ensures user can only delete their own reports (personal or org-scoped they have access to)
   const { error } = await supabase
     .from("saved_reports")
     .delete()

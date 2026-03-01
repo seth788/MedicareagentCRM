@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { updateOrganizationName, deleteOrganization } from "@/app/actions/agency-settings"
+import { useState, useRef } from "react"
+import { updateOrganizationName, deleteOrganization, uploadOrganizationLogo, deleteOrganizationLogo, updateShowLogoToDownline } from "@/app/actions/agency-settings"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,10 +16,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Plus } from "@/components/icons"
 
 export function AgencySettingsClient({
   organizationId,
@@ -28,7 +27,8 @@ export function AgencySettingsClient({
   createdAt,
   parentOrg,
   ownerName,
-  subAgencies,
+  logoUrl,
+  showLogoToDownline: initialShowLogoToDownline,
   isOwner,
 }: {
   organizationId: string
@@ -37,13 +37,61 @@ export function AgencySettingsClient({
   createdAt: string
   parentOrg: { id: string; name: string } | null
   ownerName: string
-  subAgencies: { id: string; name: string; ownerName: string }[]
+  logoUrl: string | null
+  showLogoToDownline: boolean
   isOwner: boolean
 }) {
   const router = useRouter()
   const [name, setName] = useState(orgName)
+  const [logo, setLogo] = useState<string | null>(logoUrl)
+  const [showLogoToDownline, setShowLogoToDownline] = useState(initialShowLogoToDownline)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [deletingLogo, setDeletingLogo] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const formData = new FormData()
+    formData.set("file", file)
+    const result = await uploadOrganizationLogo(organizationId, formData)
+    if (result.error) toast.error(result.error)
+    else if (result.imageUrl) {
+      setLogo(result.imageUrl)
+      toast.success("Logo updated")
+      router.refresh()
+    }
+    setUploading(false)
+    e.target.value = ""
+  }
+
+  async function handleDeleteLogo() {
+    if (!logo) return
+    setDeletingLogo(true)
+    const result = await deleteOrganizationLogo(organizationId)
+    if (result.error) toast.error(result.error)
+    else {
+      setLogo(null)
+      toast.success("Logo deleted")
+      router.refresh()
+    }
+    setDeletingLogo(false)
+  }
+
+  async function handleShowLogoToDownlineChange(checked: boolean) {
+    setShowLogoToDownline(checked)
+    const result = await updateShowLogoToDownline(organizationId, checked)
+    if (result.error) {
+      setShowLogoToDownline(!checked)
+      toast.error(result.error)
+    } else {
+      toast.success(checked ? "Logo will display to your downline" : "Logo hidden from downline")
+      router.refresh()
+    }
+  }
 
   async function handleSaveName() {
     if (name.trim() === orgName) return
@@ -74,6 +122,68 @@ export function AgencySettingsClient({
           <CardTitle>Organization Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isOwner && (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex shrink-0 overflow-hidden rounded-lg border-2 border-dashed border-muted transition-colors hover:border-muted-foreground/50 hover:bg-muted/50 disabled:opacity-70"
+                aria-label="Upload logo"
+              >
+                <div className="flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
+                  {logo ? (
+                    <img src={logo} alt="Agency logo" className="h-full w-full object-contain p-1" />
+                  ) : (
+                    <span className="text-3xl font-medium text-muted-foreground">
+                      {orgName.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={handleLogoChange}
+              />
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-sm font-medium">Agency logo</p>
+                <p className="text-xs text-muted-foreground">
+                  Click to upload a logo. JPEG, PNG, or WebP. Max 2MB.
+                </p>
+                {logo ? (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        id="show-logo-downline"
+                        checked={showLogoToDownline}
+                        onCheckedChange={handleShowLogoToDownlineChange}
+                      />
+                      <Label htmlFor="show-logo-downline" className="text-sm font-normal cursor-pointer">
+                        Show logo to downline
+                      </Label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={handleDeleteLogo}
+                      disabled={deletingLogo}
+                    >
+                      {deletingLogo ? "Deleting…" : "Delete logo"}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Upload a logo to display it to your downline. Until then, your upline&apos;s logo may show if they have this option enabled.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           {isOwner && (
             <div>
               <Label htmlFor="name">Organization name</Label>
@@ -110,42 +220,6 @@ export function AgencySettingsClient({
               {ownerName}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Sub-Agencies</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Create sub-agencies under your organization. You can choose any agency in your hierarchy as the direct
-            upline.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isOwner && (
-            <Button asChild variant="outline" size="sm" className="w-fit gap-2">
-              <Link href={`/organization/create?org=${organizationId}`}>
-                <Plus className="h-4 w-4" />
-                Create Sub-Agency
-              </Link>
-            </Button>
-          )}
-          {subAgencies.length > 0 ? (
-            <div className="space-y-2">
-              {subAgencies.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/agency?org=${s.id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent"
-                >
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-sm text-muted-foreground">Owner: {s.ownerName}</span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No sub-agencies yet.</p>
-          )}
         </CardContent>
       </Card>
 

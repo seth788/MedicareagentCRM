@@ -24,7 +24,7 @@ export default async function AgencySettingsPage({
   const serviceSupabase = createServiceRoleClient()
   const { data: org } = await serviceSupabase
     .from("organizations")
-    .select("id, name, organization_type, created_at, parent_organization_id, owner_id")
+    .select("id, name, organization_type, created_at, parent_organization_id, owner_id, logo_url, show_logo_to_downline")
     .eq("id", effectiveOrgId)
     .single()
 
@@ -40,26 +40,20 @@ export default async function AgencySettingsPage({
     parentOrg = p
   }
 
-  const { data: subOrgs } = await serviceSupabase
-    .from("organizations")
-    .select("id, name, owner_id")
-    .eq("parent_organization_id", effectiveOrgId)
-
-  const ownerIds = [...new Set([org.owner_id, ...(subOrgs?.map((s) => s.owner_id) ?? [])])]
-  const { data: ownerProfiles } = await serviceSupabase
+  const { data: ownerProfile } = await serviceSupabase
     .from("profiles")
     .select("id, display_name")
-    .in("id", ownerIds)
-  const ownerMap = new Map((ownerProfiles ?? []).map((p) => [p.id, p.display_name ?? ""]))
+    .eq("id", org.owner_id)
+    .single()
 
   const currentOrg = dashboardOrgs.find((o) => o.id === effectiveOrgId)
   const isOwner = org.owner_id === user.id
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Agency Settings</h1>
-        <p className="text-muted-foreground">{currentOrg?.name ?? "Agency"} configuration</p>
+    <div className="mx-auto max-w-7xl p-4 sm:p-6">
+      <div className="mb-1">
+        <h2 className="text-base font-semibold text-foreground sm:text-xl">Agency Settings</h2>
+        <p className="text-sm text-muted-foreground">{currentOrg?.name ?? "Agency"} configuration</p>
       </div>
 
       <AgencySettingsClient
@@ -68,12 +62,9 @@ export default async function AgencySettingsPage({
         orgType={org.organization_type}
         createdAt={org.created_at}
         parentOrg={parentOrg}
-        ownerName={ownerMap.get(org.owner_id) ?? "Unknown"}
-        subAgencies={(subOrgs ?? []).map((s) => ({
-          id: s.id,
-          name: s.name,
-          ownerName: ownerMap.get(s.owner_id) ?? "Unknown",
-        }))}
+        ownerName={(ownerProfile?.display_name as string) ?? "Unknown"}
+        logoUrl={(org as { logo_url?: string | null }).logo_url ?? null}
+        showLogoToDownline={(org as { show_logo_to_downline?: boolean }).show_logo_to_downline ?? true}
         isOwner={isOwner}
       />
     </div>

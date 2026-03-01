@@ -62,10 +62,10 @@ export default async function AgencyMembersPage({
   ]
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Members</h1>
-        <p className="text-muted-foreground">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6">
+      <div className="mb-1">
+        <h2 className="text-base font-semibold text-foreground sm:text-xl">Members</h2>
+        <p className="text-sm text-muted-foreground">
           Manage members of {currentOrg?.name ?? "your agency"}. Sub-agency owners appear here for billing and management.
         </p>
       </div>

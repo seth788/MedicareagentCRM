@@ -29,8 +29,8 @@ export interface HydratePayload {
   theme: "light" | "dark" | "system"
   /** When true, pending policies with past effective dates are auto-issued on add/edit. */
   autoIssueApplications: boolean
-  /** Orgs the user has dashboard access to (for Agency nav). */
-  dashboardOrgs: { id: string; name: string }[]
+  /** Orgs the user has dashboard access to (for Agency nav). Includes effective logo for downline. */
+  dashboardOrgs: { id: string; name: string; logoUrl?: string | null }[]
   /** Orgs where user can view agency book (community agents). */
   agencyBookOrgs: { id: string; name: string }[]
 }
